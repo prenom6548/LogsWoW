@@ -14,14 +14,14 @@ direction of the repository owner (GitHub: prenom6548). No code was
 copied from any third-party project.
 
 In particular, nothing was taken from Warcraft Logs, WoWAnalyzer,
-Wipefest or Archon. WoWAnalyzer's source (AGPL-3.0) was read in an
-earlier session while researching what those sites do, and that research
-is written up in `prenom6548/Claude`'s `LOGS-SITES-RESEARCH.md`; it
-informed *what a reader of combat logs is for*, which is a fact about a
-problem, not an expression of a solution. No file, function, identifier
-or structure from it appears here. This package's architecture -- a
-streaming reader with a measured field layout, feeding accumulators per
-segment -- was designed for this repository and looks nothing like it.
+Wipefest or Archon. WoWAnalyzer's source (AGPL-3.0) was read while
+researching what those sites do, and that research is
+`LOGS-SITES-RESEARCH.md` in this repository; it informed *what a reader
+of combat logs is for*, which is a fact about a problem, not an
+expression of a solution. No file, function, identifier or structure
+from it appears here. This package's architecture -- a streaming reader
+with a measured field layout, feeding accumulators per segment -- was
+designed for this repository and looks nothing like it.
 
 The legal status of AI-generated works varies by jurisdiction; to the
 extent any rights exist in this content, they are held by the repository
@@ -34,8 +34,18 @@ library, by design: no dependency means nothing to audit, nothing to
 install, and nothing that can phone home.
 
 `LICENSE` is the verbatim GNU GPLv3, fetched from gnu.org. The FSF
-permits and requires verbatim copying of the license document itself. Its
-checksum matches the copy already in `prenom6548/Claude`.
+permits and requires verbatim copying of the license document itself.
+
+## The research document
+
+`LOGS-SITES-RESEARCH.md` is original text, written in French for the
+owner on 2026-09-16, two days before this package. It describes four
+public web services from their own published help pages, press coverage
+and forum threads, all listed by number at its end; short phrases are
+quoted with attribution and the rest is paraphrase. It was copied here
+unchanged in substance on 2026-09-18, with a few internal cross-references
+to the author's private working notes rewritten so the document stands
+on its own.
 
 ## The combat log format
 

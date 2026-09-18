@@ -43,6 +43,11 @@ MIN_PULL_SHARE = 0.001
 # How many enemy units a single pull bothers to name.
 PULL_LABEL_UNITS = 3
 
+# An enemy the group has not touched for this long is no longer "engaged":
+# it walked off, reset, or despawned without a UNIT_DIED, and it must stop
+# weighing on the pooled health curve.
+POOL_STALE_MS = 30000
+
 # Bounds on the per-enemy health sampling, so a 20-minute key cannot grow
 # without limit while it works out which unit was the main target.
 MAX_TRACKED_ENEMIES = 40
@@ -144,15 +149,27 @@ class CombatBlock:
     question the file can answer and a single 20-minute total cannot.
     """
 
-    __slots__ = ("start_ts", "end_ts", "damage_done", "damage_taken", "deaths", "enemies")
+    __slots__ = (
+        "start_ts", "end_ts", "damage_done", "damage_boss", "damage_taken",
+        "taken_from_boss", "deaths", "enemies",
+    )
 
     def __init__(self, start_ts):
         self.start_ts = start_ts
         self.end_ts = start_ts
         self.damage_done = 0
+        self.damage_boss = 0        # the part of damage_done that hit a boss
         self.damage_taken = 0
+        self.taken_from_boss = 0    # the part of damage_taken a boss dealt
         self.deaths = 0
         self.enemies = {}
+
+    @property
+    def damage_trash(self):
+        return self.damage_done - self.damage_boss
+
+    def has_boss(self, boss_names):
+        return any(canon(name) in boss_names for name in self.enemies)
 
     def note_enemy(self, guid, name):
         # "nil" is what the client writes for a unit with no name, which
@@ -171,15 +188,30 @@ class CombatBlock:
     def duration_ms(self):
         return max(0, self.end_ts - self.start_ts)
 
-    def label(self, limit=PULL_LABEL_UNITS):
-        """'Voyou de l'allee x4, Chaman ensorcele x2'."""
+    def label(self, limit=PULL_LABEL_UNITS, boss_names=frozenset()):
+        """'Voyou de l'allee x4, Chaman ensorcele x2', bosses first.
+
+        Trash is often dragged onto a boss and killed there, so a pull
+        that contains a boss is named after it before anything else,
+        however many trash units came along.
+        """
         ranked = sorted(self.enemies.items(), key=lambda item: -len(item[1]))
+        bosses = [item for item in ranked if canon(item[0]) in boss_names]
+        others = [item for item in ranked if canon(item[0]) not in boss_names]
         pieces = []
-        for name, guids in ranked[:limit]:
+        for name, guids in bosses:
             pieces.append("%s x%d" % (name, len(guids)) if len(guids) > 1 else name)
-        if len(ranked) > limit:
-            pieces.append("et %d autre(s)" % (len(ranked) - limit))
+        room = max(0, limit - len(bosses))
+        for name, guids in others[:room]:
+            pieces.append("%s x%d" % (name, len(guids)) if len(guids) > 1 else name)
+        if len(others) > room:
+            pieces.append("et %d autre(s)" % (len(others) - room))
         return ", ".join(pieces)
+
+    def boss_label(self, boss_names):
+        """Only the bosses in this pull, or ''."""
+        names = [name for name in self.enemies if canon(name) in boss_names]
+        return ", ".join(sorted(names))
 
 
 class Player:
@@ -191,6 +223,7 @@ class Player:
         "casts", "damage_by_ability", "healing_by_ability", "taken_by_ability",
         "casts_by_ability", "healing_to", "interrupted_spells", "dispelled_spells",
         "spec_id", "auras_gained", "auras_applied", "casts_by_spell",
+        "damage_to_bosses",
         "first_cast_ts", "last_cast_ts", "downtime_ms",
         "longest_gaps", "recent", "hp_fraction", "min_hp_fraction", "max_hp",
         "active_ms", "died_at",
@@ -216,6 +249,7 @@ class Player:
         self.interrupted_spells = {}
         self.dispelled_spells = {}
         self.spec_id = 0
+        self.damage_to_bosses = 0
         # (spell, who put it there, BUFF/DEBUFF) -> milliseconds
         self.auras_gained = {}
         # (spell, on whom) -> milliseconds
@@ -247,6 +281,20 @@ class Player:
         return (self.overhealing / total) if total else 0.0
 
 
+def canon(name):
+    """A name as the log writes it on a unit, whichever apostrophe it used.
+
+    ENCOUNTER_START writes "Xathuux l\u2019Annihilateur" with a curly
+    apostrophe and the unit's own events write "Xathuux l'Annihilateur"
+    with a straight one, on the same client in the same file. Matching
+    the two is what tells a boss pull from the trash funnelled into it,
+    so every comparison of names goes through here.
+    """
+    if not name:
+        return ""
+    return name.replace("\u2019", "'").replace("\u2018", "'").strip()
+
+
 def _bucket(store, spell_id, name):
     key = (spell_id, name or "Attaque")
     ability = store.get(key)
@@ -261,7 +309,8 @@ class SegmentAnalysis:
 
     def __init__(self, segment, pull_gap_ms=PULL_GAP_MS):
         self.segment = segment
-        self.pull_gap_ms = pull_gap_ms
+        # Under a second, every dot tick would be its own pull.
+        self.pull_gap_ms = max(1000, int(pull_gap_ms))
         self.players = {}
         self.pet_owner = {}
         self.enemy_damage_by_ability = {}  # what hit the group, raid-wide
@@ -289,8 +338,17 @@ class SegmentAnalysis:
         }
         self.interrupted_spells = {}
         self.enemies = {}
+        # Canonical spellings (see `canon`): the encounter's own name is
+        # written with a different apostrophe than the unit's.
+        self.boss_names = set()
+        if segment.kind == "encounter" and segment.name:
+            self.boss_names.add(canon(segment.name))
         self._specs = {}
         self._by_short_name = {}
+        # The pooled enemy health: guid -> (current, max, last seen). Read
+        # once per timeline bucket into the "pool" series.
+        self._pool = {}
+        self._pool_last_index = None
         self._pending_casts = {}
         self._block = None
         self._enemy_damage = {}
@@ -358,9 +416,20 @@ class SegmentAnalysis:
 
     def feed(self, event):
         self.events_seen += 1
-        if event.subevent == "COMBATANT_INFO":
+        subevent = event.subevent
+        if subevent == "COMBATANT_INFO":
             self._feed_combatant_info(event)
             return
+        if subevent == "ENCOUNTER_START":
+            # A key sees the boss pulls it contains; their names are what
+            # lets a trash pull that funnels into a boss be told apart.
+            fields = event.fields
+            if len(fields) > 2 and isinstance(fields[2], str) and fields[2]:
+                self.boss_names.add(canon(fields[2]))
+            return
+        if event.advanced is not None:
+            self._feed_pool(event)
+        self._sample_pool(event.ts)
         if self.first_ts is None:
             self.first_ts = event.ts
         self.last_ts = event.ts
@@ -425,6 +494,7 @@ class SegmentAnalysis:
         elif kind == "_AURA_REMOVED":
             self._aura_close(event)
         elif subevent == "UNIT_DIED":
+            self._pool.pop(event.dest.guid, None)
             if not event.dest.is_player and event.dest.is_hostile:
                 enemy = self._enemy(event.dest)
                 if enemy is not None:
@@ -478,6 +548,9 @@ class SegmentAnalysis:
                 self._enemy_names[event.dest.guid] = event.dest.name
             block = self._touch_block(event)
             block.damage_done += amount
+            if canon(event.dest.name) in self.boss_names:
+                block.damage_boss += amount
+                player.damage_to_bosses += amount
             if not event.dest.is_pet:
                 block.note_enemy(event.dest.guid, event.dest.name)
             enemy = self._enemy(event.dest)
@@ -511,6 +584,8 @@ class SegmentAnalysis:
             self._timeline_add(event.ts, "damage_taken", amount)
             block = self._touch_block(event)
             block.damage_taken += amount
+            if canon(event.source.name) in self.boss_names:
+                block.taken_from_boss += amount
             if event.source.is_hostile and not event.source.is_pet:
                 block.note_enemy(event.source.guid, event.source.name)
             if not source_ours:
@@ -536,6 +611,55 @@ class SegmentAnalysis:
             if player is not None:
                 player.spec_id = spec_id
 
+    def _feed_pool(self, event):
+        """Keep the last known health of every hostile unit the log shows.
+
+        The advanced block describes the attacker on SWING_DAMAGE and the
+        target on SPELL_DAMAGE, so the unit is found by matching its GUID
+        against both ends rather than assuming either.
+        """
+        advanced = event.advanced
+        info = advanced.info_guid
+        if not info or advanced.max_hp <= 0:
+            return
+        if info == event.dest.guid:
+            actor = event.dest
+        elif info == event.source.guid:
+            actor = event.source
+        else:
+            return
+        if actor.is_player or actor.is_pet or not actor.is_hostile:
+            return
+        if info in self._pool or len(self._pool) < 400:
+            self._pool[info] = (advanced.current_hp, advanced.max_hp, event.ts)
+
+    def _sample_pool(self, ts):
+        """Once per timeline bucket, write the pooled health ratio."""
+        if self.first_ts is None:
+            return
+        index = (ts - self.first_ts) // self._bucket_ms
+        if index == self._pool_last_index:
+            return
+        self._pool_last_index = index
+        if not self._pool:
+            return
+        cutoff = ts - POOL_STALE_MS
+        current = maximum = 0
+        for guid, (hp, max_hp, seen) in list(self._pool.items()):
+            if seen < cutoff or hp <= 0:
+                del self._pool[guid]
+                continue
+            current += hp
+            maximum += max_hp
+        if maximum <= 0:
+            return
+        bucket = self._timeline.get(index)
+        if bucket is None:
+            bucket = {"damage_taken": 0, "healing": 0, "deaths": 0}
+            self._timeline[index] = bucket
+        bucket["pool"] = current / maximum
+        bucket["engaged"] = len(self._pool)
+
     def _feed_enemy_cast_start(self, event):
         """An enemy started casting. Remember it until something ends it."""
         if event.source.is_player or not event.source.is_hostile:
@@ -547,7 +671,14 @@ class SegmentAnalysis:
             for key in [k for k, ts in self._pending_casts.items() if ts < cutoff]:
                 del self._pending_casts[key]
                 self.enemy_casts["autre"] += 1
-        self._pending_casts[(event.source.guid, event.spell_id)] = event.ts
+        key = (event.source.guid, event.spell_id)
+        if key in self._pending_casts:
+            # The same unit started the same spell again before the first
+            # resolved: the first never completed. Overwriting it silently
+            # lost two casts in twenty-five on a real boss, found by the
+            # invariant that outcomes must sum to starts.
+            self.enemy_casts["autre"] += 1
+        self._pending_casts[key] = event.ts
 
     def _resolve_enemy_cast(self, guid, spell_id, outcome):
         if self._pending_casts.pop((guid, spell_id), None) is not None:
@@ -838,12 +969,18 @@ class SegmentAnalysis:
             if highest >= MAX_TIMELINE_BUCKETS:
                 factor = highest // MAX_TIMELINE_BUCKETS + 1
                 collapsed = {}
-                for index, bucket in self._timeline.items():
+                for index in sorted(self._timeline):
+                    bucket = self._timeline[index]
                     target = collapsed.setdefault(
                         index // factor, {"damage_taken": 0, "healing": 0, "deaths": 0}
                     )
                     for name, value in bucket.items():
-                        target[name] = target.get(name, 0) + value
+                        if name in ("pool", "engaged"):
+                            # A ratio is not a sum: the last one in the
+                            # merged bucket is the one that stands.
+                            target[name] = value
+                        else:
+                            target[name] = target.get(name, 0) + value
                 self._timeline = collapsed
                 self._bucket_ms *= factor
 
@@ -871,7 +1008,11 @@ class SegmentAnalysis:
         return sorted(store.values(), key=lambda ability: ability.total, reverse=True)[:limit]
 
     def timeline_series(self):
-        """[(second, damage_taken, healing, deaths)], evenly spaced."""
+        """[(second, damage_taken, healing, deaths, pool)], evenly spaced.
+
+        `pool` is the engaged enemies' pooled health as a fraction, or
+        None for a bucket with no reading.
+        """
         if not self._timeline:
             return [], self._bucket_ms
         highest = max(self._timeline)
@@ -884,9 +1025,14 @@ class SegmentAnalysis:
                     bucket.get("damage_taken", 0),
                     bucket.get("healing", 0),
                     bucket.get("deaths", 0),
+                    bucket.get("pool"),
                 )
             )
         return series, self._bucket_ms
+
+    @property
+    def has_pool_curve(self):
+        return any("pool" in bucket for bucket in self._timeline.values())
 
     @property
     def has_several_pulls(self):

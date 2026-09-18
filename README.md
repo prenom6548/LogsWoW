@@ -60,15 +60,18 @@ lu serait pire que pas de rapport du tout.
   écrit au début du combat ; une spécialisation inconnue de l'outil est
   affichée par son numéro plutôt que devinée.
 - **Une frise** des dégâts subis par le groupe seconde par seconde, avec
-  une échelle chiffrée à gauche, les morts en rouge, et en courbe la vie
-  de la cible la plus frappée, **nommée** sous le graphique. Sur un pull
-  de boss c'est le boss ; dans une clé c'est l'unité qui a encaissé le
-  plus, et le journal ne donne pas toujours la vie du boss lui-même.
+  une échelle chiffrée à gauche et les morts en rouge. En courbe, sur un
+  pull de boss, la vie du boss (nommé sous le graphique) ; dans une clé,
+  **la vie cumulée de tout ce qui est engagé**, somme des points de vie
+  courants sur la somme des maximums, qui remonte à chaque pack et
+  retombe quand il meurt.
 - **La liste des pulls** dès qu'un combat en contient plusieurs, ce qui
   est le cas de toute clé mythique : heure de début, durée, ce qui a été
-  engagé et en quel nombre, dégâts infligés et subis, morts. Un pull se
-  termine après six secondes sans dégâts de part ni d'autre ;
-  `--pull-gap` change ce seuil si votre groupe enchaîne les packs.
+  engagé et en quel nombre, dégâts infligés, subis, morts. Un pull qui
+  contient un boss le nomme en premier et sépare **les dégâts sur le
+  boss de ceux sur les trash** ramenés avec lui. Un pull se termine après
+  six secondes sans dégâts de part ni d'autre ; `--pull-gap` change ce
+  seuil si votre groupe enchaîne les packs.
 - **Dégâts et soins** par joueur, avec le DPS, le HPS et la part de soin
   perdue en surguérison.
 - **Ce qui a fait mal au groupe** : chaque capacité ennemie, combien elle
@@ -135,15 +138,28 @@ La page produite ne référence aucune URL : le test `test_writes_a_self_contain
 Rappel utile : un journal de combat contient le nom et les performances
 de **tout le groupe**, pas seulement les vôtres.
 
-## Tests
+## Tests, et vérifier sur un vrai journal
 
 ```
 python3 tests/run-tests.py
+python3 tools/check-invariants.py WoWCombatLog.txt
 ```
 
-101 tests, sans dépendance ni réseau. Ils tournent sur
+Les tests, 110, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
+
+Le second script prend un **vrai** journal et vérifie que les comptes
+tiennent ensemble : les dégâts du groupe valent la somme de ceux des
+joueurs, ceux d'un joueur la somme de ses sorts, ceux d'un sort la somme
+sur ses cibles ; les soins de même ; les morts comptées trois fois
+donnent le même nombre ; aucune durée d'effet ne dépasse le combat ; les
+incantations ennemies commencées valent la somme de leurs issues. Il a
+trouvé un bug à sa première exécution. Il ne dit pas si un chiffre est
+vrai, seulement si les chiffres sont cohérents entre eux.
+
+Le journal est lu tel que le jeu l'écrit, avec ses fins de ligne
+Windows, sous Linux comme sous Windows.
 
 ## Licence
 

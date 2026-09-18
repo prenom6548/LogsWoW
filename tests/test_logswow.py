@@ -769,6 +769,150 @@ class TestAbilityDetail(unittest.TestCase):
         self.assertEqual(sum(player.casts_by_spell.values()), player.casts)
 
 
+class TestAuditFindings(unittest.TestCase):
+    """Each of these is a bug or an edge the 2026-09-18 audit found or
+    checked. They are kept as tests so the next audit starts further on."""
+
+    def _analyse(self, payloads):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for payload in payloads:
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(0, fields, 1))
+        return splitter.finish()
+
+    def test_windows_line_endings_read_the_same(self):
+        """The client writes CRLF whatever the system; a reader on Linux
+        or Windows must get identical numbers from the same bytes."""
+        import tempfile
+
+        with open(FIXTURE, encoding="utf-8") as handle:
+            text = handle.read()
+        with tempfile.TemporaryDirectory() as directory:
+            crlf = os.path.join(directory, "crlf.txt")
+            with open(crlf, "w", encoding="utf-8", newline="") as handle:
+                handle.write(text.replace("\n", "\r\n"))
+            log = LogFile(crlf)
+            splitter = Splitter(analysis_factory=SegmentAnalysis)
+            for event in log.events():
+                splitter.feed(event)
+            segments = splitter.finish()
+        reference_log, reference = run_fixture()
+        self.assertEqual(
+            [s.analysis.total_damage for s in segments],
+            [s.analysis.total_damage for s in reference],
+        )
+        # Problems are counted while reading, so compare against a log
+        # that has actually been read -- a fresh LogFile always says zero.
+        self.assertEqual(log.problems.total, reference_log.problems.total)
+
+    def test_an_empty_file_produces_no_segments_and_no_crash(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            empty = os.path.join(directory, "vide.txt")
+            open(empty, "w").close()
+            log = LogFile(empty)
+            splitter = Splitter(analysis_factory=SegmentAnalysis)
+            for event in log.events():
+                splitter.feed(event)
+            self.assertEqual(splitter.finish(), [])
+            self.assertEqual(log.duration_ms, 0)
+            target = os.path.join(directory, "vide.html")
+            ReportWriter(log, [], target).write()
+            self.assertTrue(os.path.getsize(target) > 0)
+
+    def test_a_hostile_name_cannot_inject_markup(self):
+        """Names come from the file, and the file comes from a stranger's
+        group. A unit called <script> must render as text."""
+        import tempfile
+
+        payloads = (
+            'ENCOUNTER_START,1,"<script>alert(1)</script>",16,5,2000',
+            'SPELL_DAMAGE,Player-1,"A&B",0x511,0x0,Creature-1,"<b>x</b>",0xa48,0x0,'
+            '1,"<i>Sort</i>",0x1,5000,7000,-1,1,0,0,0,nil,nil,nil,ST',
+            'ENCOUNTER_END,1,"<script>alert(1)</script>",16,5,1,1000',
+        )
+        segments = self._analyse(payloads)
+        log = LogFile(FIXTURE)
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "r.html")
+            ReportWriter(log, segments, target, wowhead="off").write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertNotIn("<script>alert", page)
+        self.assertNotIn("<b>x</b>", page)
+        self.assertNotIn("<i>Sort</i>", page)
+        self.assertIn("&lt;script&gt;", page)
+
+    def test_a_cast_restarted_before_it_resolved_is_still_counted(self):
+        """Overwriting a pending cast lost two of twenty-five on a real
+        boss; the invariant is that outcomes sum to starts."""
+        payloads = (
+            'ENCOUNTER_START,1,"Boss",16,5,2000',
+            'SPELL_CAST_START,Creature-1,"B",0xa48,0x0,Player-1,"A",0x511,0x0,5,"Sort",0x1',
+            'SPELL_CAST_START,Creature-1,"B",0xa48,0x0,Player-1,"A",0x511,0x0,5,"Sort",0x1',
+            'SPELL_CAST_SUCCESS,Creature-1,"B",0xa48,0x0,Player-1,"A",0x511,0x0,5,"Sort",0x1',
+            'ENCOUNTER_END,1,"Boss",16,5,1,1000',
+        )
+        casts = self._analyse(payloads)[0].analysis.enemy_casts
+        self.assertEqual(casts["commences"], 2)
+        self.assertEqual(
+            casts["aboutis"] + casts["coupes"] + casts["cible morte"] + casts["autre"],
+            casts["commences"],
+        )
+
+    def test_boss_names_match_across_both_apostrophes(self):
+        """ENCOUNTER_START writes a curly apostrophe, the unit's events a
+        straight one, in the same file."""
+        from logswow.analysis import canon
+
+        self.assertEqual(canon("Xathuux l\u2019Annihilateur"), canon("Xathuux l'Annihilateur"))
+        payloads = (
+            'CHALLENGE_MODE_START,"Donjon",2000,500,7,[165]',
+            'ENCOUNTER_START,1,"Xathuux l\u2019Annihilateur",8,5,2000',
+            'SPELL_DAMAGE,Player-1,"A",0x511,0x0,Creature-1,"Xathuux l\'Annihilateur",0xa48,0x0,'
+            '1,"Sort",0x1,5000,7000,-1,1,0,0,0,nil,nil,nil,ST',
+            'ENCOUNTER_END,1,"Xathuux l\u2019Annihilateur",8,5,1,1000',
+            "CHALLENGE_MODE_END,2000,1,7,600000",
+        )
+        key = self._analyse(payloads)[0].analysis
+        self.assertEqual(key.blocks[0].damage_boss, 5000)
+        self.assertTrue(key.blocks[0].label(boss_names=key.boss_names).startswith("Xathuux"))
+
+    def test_a_trash_pull_that_funnels_into_a_boss_names_the_boss_first(self):
+        _log, segments = run_fixture()
+        key = segments[2].analysis
+        block = key.blocks[0]
+        # The fixture's key has no boss, so the split is all trash...
+        self.assertEqual(block.damage_boss, 0)
+        self.assertEqual(block.damage_trash, block.damage_done)
+        # ...and a boss encounter is all boss.
+        boss = segments[0].analysis
+        self.assertEqual(boss.blocks[0].damage_boss, boss.blocks[0].damage_done)
+        self.assertGreater(boss.blocks[0].damage_boss, 0)
+
+    def test_the_pooled_health_curve_stays_within_bounds(self):
+        _log, segments = run_fixture()
+        for segment in segments:
+            series, _bucket = segment.analysis.timeline_series()
+            for row in series:
+                self.assertTrue(row[4] is None or 0.0 <= row[4] <= 1.0)
+        key = segments[2].analysis
+        self.assertTrue(key.has_pool_curve)
+
+    def test_a_pull_gap_under_a_second_is_clamped(self):
+        from logswow.segment import Segment
+
+        analysis = SegmentAnalysis(Segment("encounter", "x", 0, 1), pull_gap_ms=0)
+        self.assertEqual(analysis.pull_gap_ms, 1000)
+
+    def test_a_missing_output_directory_is_an_error_message_not_a_traceback(self):
+        from logswow.cli import main
+
+        code = main(["report", FIXTURE, "-q", "-o", "/nonexistent-dir/x/y/rapport.html"])
+        self.assertEqual(code, 2)
+
+
 class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
     def test_the_fixtures_deliberate_bad_lines_are_reported(self):
         log, _segments = run_fixture()

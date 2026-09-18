@@ -96,7 +96,11 @@ def command_report(args):
         )
         return 2
     out = args.out or os.path.splitext(args.log)[0] + ".html"
-    ReportWriter(log, chosen, out, wowhead=args.wowhead).write()
+    try:
+        ReportWriter(log, chosen, out, wowhead=args.wowhead).write()
+    except OSError as error:
+        sys.stderr.write("Impossible d'ecrire %s : %s\n" % (out, error.strerror or error))
+        return 2
     if not args.quiet:
         print("%d combat(s) retenu(s) sur %d, %s lignes lues en %.1f s" % (
             len(chosen), len(segments),
@@ -145,17 +149,20 @@ def command_where(_args):
         return 1
     for directory in found:
         print(directory)
+        entries = []
         try:
-            names = sorted(
-                (name for name in os.listdir(directory) if name.lower().endswith(".txt")),
-                key=lambda name: os.path.getmtime(os.path.join(directory, name)),
-                reverse=True,
-            )
+            for name in os.listdir(directory):
+                if not name.lower().endswith(".txt"):
+                    continue
+                full = os.path.join(directory, name)
+                try:
+                    entries.append((os.path.getmtime(full), os.path.getsize(full), name))
+                except OSError:
+                    continue
         except OSError:
             continue
-        for name in names[:10]:
-            full = os.path.join(directory, name)
-            print("   %-44s %6.1f Mo" % (name, os.path.getsize(full) / 1048576.0))
+        for _mtime, size, name in sorted(entries, reverse=True)[:10]:
+            print("   %-44s %6.1f Mo" % (name, size / 1048576.0))
     return 0
 
 
@@ -215,7 +222,25 @@ def build_parser():
     return parser
 
 
+def _prepare_console():
+    """Let French names print on a Windows console that cannot encode them.
+
+    A legacy cp1252 console raises UnicodeEncodeError on the first boss
+    name with a character it lacks, and `list` would die on line one.
+    Replacing the character beats crashing; the report file itself is
+    always UTF-8 and unaffected.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 def main(argv=None):
+    _prepare_console()
     parser = build_parser()
     args = parser.parse_args(argv)
     if not getattr(args, "command", None):

@@ -1,10 +1,9 @@
 # LogsWoW — working notes
 
-**Read `prenom6548/Claude`'s `CLAUDE.md` and `LOG.md` before this file.**
-Standing request from the owner (2026-09-15): the personal repo says who
-you are working with and what has already been decided; this file only
-says how to build the thing. If this session cannot attach that repo,
-read https://github.com/prenom6548/Claude/blob/HEAD/LOG.md anyway.
+Everything a session needs to work on this repository is in this
+repository: this file for how it is built and what was learned building
+it, `README.md` for what it does, `PROVENANCE.md` for where it comes
+from, and `LOGS-SITES-RESEARCH.md` for why it exists.
 
 ## What this is, and why it exists
 
@@ -14,17 +13,15 @@ analysis sites do be done locally, without depending on a site, given
 that it is American and given the current tensions. The answer was yes
 for most of it, and this repository is that answer.
 
-**This settles what `LogsWoW` is for.** It was created 2026-09-01 and sat
-empty for two weeks; `prenom6548/Claude`'s notes said to ask before
-guessing. The owner has now said. The research behind it is
-`LOGS-SITES-RESEARCH.md` in that repo, and `LOG.md` entry 72 summarises
-the one fact the whole project rests on: **Patch 12.0 closed the combat
-log to *addons*, not the `WoWCombatLog.txt` file the client writes.**
-Reading that file after the fight is untouched. Entry 42's ceiling is
-about the in-game side only.
+The research behind it is `LOGS-SITES-RESEARCH.md`, a study of Warcraft
+Logs, WoWAnalyzer, Wipefest and Archon written for the owner two days
+earlier. The one fact the whole project rests on comes from it:
+**Patch 12.0 closed the combat log to *addons*, not the
+`WoWCombatLog.txt` file the client writes.** Reading that file after the
+fight is untouched, and every one of those sites still stands on it.
 
-It is **not an addon**, so the five addon acceptance criteria do not
-apply here. The rules that do are below.
+It is **not an addon**: none of the in-game restrictions on combat
+addons apply to a program that reads a file after the fight.
 
 ## Project rules
 
@@ -195,6 +192,56 @@ of a bounded metric: it cannot fail quietly.
    carries the spell id, so "Inferno" and "Inferno" stay two rows, the
    same way they do in the damage table.
 
+### Two apostrophes for one boss
+
+`ENCOUNTER_START` writes "Xathuux l’Annihilateur" with a curly
+apostrophe; the boss's own damage events write "Xathuux l'Annihilateur"
+with a straight one, in the same file. Every comparison of names goes
+through `canon()`, which folds them. Without it, one of four bosses in a
+real key was counted as trash.
+
+### The pooled health curve, and why a run gets it instead of one unit
+
+A key is many fights, so one unit's health across it was the wrong
+curve, and the owner said so. The run now draws the pooled health of
+everything engaged: sum of current over sum of maximum of every hostile
+unit seen in the last `POOL_STALE_MS` (30 s), read once per timeline
+bucket. A fresh pack lifts it to 100%, a dying one drops it to 0, and a
+mob the group walked away from ages out. The advanced block gives a
+unit's health on whichever end of the event it describes -- the attacker
+on `SWING_DAMAGE`, the target on `SPELL_DAMAGE` -- so `_feed_pool`
+matches the GUID against both rather than assuming either. A boss pull
+keeps the boss's own named curve.
+
+### Trash funnelled onto a boss
+
+The pull table names the boss first and splits damage into "sur le
+boss" and "sur les trash", because groups drag packs onto a boss and
+the two must not be judged as one. Boss names come from the
+`ENCOUNTER_START` lines a key contains; units named exactly like the
+boss (its images, its adds that share the name) count as boss, which is
+a known limit rather than a bug.
+
+### The 2026-09-18 audit, and the tool it left behind
+
+`tools/check-invariants.py` runs the analysis on a *real* log and checks
+relations that must hold by construction: totals against sums of parts
+on both sides of every ledger, deaths counted three ways, bounded
+quantities within their bounds, enemy cast outcomes summing to starts.
+**It found a bug on its first run**: a unit that restarted a cast before
+the first resolved overwrote the pending entry, and two casts in
+twenty-five vanished from the count. Run it after any change to
+`analysis.py`; it is the closest thing to an independent check that
+exists here, though it can only say the numbers agree with each other,
+never that they are true.
+
+The same audit added: CRLF line endings tested (the client writes them
+on every system), an empty file, a unit named `<script>` rendering as
+text, a clamp on `--pull-gap` under a second, a clean message when the
+output directory does not exist, and `errors="replace"` on the console
+so a Windows cp1252 terminal does not die on the first accented boss
+name. The owner runs Linux Mint; the tool is meant for others too.
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -231,7 +278,7 @@ list -- a raid night is routinely several hundred megabytes.
 ## Layout
 
 ```
-logswow/timestamps.py   four timestamp shapes, midnight rollover
+logswow/timestamps.py   four timestamp shapes, year rollover
 logswow/tokenize.py     depth-aware field split (quotes, [], ())
 logswow/events.py       Layout, Actor, Advanced, Event, the prefix/suffix scheme
 logswow/parse.py        LogFile.events(), detect_layout()
@@ -240,6 +287,9 @@ logswow/analysis.py     SegmentAnalysis.feed/finish -- all the arithmetic
 logswow/report.py       one self-contained HTML file
 logswow/diagnose.py     what was and was not understood
 logswow/cli.py          report / list / diagnose / where
+logswow/specs.py        specialization ids -> class, spec, role
+logswow/wowhead.py      spell links in the machine's language
+tools/check-invariants.py   cross-checks a real log's numbers against themselves
 ```
 
 ## What this deliberately does not do
@@ -263,9 +313,11 @@ it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 101 tests, no network, fast.
+1. `python3 tests/run-tests.py` -- 110 tests, no network, fast.
 2. `python3 -m logswow diagnose <a real log>` -- the number that matters
    is `PROBLEMES DE LECTURE : 0`.
+2b. `python3 tools/check-invariants.py <a real log>` -- must end on
+   "All invariants hold".
 3. If you touched anything about field positions, check a real file's
    totals before and after. A wrong offset does not raise; it prints a
    confident wrong number, which is the failure mode this whole file is

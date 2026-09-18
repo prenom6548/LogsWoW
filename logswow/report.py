@@ -15,6 +15,7 @@ import os
 from datetime import datetime
 
 from . import __version__
+from .analysis import POOL_STALE_MS
 from .specs import label_of
 from .timestamps import format_duration
 from .wowhead import resolve, spell_url
@@ -285,8 +286,16 @@ class ReportWriter:
                 "text-anchor='end'>%s</text>" % (left - 8, y + 3.5, compact(peak * fraction))
             )
 
-        # -- right axis: the main target's health -------------------------
-        if len(analysis.boss_hp) > 3:
+        # A run is many fights, so one unit's health is the wrong curve for
+        # it: the pooled health of everything engaged is drawn instead --
+        # sum of current over sum of maximum, so a fresh pack lifts it back
+        # to 100% and it falls as the pack dies. A boss pull keeps the
+        # boss's own curve, which is what its reader expects.
+        use_pool = analysis.has_several_pulls and analysis.has_pool_curve
+        has_curve = use_pool or len(analysis.boss_hp) > 3
+
+        # -- right axis: enemy health ---------------------------------------
+        if has_curve:
             for fraction in (0.0, 0.5, 1.0):
                 y = bottom - fraction * plot_height
                 pieces.append(
@@ -296,7 +305,7 @@ class ReportWriter:
                 )
 
         # -- the bars, and a marker per death -----------------------------
-        for index, (_seconds, taken, _healing, deaths) in enumerate(series):
+        for index, (_seconds, taken, _healing, deaths, _pool) in enumerate(series):
             x = left + index * step
             if taken:
                 bar_height = max(1.0, taken / peak * plot_height)
@@ -310,8 +319,29 @@ class ReportWriter:
                     "opacity='.55' />" % (x, top, max(1.5, step), plot_height)
                 )
 
-        # -- the main target's health curve -------------------------------
-        if len(analysis.boss_hp) > 3 and analysis.first_ts is not None:
+        # -- the enemy health curve ------------------------------------------
+        if use_pool:
+            # Drawn as separate strokes: a gap in readings is a gap in the
+            # line, not a straight edge joining two unrelated pulls.
+            run = []
+            strokes = []
+            for index, row in enumerate(series):
+                pool = row[4]
+                if pool is None:
+                    if len(run) > 1:
+                        strokes.append(run)
+                    run = []
+                    continue
+                run.append("%.1f,%.1f" % (left + (index + 0.5) * step,
+                                          bottom - pool * plot_height))
+            if len(run) > 1:
+                strokes.append(run)
+            for stroke in strokes:
+                pieces.append(
+                    "<polyline points='%s' fill='none' stroke='var(--accent)' "
+                    "stroke-width='1.8' opacity='.95' />" % " ".join(stroke)
+                )
+        elif len(analysis.boss_hp) > 3 and analysis.first_ts is not None:
             span = max(1, (analysis.last_ts or 0) - analysis.first_ts)
             points = " ".join(
                 "%.1f,%.1f"
@@ -339,7 +369,13 @@ class ReportWriter:
             )
 
         target = ""
-        if analysis.boss_name and len(analysis.boss_hp) > 3:
+        if use_pool:
+            target = (" Courbe et echelle de droite%s: <b>vie cumulee des ennemis engages</b>, "
+                      "somme de leurs points de vie courants sur la somme de leurs maximums. "
+                      "Elle remonte a chaque nouveau pack et retombe quand il meurt%s; un "
+                      "ennemi que le groupe n'a plus touche depuis %d%ss en sort."
+                      % (NBSP, NBSP, POOL_STALE_MS // 1000, NBSP))
+        elif analysis.boss_name and len(analysis.boss_hp) > 3:
             # Deliberately precise: on one real encounter the boss itself
             # never had its health written to the file, and the curve is
             # an add's. Naming it beats implying it is always the boss.
@@ -361,27 +397,44 @@ class ReportWriter:
         if not analysis.has_several_pulls:
             return ""
         start = analysis.first_ts or 0
+        bosses = analysis.boss_names
+        any_boss = any(block.has_boss(bosses) for block in analysis.blocks)
         rows = []
         peak = max(block.damage_done for block in analysis.blocks) or 1
         for index, block in enumerate(analysis.blocks, start=1):
+            label = esc(block.label(boss_names=bosses)) or "<span class=dim>?</span>"
+            if block.has_boss(bosses):
+                label = "<span class='pill ok'>boss</span> " + label
+            boss_cells = ""
+            if any_boss:
+                # Trash is often funnelled onto a boss and killed there:
+                # the two are counted apart so a boss pull is not judged
+                # by the trash that came with it, or the reverse.
+                if block.damage_boss:
+                    boss_cells = "<td class=n>%s</td><td class=n>%s</td>" % (
+                        compact(block.damage_boss), compact(block.damage_trash))
+                else:
+                    boss_cells = ("<td class=n><span class=dim>-</span></td>"
+                                  "<td class=n>%s</td>" % compact(block.damage_trash))
             rows.append(
                 "<tr><td class=n>%d</td><td class=n>%s</td><td class=n>%s</td>"
-                "%s<td class=n>%s</td><td class=n>%s</td><td class=n>%s</td></tr>"
+                "%s<td class=n>%s</td>%s<td class=n>%s</td><td class=n>%s</td></tr>"
                 % (
                     index,
                     format_duration(block.start_ts - start),
                     format_duration(block.duration_ms),
-                    _bar_row(esc(block.label()) or "<span class=dim>?</span>",
-                             block.damage_done / peak),
+                    _bar_row(label, block.damage_done / peak),
                     compact(block.damage_done),
+                    boss_cells,
                     compact(block.damage_taken),
                     ("<span class=dim>0</span>" if not block.deaths else str(block.deaths)),
                 )
             )
+        boss_heads = "<th class=n>sur le boss</th><th class=n>sur les trash</th>" if any_boss else ""
         return (
             "<h3>%s</h3><div class=card><table>"
             "<tr><th class=n>#</th><th class=n>Debut</th><th class=n>Duree</th>"
-            "<th>Ce qui a ete engage</th><th class=n>Degats</th>"
+            "<th>Ce qui a ete engage</th><th class=n>Degats</th>%s"
             "<th class=n>Subis</th><th class=n>Morts</th></tr>%s</table>"
             "<p class=dim style='margin:10px 0 0;font-size:12px'>Un pull se termine "
             "quand le groupe passe plus de %s sans infliger ni subir de degats. "
@@ -389,6 +442,7 @@ class ReportWriter:
             "<code>--pull-gap</code> change ce seuil.%s</p></div>"
             % (
                 plural(len(analysis.blocks), "pull"),
+                boss_heads,
                 "".join(rows),
                 "%d%ss" % (analysis.pull_gap_ms / 1000, NBSP),
                 "î",
@@ -643,6 +697,11 @@ class ReportWriter:
         tiles = [
             ("DPS", compact(player.damage_done / seconds)),
             ("HPS", compact(player.healing_done / seconds)),
+        ]
+        if analysis.boss_names and analysis.has_several_pulls and player.damage_done:
+            tiles.append(("Part sur les boss",
+                          percent(player.damage_to_bosses / player.damage_done)))
+        tiles += [
             ("Degats subis", compact(player.damage_taken)),
             ("Sorts par minute", "%.1f" % (player.casts / max(1.0, seconds / 60.0))),
             ("Temps sans action", format_duration(player.downtime_ms)),
