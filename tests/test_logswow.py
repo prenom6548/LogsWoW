@@ -454,6 +454,33 @@ class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
         self.assertGreater(log.event_count, 30)
 
 
+class TestCommandLine(unittest.TestCase):
+    def test_a_closed_pipe_is_not_an_error(self):
+        """`logswow list big.txt | head` closes stdout early; that is
+        ordinary use, not a crash."""
+        import subprocess
+
+        listing = subprocess.Popen(
+            [sys.executable, "-m", "logswow", "list", FIXTURE, "-q"],
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        head = subprocess.Popen(
+            ["head", "-1"], stdin=listing.stdout, stdout=subprocess.PIPE
+        )
+        listing.stdout.close()
+        head.communicate()
+        listing.wait(timeout=30)
+        self.assertNotIn(b"BrokenPipeError", listing.stderr.read())
+        self.assertEqual(listing.returncode, 0)
+
+    def test_a_missing_file_is_reported_not_raised(self):
+        from logswow.cli import main
+
+        self.assertEqual(main(["report", os.path.join(ROOT, "pas-la.txt")]), 2)
+
+
 class TestReport(unittest.TestCase):
     def setUp(self):
         self.log, self.segments = run_fixture()

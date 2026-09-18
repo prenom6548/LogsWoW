@@ -159,4 +159,18 @@ def main(argv=None):
     if not getattr(args, "command", None):
         parser.print_help()
         return 0
-    return args.func(args)
+    try:
+        return args.func(args)
+    except BrokenPipeError:
+        # `logswow list gros-journal.txt | head` closes the pipe early, and
+        # that is an ordinary thing to do rather than an error. Python
+        # flushes stdout again on exit, so it has to be redirected first or
+        # the same failure is printed on the way out.
+        try:
+            os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        except OSError:
+            pass
+        return 0
+    except KeyboardInterrupt:
+        sys.stderr.write("\nInterrompu.\n")
+        return 130
