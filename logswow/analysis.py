@@ -20,6 +20,9 @@ What this can and cannot answer is worth being plain about:
 
 from collections import deque
 
+from .specs import SPEC_ID_INDEX
+from .tokenize import as_int
+
 DOWNTIME_THRESHOLD_MS = 2000
 DEATH_CHAIN_LENGTH = 12
 MAX_TIMELINE_BUCKETS = 400
@@ -51,7 +54,8 @@ class Ability:
     """One spell's contribution, on one side of one ledger."""
 
     __slots__ = (
-        "spell_id", "name", "total", "hits", "crits", "targets", "overkill", "overheal",
+        "spell_id", "name", "total", "hits", "crits", "targets", "overkill",
+        "overheal", "biggest",
     )
 
     def __init__(self, spell_id, name):
@@ -60,17 +64,26 @@ class Ability:
         self.total = 0
         self.hits = 0
         self.crits = 0
-        self.targets = set()
+        # Who was on the other end, and for how much. A set only answered
+        # "how many"; the report wants "on whom", which is the same data
+        # for one more integer per name.
+        self.targets = {}
         self.overkill = 0
         self.overheal = 0
+        self.biggest = 0
 
     def add(self, amount, critical=False, target=None, overkill=0, overheal=0):
         self.total += amount
         self.hits += 1
         if critical:
             self.crits += 1
+        if amount > self.biggest:
+            self.biggest = amount
         if target:
-            self.targets.add(target)
+            # Bounded: a 20-minute key meets a lot of trash, and one
+            # ability's list of victims is not worth unbounded memory.
+            if target in self.targets or len(self.targets) < 80:
+                self.targets[target] = self.targets.get(target, 0) + amount
         if overkill > 0:
             self.overkill += overkill
         if overheal > 0:
@@ -88,6 +101,39 @@ class Ability:
     @property
     def average(self):
         return (self.total / self.hits) if self.hits else 0
+
+    def ranked_targets(self, limit=10):
+        return sorted(self.targets.items(), key=lambda item: -item[1])[:limit]
+
+
+class Enemy:
+    """Every unit sharing a name, added together.
+
+    Aggregating by name rather than by GUID is what makes this readable:
+    a key meets thirty-two units called "Diablotin sauvage" and nobody
+    wants thirty-two panels. A boss has one unit and one name, so the
+    same treatment gives exactly what is wanted there too.
+    """
+
+    __slots__ = (
+        "name", "units", "damage_done", "damage_taken", "deaths", "casts",
+        "damage_by_ability", "taken_by_ability", "casts_by_spell",
+    )
+
+    def __init__(self, name):
+        self.name = name
+        self.units = set()
+        self.damage_done = 0
+        self.damage_taken = 0
+        self.deaths = 0
+        self.casts = 0
+        self.damage_by_ability = {}
+        self.taken_by_ability = {}
+        self.casts_by_spell = {}
+
+    @property
+    def count(self):
+        return len(self.units)
 
 
 class CombatBlock:
@@ -144,6 +190,7 @@ class Player:
         "damage_taken", "absorbed_taken", "deaths", "interrupts", "dispels",
         "casts", "damage_by_ability", "healing_by_ability", "taken_by_ability",
         "casts_by_ability", "healing_to", "interrupted_spells", "dispelled_spells",
+        "spec_id", "auras_gained", "auras_applied", "casts_by_spell",
         "first_cast_ts", "last_cast_ts", "downtime_ms",
         "longest_gaps", "recent", "hp_fraction", "min_hp_fraction", "max_hp",
         "active_ms", "died_at",
@@ -168,6 +215,12 @@ class Player:
         self.healing_to = {}
         self.interrupted_spells = {}
         self.dispelled_spells = {}
+        self.spec_id = 0
+        # (spell, who put it there, BUFF/DEBUFF) -> milliseconds
+        self.auras_gained = {}
+        # (spell, on whom) -> milliseconds
+        self.auras_applied = {}
+        self.casts_by_spell = {}
         self.first_cast_ts = None
         self.last_cast_ts = None
         self.downtime_ms = 0
@@ -235,6 +288,9 @@ class SegmentAnalysis:
             "autre": 0,
         }
         self.interrupted_spells = {}
+        self.enemies = {}
+        self._specs = {}
+        self._by_short_name = {}
         self._pending_casts = {}
         self._block = None
         self._enemy_damage = {}
@@ -260,8 +316,25 @@ class SegmentAnalysis:
                 owner_player = self.players.get(owner)
                 name = owner_player.name if owner_player else name
             player = Player(guid, name)
+            player.spec_id = self._specs.get(guid, 0)
             self.players[guid] = player
+            # An index rather than a scan: _bank_aura asks this once per
+            # aura, and a raid night has millions of auras.
+            self._by_short_name.setdefault(player.short_name, player)
         return player
+
+    def _enemy(self, actor):
+        """The aggregate for everything sharing this unit's name."""
+        name = actor.name or "?"
+        enemy = self.enemies.get(name)
+        if enemy is None:
+            if len(self.enemies) >= 150:
+                return None
+            enemy = Enemy(name)
+            self.enemies[name] = enemy
+        if len(enemy.units) < 500:
+            enemy.units.add(actor.guid)
+        return enemy
 
     def _is_ours(self, actor):
         """A player, or something a player owns."""
@@ -285,6 +358,9 @@ class SegmentAnalysis:
 
     def feed(self, event):
         self.events_seen += 1
+        if event.subevent == "COMBATANT_INFO":
+            self._feed_combatant_info(event)
+            return
         if self.first_ts is None:
             self.first_ts = event.ts
         self.last_ts = event.ts
@@ -327,6 +403,12 @@ class SegmentAnalysis:
         elif kind == "_CAST_SUCCESS":
             if event.source.is_hostile and not event.source.is_player:
                 self._resolve_enemy_cast(event.source.guid, event.spell_id, "aboutis")
+                enemy = self._enemy(event.source)
+                if enemy is not None:
+                    enemy.casts += 1
+                    name = event.spell_name or "?"
+                    if name in enemy.casts_by_spell or len(enemy.casts_by_spell) < 60:
+                        enemy.casts_by_spell[name] = enemy.casts_by_spell.get(name, 0) + 1
             self._feed_cast(event)
         elif kind == "_INTERRUPT":
             self._feed_interrupt(event)
@@ -343,6 +425,10 @@ class SegmentAnalysis:
         elif kind == "_AURA_REMOVED":
             self._aura_close(event)
         elif subevent == "UNIT_DIED":
+            if not event.dest.is_player and event.dest.is_hostile:
+                enemy = self._enemy(event.dest)
+                if enemy is not None:
+                    enemy.deaths += 1
             if not event.dest.is_player:
                 for key in [
                     k for k in self._pending_casts if k[0] == event.dest.guid
@@ -394,6 +480,12 @@ class SegmentAnalysis:
             block.damage_done += amount
             if not event.dest.is_pet:
                 block.note_enemy(event.dest.guid, event.dest.name)
+            enemy = self._enemy(event.dest)
+            if enemy is not None:
+                enemy.damage_taken += amount
+                _bucket(enemy.taken_by_ability, event.spell_id, event.spell_name).add(
+                    amount, event.is_critical, player.short_name
+                )
 
         if dest_ours:
             player = self._player(event.dest)
@@ -421,6 +513,28 @@ class SegmentAnalysis:
             block.damage_taken += amount
             if event.source.is_hostile and not event.source.is_pet:
                 block.note_enemy(event.source.guid, event.source.name)
+            if not source_ours:
+                enemy = self._enemy(event.source)
+                if enemy is not None:
+                    enemy.damage_done += amount
+                    _bucket(
+                        enemy.damage_by_ability, event.spell_id, event.spell_name
+                    ).add(amount, event.is_critical, player.short_name)
+
+    def _feed_combatant_info(self, event):
+        """Who each player was: the specialization id, at one fixed field."""
+        fields = event.fields
+        if len(fields) < 2 or not isinstance(fields[1], str):
+            return
+        guid = fields[1]
+        spec_id = 0
+        if len(fields) > SPEC_ID_INDEX and isinstance(fields[SPEC_ID_INDEX], str):
+            spec_id = as_int(fields[SPEC_ID_INDEX], 0)
+        if spec_id:
+            self._specs[guid] = spec_id
+            player = self.players.get(guid)
+            if player is not None:
+                player.spec_id = spec_id
 
     def _feed_enemy_cast_start(self, event):
         """An enemy started casting. Remember it until something ends it."""
@@ -553,6 +667,11 @@ class SegmentAnalysis:
         player = self._player(event.source)
         player.casts += 1
         _bucket(player.casts_by_ability, event.spell_id, event.spell_name).add(0)
+        # Keyed by spell id so a damage or healing row can find its own
+        # cast count without a second pass.
+        player.casts_by_spell[event.spell_id] = (
+            player.casts_by_spell.get(event.spell_id, 0) + 1
+        )
         if player.last_cast_ts is not None:
             gap = event.ts - player.last_cast_ts
             if gap > DOWNTIME_THRESHOLD_MS:
@@ -602,20 +721,56 @@ class SegmentAnalysis:
     # -- auras ------------------------------------------------------------
 
     def _aura_open(self, event):
-        if not event.dest.is_player:
-            return
-        key = (event.dest.guid, event.spell_id, event.spell_name)
+        """Remember when an aura landed, and who put it there.
+
+        Both ends matter and the file has both: a player wants to know
+        which of their buffs came from whom, and which of their debuffs
+        they kept up on what.
+        """
+        key = (event.dest.guid, event.spell_id)
         if key not in self.aura_open:
-            self.aura_open[key] = event.ts
+            if len(self.aura_open) >= 4000:
+                return
+            self.aura_open[key] = (
+                event.ts,
+                event.source.short_name or "?",
+                event.spell_name,
+                event.aura_type or "BUFF",
+                event.dest.short_name or "?",
+                event.dest.is_player,
+            )
 
     def _aura_close(self, event):
-        if not event.dest.is_player:
-            return
-        key = (event.dest.guid, event.spell_id, event.spell_name)
+        key = (event.dest.guid, event.spell_id)
         opened = self.aura_open.pop(key, None)
         if opened is None:
             return
-        self.aura_uptime[key] = self.aura_uptime.get(key, 0) + max(0, event.ts - opened)
+        self._bank_aura(event.dest.guid, event.spell_id, opened, event.ts)
+
+    def _bank_aura(self, guid, spell_id, opened, ended):
+        start, source_name, spell_name, aura_type, dest_name, dest_is_player = opened
+        duration = max(0, ended - start)
+        if not duration:
+            return
+        # Only a player's *own* buffs count as that player's uptime. Routing
+        # a pet's auras to its owner, the way damage is routed, pushed one
+        # warlock's totals past 300% of the fight: several pets can hold
+        # the same aura at the same time, and a person cannot.
+        if dest_is_player:
+            player = self.players.get(guid)
+            if player is not None:
+                gained = (spell_id, spell_name, source_name, aura_type)
+                if gained in player.auras_gained or len(player.auras_gained) < 400:
+                    player.auras_gained[gained] = (
+                        player.auras_gained.get(gained, 0) + duration
+                    )
+        caster = self._by_short_name.get(source_name)
+        if caster is not None:
+            applied = (spell_id, spell_name, dest_name)
+            if applied in caster.auras_applied or len(caster.auras_applied) < 400:
+                caster.auras_applied[applied] = (
+                    caster.auras_applied.get(applied, 0) + duration
+                )
 
     # -- closing ----------------------------------------------------------
 
@@ -656,8 +811,10 @@ class SegmentAnalysis:
             self.dropped_pulls = len(self.blocks) - len(kept)
             if kept:
                 self.blocks = kept
-        for key, opened in list(self.aura_open.items()):
-            self.aura_uptime[key] = self.aura_uptime.get(key, 0) + max(0, end - opened)
+        # An aura still up when the pull ended counts to the end of it,
+        # not to the last event that happened to mention it.
+        for (guid, spell_id), opened in list(self.aura_open.items()):
+            self._bank_aura(guid, spell_id, opened, end)
         self.aura_open = {}
 
         # A player's own downtime runs to the end of the pull, not to
@@ -736,10 +893,64 @@ class SegmentAnalysis:
         """True when a pull table would say something a total cannot."""
         return len(self.blocks) > 1
 
-    def player_uptimes(self, guid, limit=14):
-        rows = []
-        for (owner, spell_id, name), milliseconds in self.aura_uptime.items():
-            if owner == guid and milliseconds > 0:
-                rows.append((name, spell_id, milliseconds))
+    def player_uptimes(self, guid, limit=14, kind=None):
+        """[(spell, who applied it, milliseconds)] for one player.
+
+        `kind` filters to "BUFF" or "DEBUFF"; None merges both.
+        """
+        player = self.players.get(guid)
+        if player is None:
+            return []
+        merged = {}
+        for (spell_id, name, source, aura_type), milliseconds in player.auras_gained.items():
+            if kind and aura_type != kind:
+                continue
+            key = (spell_id, name, source)
+            merged[key] = merged.get(key, 0) + milliseconds
+        rows = [
+            (name, source, ms, spell_id)
+            for (spell_id, name, source), ms in merged.items()
+            if ms > 0
+        ]
         rows.sort(key=lambda row: row[2], reverse=True)
         return rows[:limit]
+
+    def player_applied(self, guid, limit=14):
+        """[(spell, on whom, milliseconds)] -- a player's own auras."""
+        player = self.players.get(guid)
+        if player is None:
+            return []
+        rows = [
+            (name, target, milliseconds, spell_id)
+            for (spell_id, name, target), milliseconds in player.auras_applied.items()
+            if milliseconds > 0
+        ]
+        rows.sort(key=lambda row: row[2], reverse=True)
+        return rows[:limit]
+
+    def ranked_enemies(self, key="damage_done", limit=20):
+        rows = [
+            enemy
+            for enemy in self.enemies.values()
+            if getattr(enemy, key) or enemy.casts or enemy.deaths
+        ]
+        rows.sort(key=lambda enemy: -getattr(enemy, key))
+        return rows[:limit]
+
+    def composition(self):
+        """[(label, [players])] -- tanks, healers, then everyone else."""
+        from .specs import DPS, HEAL, TANK, role_of
+
+        groups = {TANK: [], HEAL: [], DPS: [], "": []}
+        for player in self.players.values():
+            if not (player.damage_done or player.healing_done or player.casts):
+                continue
+            groups.setdefault(role_of(player.spec_id), []).append(player)
+        for players in groups.values():
+            players.sort(key=lambda player: player.short_name.lower())
+        return [
+            (label, groups[role])
+            for role, label in ((TANK, "Tanks"), (HEAL, "Soigneurs"), (DPS, "DPS"),
+                                ("", "Role non indique"))
+            if groups[role]
+        ]

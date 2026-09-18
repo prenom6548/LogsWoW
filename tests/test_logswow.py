@@ -15,6 +15,7 @@ a filter can be entirely absent and still produce a plausible total.
 """
 
 import os
+import re
 import sys
 import unittest
 
@@ -418,9 +419,27 @@ class TestAnalysis(unittest.TestCase):
         ardoise = self._player(self.first, "Ardoise")
         uptimes = dict(
             (name, milliseconds)
-            for name, _id, milliseconds in self.first.player_uptimes(ardoise.guid)
+            for name, _source, milliseconds, _spell_id in self.first.player_uptimes(
+                ardoise.guid
+            )
         )
         self.assertEqual(uptimes["Peau de pierre"], 10000)
+
+    def test_an_aura_says_who_applied_it(self):
+        ardoise = self._player(self.first, "Ardoise")
+        rows = self.first.player_uptimes(ardoise.guid)
+        sources = {name: source for name, source, _ms, _id in rows}
+        self.assertEqual(sources["Peau de pierre"], "Ardoise")
+
+    def test_no_aura_outlasts_the_pull_it_was_in(self):
+        """Routing pets' auras to their owner pushed one real player past
+        300% of the fight: several pets can hold one aura at once."""
+        for segment in self.segments:
+            analysis = segment.analysis
+            duration = max(1, analysis.duration_ms)
+            for player in analysis.players.values():
+                for milliseconds in player.auras_gained.values():
+                    self.assertLessEqual(milliseconds, duration + 1000)
 
     def test_a_death_is_recorded_with_its_killing_blow(self):
         self.assertEqual(len(self.second.deaths), 1)
@@ -654,6 +673,102 @@ class TestWhatThePlayersStopped(unittest.TestCase):
         self.assertEqual(analysis.enemy_casts["coupes"], 0)
 
 
+class TestComposition(unittest.TestCase):
+    """Who was in the group, from the spec the client writes."""
+
+    def setUp(self):
+        self.log, self.segments = run_fixture()
+        self.first = self.segments[0].analysis
+
+    def test_roles_come_from_the_specialization_id(self):
+        groups = dict(self.first.composition())
+        self.assertEqual([p.short_name for p in groups["Tanks"]], ["Ardoise"])
+        self.assertEqual([p.short_name for p in groups["Soigneurs"]], ["Tisane"])
+        self.assertIn("Braise", [p.short_name for p in groups["DPS"]])
+
+    def test_an_unknown_specialization_keeps_its_number(self):
+        from logswow.specs import SPECS, label_of
+
+        self.assertNotIn(99999, SPECS)
+        self.assertEqual(label_of(99999), "spe 99999")
+
+    def test_the_spec_read_from_the_log_is_the_one_at_index_25(self):
+        """Three stat values in real logs happen to equal a spec id, so
+        this reads one fixed field rather than scanning for a plausible
+        number."""
+        from logswow.specs import SPEC_ID_INDEX, label_of
+
+        self.assertEqual(SPEC_ID_INDEX, 25)
+        tank = [p for p in self.first.players.values() if p.short_name == "Ardoise"][0]
+        self.assertEqual(tank.spec_id, 73)
+        self.assertEqual(label_of(73), "Guerrier Protection")
+
+
+class TestEnemies(unittest.TestCase):
+    """The same drill-down, for the other side."""
+
+    def setUp(self):
+        self.log, self.segments = run_fixture()
+        self.first = self.segments[0].analysis
+        self.key = self.segments[2].analysis
+
+    def test_units_sharing_a_name_are_one_panel(self):
+        sbires = self.key.enemies["Sbire d'essai"]
+        self.assertEqual(sbires.count, 2)
+
+    def test_an_enemy_records_what_it_dealt_and_what_it_took(self):
+        golem = self.first.enemies["Golem d'essai"]
+        self.assertGreater(golem.damage_done, 0)
+        self.assertGreater(golem.damage_taken, 0)
+        self.assertEqual(golem.deaths, 1)
+
+    def test_an_enemy_ability_names_who_it_hit(self):
+        golem = self.first.enemies["Golem d'essai"]
+        ability = next(
+            a for a in golem.damage_by_ability.values() if a.name == "Balayage"
+        )
+        self.assertIn("Ardoise", ability.targets)
+
+    def test_enemy_casts_are_listed_by_spell(self):
+        golem = self.first.enemies["Golem d'essai"]
+        self.assertEqual(golem.casts_by_spell.get("Long sort"), 1)
+
+
+class TestAbilityDetail(unittest.TestCase):
+    """The columns the owner asked for, next to a log site's own."""
+
+    def setUp(self):
+        self.log, self.segments = run_fixture()
+        self.first = self.segments[0].analysis
+
+    def _ability(self, player_name, spell_name):
+        for player in self.first.players.values():
+            if player.short_name != player_name:
+                continue
+            for ability in player.damage_by_ability.values():
+                if ability.name == spell_name:
+                    return player, ability
+        self.fail("capacite absente : %s / %s" % (player_name, spell_name))
+
+    def test_an_ability_knows_its_hits_average_and_biggest(self):
+        _player, ability = self._ability("Braise", "Frappe d'essai")
+        self.assertEqual(ability.hits, 7)
+        self.assertEqual(ability.average, ability.total / ability.hits)
+        self.assertEqual(ability.biggest, 9000)
+
+    def test_an_ability_knows_who_it_hit_and_for_how_much(self):
+        _player, ability = self._ability("Braise", "Frappe d'essai")
+        self.assertEqual(ability.ranked_targets(1)[0][0], "Golem d'essai")
+        self.assertEqual(sum(ability.targets.values()), ability.total)
+
+    def test_casts_are_counted_per_spell(self):
+        player = [
+            p for p in self.segments[2].analysis.players.values()
+            if p.short_name == "Braise"
+        ][0]
+        self.assertEqual(sum(player.casts_by_spell.values()), player.casts)
+
+
 class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
     def test_the_fixtures_deliberate_bad_lines_are_reported(self):
         log, _segments = run_fixture()
@@ -706,11 +821,43 @@ class TestReport(unittest.TestCase):
             with open(target, encoding="utf-8") as handle:
                 page = handle.read()
         self.assertIn("<!doctype html>", page)
-        # The whole point: it must open with no network at all.
-        self.assertNotIn("http://", page)
-        self.assertNotIn("https://", page)
+        # The rule is that the page *fetches* nothing when it opens: no
+        # script, no stylesheet, no image, no font, no import. A Wowhead
+        # link in an anchor is not a fetch -- it is followed only if the
+        # reader clicks it -- so the test names the mechanisms rather than
+        # banning the string "https", which it used to do and which would
+        # now fail for the wrong reason.
         self.assertNotIn("<script", page)
+        self.assertNotIn("<iframe", page)
+        self.assertNotIn("@import", page)
+        self.assertNotIn("stylesheet", page)
+        self.assertNotIn(" src=", page)
+        self.assertNotIn("url(", page)
+        for fragment in re.findall(r"https?://[^\s\"']+", page):
+            self.assertIn("wowhead.com", fragment)
         self.assertIn("Golem d&#x27;essai", page)
+
+    def test_spell_links_follow_the_chosen_language(self):
+        import tempfile
+
+        for language, expected in (("fr", "/fr/spell="), ("en", ".com/spell=")):
+            with tempfile.TemporaryDirectory() as directory:
+                target = os.path.join(directory, "rapport.html")
+                ReportWriter(self.log, self.segments, target, wowhead=language).write()
+                with open(target, encoding="utf-8") as handle:
+                    page = handle.read()
+            self.assertIn(expected, page, language)
+
+    def test_links_can_be_turned_off_entirely(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "rapport.html")
+            ReportWriter(self.log, self.segments, target, wowhead="off").write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertNotIn("wowhead.com", page)
+        self.assertIn("Frappe d&#x27;essai", page)
 
     def test_the_timeline_carries_a_readable_scale(self):
         """The owner asked for the axis labels a log site shows."""
@@ -739,6 +886,29 @@ class TestReport(unittest.TestCase):
         self.assertIn("Dissipations", page)
         self.assertIn("Sorts ennemis coupes", page)
         self.assertIn("Ce que le groupe a empeche", page)
+
+    def test_the_report_carries_the_group_and_the_enemies(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "rapport.html")
+            ReportWriter(self.log, self.segments, target).write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertIn("Composition du groupe", page)
+        self.assertIn("Guerrier Protection", page)
+        self.assertIn("Detail par ennemi", page)
+        self.assertIn("Ce qu&#x27;il inflige", page)
+        self.assertIn("Principale cible", page)
+
+    def test_only_keeps_the_fight_asked_for(self):
+        from logswow.cli import select_segments
+
+        self.assertEqual(len(select_segments(self.segments, "2")), 1)
+        self.assertEqual(select_segments(self.segments, "2")[0].index, 2)
+        self.assertEqual(len(select_segments(self.segments, "donjon")), 1)
+        self.assertEqual(select_segments(self.segments, "rien du tout"), [])
+        self.assertEqual(len(select_segments(self.segments, None)), 3)
 
     def test_the_pull_table_appears_only_for_a_run_with_several(self):
         import tempfile

@@ -60,6 +60,12 @@ def build():
 
     # -- pull 1: a clean kill, with a pet and an interrupt ---------------
     add("23:59:01.000", 'ENCOUNTER_START,9001,"Golem d\'essai",16,3,2000')
+    # Specializations, so the report can say who tanked and who healed.
+    # Field 25 is the current spec id; the rest is padding of the right
+    # shape, not real stats.
+    for guid, spec in ((TANK_GUID, 73), (HEALER_GUID, 257), (DPS_GUID, 1480)):
+        add("23:59:01.050", "COMBATANT_INFO,%s,1,%s,%d,[],[],[],[],0"
+            % (guid, ",".join(["0"] * 22), spec))
     add("23:59:01.100", "SPELL_SUMMON,%s,%s,777,\"Invocation\",0x1" % (DPS, PET))
     # buff applied on the tank, removed 10 s later: 10 s of uptime
     add("23:59:01.200", 'SPELL_AURA_APPLIED,%s,%s,111,"Peau de pierre",0x1,BUFF' % (TANK, TANK))

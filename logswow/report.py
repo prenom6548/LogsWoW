@@ -15,7 +15,9 @@ import os
 from datetime import datetime
 
 from . import __version__
+from .specs import label_of
 from .timestamps import format_duration
+from .wowhead import resolve, spell_url
 
 CSS = """
 :root{--bg:#f6f5f2;--panel:#fff;--ink:#1a1a1a;--muted:#5d5d5d;--line:#dcd9d2;
@@ -59,7 +61,9 @@ border:1px solid var(--line);color:var(--muted);margin-left:6px;vertical-align:1
 .ok{color:var(--good);border-color:var(--good)}
 .ko{color:var(--bad);border-color:var(--bad)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
-.grid.tiles{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+.grid.tiles{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
+.grid.tiles .stat b{font-size:17px}
+.grid.tiles .stat span{font-size:10.5px}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
 .stat b{display:block;font-size:19px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .stat span{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
@@ -112,10 +116,12 @@ def _bar_row(cells, fraction):
 
 
 class ReportWriter:
-    def __init__(self, log, segments, out_path):
+    def __init__(self, log, segments, out_path, wowhead="auto"):
         self.log = log
         self.segments = segments
         self.out_path = out_path
+        # None disables spell links entirely; "" is English, "fr" French...
+        self.wowhead_prefix = resolve(wowhead)
 
     def write(self):
         parts = [self._head(), self._overview()]
@@ -230,6 +236,7 @@ class ReportWriter:
         )
         body = [
             head,
+            self._composition(analysis),
             self._timeline(analysis),
             self._pulls(analysis),
             "<div class=cols>",
@@ -240,6 +247,7 @@ class ReportWriter:
             self._enemy_casts(analysis),
             self._deaths(analysis),
             self._players(analysis, seconds),
+            self._enemies(analysis, seconds),
         ]
         return "".join(body)
 
@@ -496,35 +504,91 @@ class ReportWriter:
             )
         return "<h3>%s</h3>%s" % (plural(len(analysis.deaths), "mort"), "".join(blocks))
 
-    def _ability_rows(self, abilities, columns):
-        """One table body. `columns` picks what the third column says."""
+    # -- small pieces ------------------------------------------------------
+
+    def spell_link(self, spell_id, name):
+        """The spell's name, linking to Wowhead in the reader's language.
+
+        Nothing is fetched to render this: it is an anchor, followed only
+        if someone clicks it.
+        """
+        label = esc(name or "Attaque")
+        if not spell_id or self.wowhead_prefix is None:
+            return label
+        return (
+            "<a href='%s' target='_blank' rel='noopener noreferrer'>%s</a>"
+            % (esc(spell_url(spell_id, self.wowhead_prefix)), label)
+        )
+
+    def _rate(self, total, seconds):
+        return compact(total / seconds) if seconds else "0"
+
+    def _top_target(self, ability):
+        ranked = ability.ranked_targets(1)
+        if not ranked:
+            return "<span class=dim>-</span>"
+        name, amount = ranked[0]
+        share = amount / ability.total if ability.total else 0
+        others = len(ability.targets) - 1
+        # "+1" sitting straight against "72 %" read as one number.
+        tail = (" et %s" % plural(others, "autre")) if others else ""
+        return "%s <span class=dim>%s%s</span>" % (esc(name), percent(share), tail)
+
+    def _ability_table(self, abilities, casts_by_spell, seconds, mode, total=None):
+        """One ability table. `mode` is damage, healing or taken."""
+        if not abilities:
+            return "<p class=dim>Rien.</p>"
+        grand = total if total is not None else sum(a.total for a in abilities)
         rows = []
         for ability in abilities:
-            if columns == "crit":
-                extra = percent(ability.crit_rate)
-            elif columns == "overheal":
-                extra = percent(ability.overheal_rate)
-            else:
-                extra = str(ability.hits)
-            rows.append(
-                "<tr><td>%s</td><td class=n>%s</td><td class=n>%s</td></tr>"
-                % (esc(ability.name), compact(ability.total), extra)
+            casts = (casts_by_spell or {}).get(ability.spell_id, 0)
+            share = (ability.total / grand) if grand else 0
+            cells = [
+                _bar_row(self.spell_link(ability.spell_id, ability.name), share),
+                "<td class=n>%s</td>" % compact(ability.total),
+                "<td class=n>%s</td>" % percent(share),
+            ]
+            if mode == "healing":
+                cells.append("<td class=n>%s</td>" % percent(ability.overheal_rate))
+            cells.append(
+                "<td class=n>%s</td>" % (casts if casts else "<span class=dim>-</span>")
             )
-        return "".join(rows) or "<tr><td class=dim colspan=3>Rien</td></tr>"
+            cells.append("<td class=n>%d</td>" % ability.hits)
+            cells.append("<td class=n>%s</td>" % compact(ability.average))
+            if mode != "taken":
+                cells.append("<td class=n>%s</td>" % percent(ability.crit_rate))
+            cells.append("<td class=n>%s</td>" % self._rate(ability.total, seconds))
+            cells.append("<td>%s</td>" % self._top_target(ability))
+            rows.append("<tr>%s</tr>" % "".join(cells))
 
-    def _targets_table(self, targets, title, note):
-        if not targets:
-            return ""
-        ranked = sorted(targets.items(), key=lambda item: -item[1])[:14]
-        peak = ranked[0][1] or 1
-        rows = "".join(
-            "<tr>%s<td class=n>%s</td></tr>"
-            % (_bar_row(esc(name), value / peak), compact(value))
-            for name, value in ranked
+        heads = ["Sort", "Total", "Part"]
+        if mode == "healing":
+            heads.append("Surguerison")
+        heads += ["Casts", "Coups", "Moyenne"]
+        if mode != "taken":
+            heads.append("Crit")
+        heads += ["Par sec.", "Principale cible" if mode != "taken" else "Principale source"]
+        header = "".join(
+            "<th%s>%s</th>" % ("" if index == 0 else " class=n", esc(name))
+            for index, name in enumerate(heads)
+        )
+        return "<table><tr>%s</tr>%s</table>" % (header, "".join(rows))
+
+    def _aura_table(self, rows, duration, other_label):
+        if not rows:
+            return "<p class=dim>Rien.</p>"
+        body = "".join(
+            "<tr>%s<td>%s</td><td class=n>%s</td></tr>"
+            % (
+                _bar_row(self.spell_link(spell_id, name), min(1.0, ms / duration)),
+                esc(other),
+                percent(min(1.0, ms / duration)),
+            )
+            for name, other, ms, spell_id in rows
         )
         return (
-            "<div><h3>%s</h3><table><tr><th>%s</th><th class=n>Total</th></tr>%s"
-            "</table></div>" % (esc(title), esc(note), rows)
+            "<table><tr><th>Effet</th><th>%s</th><th class=n>Duree</th></tr>%s</table>"
+            % (esc(other_label), body)
         )
 
     def _counted_list(self, counts, limit=8):
@@ -533,6 +597,33 @@ class ReportWriter:
             "%s%s" % (esc(name), (" x%d" % count) if count > 1 else "")
             for name, count in ranked
         )
+
+    # -- the group ---------------------------------------------------------
+
+    def _composition(self, analysis):
+        groups = analysis.composition()
+        if not groups:
+            return ""
+        rows = []
+        for label, players in groups:
+            names = ", ".join(
+                "<span class=name>%s</span> <span class=dim>%s</span>"
+                % (esc(player.short_name), esc(label_of(player.spec_id) or "?"))
+                for player in players
+            )
+            rows.append(
+                "<tr><td class=dim style='white-space:nowrap'>%s</td><td>%s</td></tr>"
+                % (esc(label), names)
+            )
+        return (
+            "<h3>Composition du groupe</h3><div class=card><table>%s</table>"
+            "<p class=dim style='margin:10px 0 0;font-size:12px'>Le role vient de la "
+            "specialisation que le client ecrit au debut du combat. Une specialisation "
+            "que cet outil ne connait pas est affichee par son numero.</p></div>"
+            % "".join(rows)
+        )
+
+    # -- one player --------------------------------------------------------
 
     def _players(self, analysis, seconds):
         rows = sorted(
@@ -544,109 +635,155 @@ class ReportWriter:
         for player in rows[:30]:
             if not (player.damage_done or player.healing_done or player.casts):
                 continue
-            duration = max(1, analysis.duration_ms)
-            uptimes = analysis.player_uptimes(player.guid)
-
-            tiles = [
-                ("DPS", compact(player.damage_done / seconds)),
-                ("HPS", compact(player.healing_done / seconds)),
-                ("Degats subis", compact(player.damage_taken)),
-                ("Temps sans action", format_duration(player.downtime_ms)),
-                ("Interruptions", str(player.interrupts)),
-                ("Dissipations", str(player.dispels)),
-                ("Vie la plus basse",
-                 percent(player.min_hp_fraction) if player.min_hp_fraction is not None else "?"),
-            ]
-            tiles_html = "".join(
-                "<div class=stat><b>%s</b><span>%s</span></div>" % (esc(value), esc(label))
-                for label, value in tiles
-            )
-
-            damage_side = (
-                "<div><h3>Ses degats</h3><table><tr><th>Capacite</th>"
-                "<th class=n>Total</th><th class=n>Crit</th></tr>%s</table></div>"
-                % self._ability_rows(
-                    analysis.top_abilities(player.damage_by_ability, 10), "crit"
-                )
-            )
-            taken_side = (
-                "<div><h3>Ce qu'il a pris</h3><table><tr><th>Capacite</th>"
-                "<th class=n>Total</th><th class=n>Coups</th></tr>%s</table></div>"
-                % self._ability_rows(
-                    analysis.top_abilities(player.taken_by_ability, 10), "hits"
-                )
-            )
-
-            # Healing is only shown when there is some, so a pure damage
-            # dealer's panel does not grow two empty tables -- but when
-            # there is, both halves matter: what was cast, and on whom.
-            healing_block = ""
-            if player.healing_done or player.overhealing:
-                healing_block = (
-                    "<div class=cols><div><h3>Ses soins</h3><table>"
-                    "<tr><th>Capacite</th><th class=n>Effectif</th>"
-                    "<th class=n>Surguerison</th></tr>%s</table></div>%s</div>"
-                    % (
-                        self._ability_rows(
-                            analysis.top_abilities(player.healing_by_ability, 12),
-                            "overheal",
-                        ),
-                        self._targets_table(
-                            player.healing_to, "Qui il a soigne", "Cible"
-                        ),
-                    )
-                )
-
-            gaps = "".join(
-                "<li><span class=dim>%s</span> sans lancer de sort, a %s</li>"
-                % (format_duration(gap), format_duration(at - (analysis.first_ts or 0)))
-                for gap, at in player.longest_gaps[:5]
-            )
-            uptime_rows = "".join(
-                "<tr><td>%s</td><td class=n>%s</td></tr>"
-                % (esc(name), percent(min(1.0, milliseconds / duration)))
-                for name, _spell_id, milliseconds in uptimes
-            )
-
-            stopped = []
-            if player.interrupted_spells:
-                stopped.append(
-                    "<p class=dim style='font-size:12.5px;margin:8px 0 0'>"
-                    "<b>Sorts ennemis coupes</b>%s %s</p>"
-                    % (NBSP + ":", self._counted_list(player.interrupted_spells))
-                )
-            if player.dispelled_spells:
-                stopped.append(
-                    "<p class=dim style='font-size:12.5px;margin:4px 0 0'>"
-                    "<b>Effets dissipes</b>%s %s</p>"
-                    % (NBSP + ":", self._counted_list(player.dispelled_spells))
-                )
-
-            blocks.append(
-                "<details><summary>%s <span class=dim>&middot; %s degats &middot; %s soins "
-                "&middot; %s</span></summary><div class=body>"
-                "<div class='grid tiles'>%s</div>"
-                "<div class=cols>%s%s</div>"
-                "%s"
-                "<div class=cols><div><h3>Effets actifs</h3><table>"
-                "<tr><th>Effet</th><th class=n>Duree</th></tr>%s</table></div>"
-                "<div><h3>Plus longues pauses</h3><ul class=chain>%s</ul>%s</div></div>"
-                "</div></details>"
-                % (
-                    esc(player.short_name),
-                    compact(player.damage_done),
-                    compact(player.healing_done),
-                    plural(player.casts, "sort"),
-                    tiles_html,
-                    damage_side,
-                    taken_side,
-                    healing_block,
-                    uptime_rows or "<tr><td class=dim colspan=2>Rien</td></tr>",
-                    gaps or "<li class=dim>Aucune pause notable.</li>",
-                    "".join(stopped),
-                )
-            )
+            blocks.append(self._one_player(analysis, player, seconds))
         return "<h3>Detail par joueur</h3>%s" % "".join(blocks)
+
+    def _one_player(self, analysis, player, seconds):
+        duration = max(1, analysis.duration_ms)
+        tiles = [
+            ("DPS", compact(player.damage_done / seconds)),
+            ("HPS", compact(player.healing_done / seconds)),
+            ("Degats subis", compact(player.damage_taken)),
+            ("Sorts par minute", "%.1f" % (player.casts / max(1.0, seconds / 60.0))),
+            ("Temps sans action", format_duration(player.downtime_ms)),
+            ("Interruptions", str(player.interrupts)),
+            ("Dissipations", str(player.dispels)),
+            ("Morts", str(player.deaths)),
+            ("Vie la plus basse",
+             percent(player.min_hp_fraction) if player.min_hp_fraction is not None else "?"),
+        ]
+        tiles_html = "".join(
+            "<div class=stat><b>%s</b><span>%s</span></div>" % (esc(value), esc(label))
+            for label, value in tiles
+        )
+
+        sections = [
+            ("Ses degats", self._ability_table(
+                analysis.top_abilities(player.damage_by_ability, 16),
+                player.casts_by_spell, seconds, "damage", player.damage_done)),
+        ]
+        if player.healing_done or player.overhealing:
+            sections.append(("Ses soins", self._ability_table(
+                analysis.top_abilities(player.healing_by_ability, 16),
+                player.casts_by_spell, seconds, "healing", player.healing_done)))
+            sections.append(("Qui il a soigne", self._targets_table(player.healing_to)))
+        sections.append(("Ce qu'il a pris", self._ability_table(
+            analysis.top_abilities(player.taken_by_ability, 16),
+            None, seconds, "taken", player.damage_taken)))
+        sections.append(("Gains recus", self._aura_table(
+            analysis.player_uptimes(player.guid, 18, kind="BUFF"), duration, "De qui")))
+        sections.append(("Affaiblissements subis", self._aura_table(
+            analysis.player_uptimes(player.guid, 18, kind="DEBUFF"), duration, "De qui")))
+        sections.append(("Ce qu'il a applique", self._aura_table(
+            analysis.player_applied(player.guid, 18), duration, "Sur qui")))
+
+        gaps = "".join(
+            "<li><span class=dim>%s</span> sans lancer de sort, a %s</li>"
+            % (format_duration(gap), format_duration(at - (analysis.first_ts or 0)))
+            for gap, at in player.longest_gaps[:5]
+        )
+        sections.append((
+            "Plus longues pauses",
+            "<ul class=chain>%s</ul>" % (gaps or "<li class=dim>Aucune pause notable.</li>"),
+        ))
+
+        notes = []
+        if player.interrupted_spells:
+            notes.append("<p class=dim style='font-size:12.5px;margin:8px 0 0'>"
+                         "<b>Sorts ennemis coupes</b>%s %s</p>"
+                         % (NBSP + ":", self._counted_list(player.interrupted_spells)))
+        if player.dispelled_spells:
+            notes.append("<p class=dim style='font-size:12.5px;margin:4px 0 0'>"
+                         "<b>Effets dissipes</b>%s %s</p>"
+                         % (NBSP + ":", self._counted_list(player.dispelled_spells)))
+
+        body = "".join(
+            "<h3>%s</h3>%s" % (esc(title), content) for title, content in sections
+        )
+        return (
+            "<details><summary>%s <span class=dim>&middot; %s &middot; %s degats "
+            "&middot; %s soins &middot; %s</span></summary><div class=body>"
+            "<div class='grid tiles'>%s</div>%s%s</div></details>"
+            % (
+                esc(player.short_name),
+                esc(label_of(player.spec_id) or "role inconnu"),
+                compact(player.damage_done),
+                compact(player.healing_done),
+                plural(player.casts, "sort"),
+                tiles_html,
+                body,
+                "".join(notes),
+            )
+        )
+
+    def _targets_table(self, targets, limit=20):
+        if not targets:
+            return "<p class=dim>Rien.</p>"
+        ranked = sorted(targets.items(), key=lambda item: -item[1])[:limit]
+        grand = sum(targets.values()) or 1
+        rows = "".join(
+            "<tr>%s<td class=n>%s</td><td class=n>%s</td></tr>"
+            % (_bar_row(esc(name), value / grand), compact(value), percent(value / grand))
+            for name, value in ranked
+        )
+        return (
+            "<table><tr><th>Cible</th><th class=n>Total</th><th class=n>Part</th></tr>"
+            "%s</table>" % rows
+        )
+
+    # -- the enemies -------------------------------------------------------
+
+    def _enemies(self, analysis, seconds):
+        # Twelve rather than everything: a whole raid night's report was
+        # 3.7 MB, and the tail of that list is trash that hit once.
+        enemies = analysis.ranked_enemies("damage_done", 12)
+        if not enemies:
+            return ""
+        blocks = []
+        for enemy in enemies:
+            sections = []
+            if enemy.damage_by_ability:
+                sections.append(("Ce qu'il inflige", self._ability_table(
+                    analysis.top_abilities(enemy.damage_by_ability, 10),
+                    None, seconds, "damage", enemy.damage_done)))
+            if enemy.taken_by_ability:
+                sections.append(("Ce qu'il a subi", self._ability_table(
+                    analysis.top_abilities(enemy.taken_by_ability, 10),
+                    None, seconds, "taken", enemy.damage_taken)))
+            if enemy.casts_by_spell:
+                ranked = sorted(enemy.casts_by_spell.items(), key=lambda item: -item[1])[:16]
+                peak = ranked[0][1] or 1
+                sections.append(("Ses sorts", "<table><tr><th>Sort</th>"
+                                 "<th class=n>Lances</th></tr>%s</table>"
+                                 % "".join(
+                                     "<tr>%s<td class=n>%d</td></tr>"
+                                     % (_bar_row(esc(name), count / peak), count)
+                                     for name, count in ranked)))
+            tiles = "".join(
+                "<div class=stat><b>%s</b><span>%s</span></div>" % (esc(value), esc(label))
+                for label, value in (
+                    ("Unites", str(enemy.count)),
+                    ("Degats infliges", compact(enemy.damage_done)),
+                    ("Degats subis", compact(enemy.damage_taken)),
+                    ("Sorts lances", str(enemy.casts)),
+                    ("Tues", str(enemy.deaths)),
+                )
+            )
+            blocks.append(
+                "<details><summary>%s <span class=dim>&middot; %s &middot; "
+                "%s inflige &middot; %s subi</span></summary><div class=body>"
+                "<div class='grid tiles'>%s</div>%s</div></details>"
+                % (
+                    esc(enemy.name),
+                    plural(enemy.count, "unite"),
+                    compact(enemy.damage_done),
+                    compact(enemy.damage_taken),
+                    tiles,
+                    "".join("<h3>%s</h3>%s" % (esc(title), content)
+                            for title, content in sections),
+                )
+            )
+        return "<h3>Detail par ennemi</h3>%s" % "".join(blocks)
 
     def _enemy_casts(self, analysis):
         """What became of the spells the enemy tried to cast."""
@@ -673,10 +810,9 @@ class ReportWriter:
         )
         top = ""
         if analysis.interrupted_spells:
-            top = (
-                "<p class=dim style='margin:10px 0 0;font-size:12px'>Les plus coupes%s: %s.</p>"
-                % (NBSP, self._counted_list(analysis.interrupted_spells, 8))
-            )
+            top = ("<p class=dim style='margin:10px 0 0;font-size:12px'>Les plus "
+                   "coupes%s: %s.</p>"
+                   % (NBSP, self._counted_list(analysis.interrupted_spells, 8)))
         return (
             "<h3>Ce que le groupe a empeche</h3><div class=card>"
             "<p class=dim style='margin:0 0 10px;font-size:12.5px'>%s sorts commences "
@@ -684,7 +820,7 @@ class ReportWriter:
             "<th class=n>Part</th></tr>%s</table>%s"
             "<p class=dim style='margin:10px 0 0;font-size:12px'>Un sort instantane "
             "n'apparait pas ici%s: seuls ceux qui ont un temps d'incantation laissent "
-            "une trace. La derniere ligne regroupe tout le reste, contrôle compris%s: "
+            "une trace. La derniere ligne regroupe tout le reste, controle compris%s: "
             "le journal ne dit nulle part qu'un sort est un etourdissement, donc rien "
             "ici ne pretend le savoir.</p></div>"
             % (started, NBSP, rows, top, NBSP, NBSP)

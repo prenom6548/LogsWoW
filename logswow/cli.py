@@ -59,6 +59,23 @@ def _build(path, year=None, verbose=True, pull_gap_ms=None):
     return log, segments, time.time() - started
 
 
+def select_segments(segments, only):
+    """Narrow a report to one fight, by number or by name.
+
+    A raid night's full report is several megabytes; most of the time the
+    question is about one pull.
+    """
+    if not only:
+        return segments
+    if only.isdigit():
+        wanted = int(only)
+        chosen = [segment for segment in segments if segment.index == wanted]
+    else:
+        needle = only.lower()
+        chosen = [segment for segment in segments if needle in segment.label.lower()]
+    return chosen
+
+
 def _pull_gap_ms(args):
     seconds = getattr(args, "pull_gap", None)
     return None if seconds is None else int(seconds * 1000)
@@ -71,11 +88,19 @@ def command_report(args):
     log, segments, elapsed = _build(
         args.log, args.year, not args.quiet, _pull_gap_ms(args)
     )
+    chosen = select_segments(segments, args.only)
+    if not chosen:
+        sys.stderr.write(
+            "Aucun combat ne correspond a --only %r. Utilisez `list` pour les voir.\n"
+            % args.only
+        )
+        return 2
     out = args.out or os.path.splitext(args.log)[0] + ".html"
-    ReportWriter(log, segments, out).write()
+    ReportWriter(log, chosen, out, wowhead=args.wowhead).write()
     if not args.quiet:
-        print("%d combats, %s lignes lues en %.1f s" % (
-            len(segments), "{:,}".format(log.line_count).replace(",", " "), elapsed))
+        print("%d combat(s) retenu(s) sur %d, %s lignes lues en %.1f s" % (
+            len(chosen), len(segments),
+            "{:,}".format(log.line_count).replace(",", " "), elapsed))
         if log.problems.total:
             print("%d lignes non comprises -- lancez `diagnose` pour voir lesquelles"
                   % log.problems.total)
@@ -161,6 +186,19 @@ def build_parser():
 
     report = common(subparsers.add_parser("report", help="produit le rapport HTML"))
     report.add_argument("-o", "--out", default=None, help="fichier de sortie (.html)")
+    report.add_argument(
+        "--only",
+        default=None,
+        metavar="NUMERO|NOM",
+        help="n'inclure qu'un combat : son numero dans `list`, ou un bout de son nom",
+    )
+    report.add_argument(
+        "--wowhead",
+        default="auto",
+        metavar="LANGUE",
+        help="langue des liens Wowhead : auto (celle du systeme), fr, en, de, es, "
+             "it, pt, ru, ko, zh, ou off pour ne mettre aucun lien",
+    )
     report.set_defaults(func=command_report)
 
     listing = common(subparsers.add_parser("list", help="liste les combats du fichier"))

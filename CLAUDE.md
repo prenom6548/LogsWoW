@@ -31,9 +31,13 @@ apply here. The rules that do are below.
 - **Python 3 standard library only.** No dependency, ever. Nothing to
   install, nothing to audit, nothing that can phone home. `python3 -m
   logswow` must work on a fresh machine.
-- **No network. At all.** The package opens files and writes files. The
-  report is one self-contained HTML file with no URL and no `<script>`;
-  `test_writes_a_self_contained_page` fails if an `http` appears.
+- **No network. At all.** The package opens files and writes files, and
+  never opens a socket. The report **fetches** nothing when it opens: no
+  script, no stylesheet, no image, no font, no `@import`, no `src=`.
+  Wowhead links in anchors are fine and are the one allowed exception,
+  because a link is followed only if the reader clicks it. The test says
+  it that way on purpose -- it used to ban the string "https", which is a
+  proxy for the rule and not the rule.
 - **Never commit a real combat log.** It carries the names and the
   performance of everyone in the group, who agreed to nothing. The two
   real files used to build this were read in a session container and
@@ -162,6 +166,49 @@ dite par le journal" rather than claiming it was control. Telling those
 apart needs a maintained spell list, which is the same structural cost as
 the rotation verdict above.
 
+### Specializations, and the field that must not be searched for
+
+`COMBATANT_INFO` carries the player's current spec id at **index 25**.
+Measured across 121 lines from two logs: 118 have it there, and the three
+that "matched" elsewhere were ordinary stat values that happen to equal a
+spec id. So `specs.py` reads one fixed position; never go back to
+scanning a window for a plausible-looking number.
+
+An id the table lacks prints as `spe 1480`, never a guess. That is how
+1480 was handled until the owner named it and the log backed the
+identification up: the class is **measured** (the player casts Glide and
+Disrupt, which no other class has), the spec name is **theirs**, and the
+role is **measured** (top damage in three fights of four, never the
+most-hit player). The comment beside that entry says which is which, and
+the next unknown id gets the same treatment.
+
+### Two ways aura uptime went wrong
+
+Both were caught by a percentage over 100%, which is the useful property
+of a bounded metric: it cannot fail quietly.
+
+1. **Pets' auras were routed to their owner**, the way damage is. Several
+   pets can hold the same aura at once and a person cannot, so one
+   warlock's totals passed 300%. Only `dest.is_player` banks into
+   `auras_gained` now.
+2. **Two spells sharing a display name were merged.** The banked key
+   carries the spell id, so "Inferno" and "Inferno" stay two rows, the
+   same way they do in the damage table.
+
+### Enemies are aggregated by name, not by GUID
+
+A key meets thirty-two units called "Diablotin sauvage" and nobody wants
+thirty-two panels; a boss has one name and one unit, so the same rule
+gives the right thing there too. `Enemy.units` keeps the distinct GUIDs
+so the panel can say how many there were.
+
+### The report's size
+
+A 22-fight night is about 3.4 MB of HTML with every player and enemy
+panel expanded in the markup. That is fine for a local file but it is
+why enemy panels stop at twelve per fight, and why `--only <number|name>`
+exists: one key comes out at 253 KB.
+
 ### The timestamp rollover that was wrong
 
 The reader used to roll the clock forward a day on any large backward
@@ -216,7 +263,7 @@ it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 85 tests, no network, fast.
+1. `python3 tests/run-tests.py` -- 101 tests, no network, fast.
 2. `python3 -m logswow diagnose <a real log>` -- the number that matters
    is `PROBLEMES DE LECTURE : 0`.
 3. If you touched anything about field positions, check a real file's

@@ -38,7 +38,8 @@ python3 -m logswow where
 
 | Commande | Ce qu'elle fait |
 |---|---|
-| `report FICHIER` | écrit la page HTML complète (`-o` pour le nom, `--pull-gap` pour le découpage des pulls) |
+| `report FICHIER` | écrit la page HTML complète |
+| | `-o` le nom du fichier, `--only` un seul combat, `--pull-gap` le découpage des pulls, `--wowhead` la langue des liens |
 | `list FICHIER` | liste les combats du fichier, une ligne chacun |
 | `diagnose FICHIER` | montre ce que le lecteur a compris, et ce qu'il n'a pas compris |
 | `where` | cherche le dossier `Logs` du jeu |
@@ -54,6 +55,10 @@ lu serait pire que pas de rapport du tout.
 - **Les combats** : chaque pull de boss et chaque clé mythique, avec sa
   durée, son issue, et le nombre de morts. Une clé et les boss qu'elle
   contient apparaissent tous les deux.
+- **La composition du groupe**, tanks, soigneurs et DPS, avec la classe
+  et la spécialisation de chacun. Elles viennent de ce que le client
+  écrit au début du combat ; une spécialisation inconnue de l'outil est
+  affichée par son numéro plutôt que devinée.
 - **Une frise** des dégâts subis par le groupe seconde par seconde, avec
   une échelle chiffrée à gauche, les morts en rouge, et en courbe la vie
   de la cible la plus frappée, **nommée** sous le graphique. Sur un pull
@@ -73,10 +78,30 @@ lu serait pire que pas de rapport du tout.
 - **Ce que le groupe a empêché** : combien de sorts l'ennemi a commencés,
   combien ont abouti, combien ont été coupés par une interruption, et
   combien ont fini parce que le lanceur est mort.
-- **Par joueur** : ses capacités, ce qu'il a pris, **ses soins et sur qui
-  ils sont allés**, la durée de ses effets actifs, sa vie la plus basse,
-  ses interruptions et dissipations avec le nom de ce qui a été coupé,
-  et ses plus longues pauses sans lancer de sort.
+- **Par joueur**, en dépliant son nom : pour chaque sort, le total, la
+  part, le nombre de lancers, le nombre de coups, la moyenne, le taux de
+  critique, le débit par seconde et la principale cible. Puis ses soins
+  avec leur surguérison et sur qui ils sont allés, ce qu'il a pris et de
+  qui, les gains reçus **avec qui les lui a donnés**, les affaiblissements
+  subis, ce qu'il a lui-même appliqué et sur qui, ses interruptions et
+  dissipations avec le nom de ce qui a été coupé, et ses plus longues
+  pauses sans lancer de sort.
+- **Par ennemi**, de la même façon : les unités portant le même nom sont
+  regroupées, avec ce qu'elles infligent et à qui, ce qu'elles ont subi
+  et de qui, les sorts qu'elles ont lancés, et combien ont été tuées.
+- **Les noms de sorts sont des liens vers Wowhead**, dans la langue de
+  votre machine. `--wowhead fr` force une langue, `--wowhead off` retire
+  les liens. Rien n'est chargé à l'ouverture : un lien n'est suivi que si
+  vous cliquez dessus.
+
+Une soirée entière fait une page de plusieurs mégaoctets. Pour n'en
+regarder qu'un morceau :
+
+```
+python3 -m logswow list WoWCombatLog.txt          # voir les combats
+python3 -m logswow report WoWCombatLog.txt --only 5
+python3 -m logswow report WoWCombatLog.txt --only "Allée du meurtre"
+```
 
 ## Ce qu'il ne fait pas, et pourquoi
 
@@ -116,7 +141,7 @@ de **tout le groupe**, pas seulement les vôtres.
 python3 tests/run-tests.py
 ```
 
-85 tests, sans dépendance ni réseau. Ils tournent sur
+101 tests, sans dépendance ni réseau. Ils tournent sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 
