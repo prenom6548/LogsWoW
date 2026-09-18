@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+
+# Real combat logs never belong in this repository: one carries the names
+# and the performance of everyone who was in the group. See PROVENANCE.md.
+WoWCombatLog*.txt
+*.html
+!examples/exemple-combat.txt
