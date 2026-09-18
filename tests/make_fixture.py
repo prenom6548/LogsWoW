@@ -88,8 +88,21 @@ def build():
         % (HEALER, TANK, advanced(TANK_GUID, 95000, 100000)))
     # an event with no advanced block at all, to prove detection is per line
     add("23:59:05.000", 'SPELL_AURA_APPLIED,%s,%s,666,"Marque",0x20,DEBUFF' % (BOSS, DPS))
+    # An enemy cast that gets kicked, and one that lands: the two outcomes
+    # the report counts.
+    add("23:59:05.200", 'SPELL_CAST_START,%s,%s,999,"Incantation",0x20' % (BOSS, TANK))
     add("23:59:05.500", 'SPELL_INTERRUPT,%s,%s,888,"Coup de bouclier",0x1,999,"Incantation",0x20'
         % (TANK, BOSS))
+    add("23:59:06.000", 'SPELL_CAST_START,%s,%s,1001,"Long sort",0x20' % (BOSS, TANK))
+    add("23:59:08.000", 'SPELL_CAST_SUCCESS,%s,%s,1001,"Long sort",0x20,%s'
+        % (BOSS, TANK, advanced(BOSS_GUID, 60000)))
+    # A dispel, so a healer's panel has something beyond healing.
+    add("23:59:08.500", 'SPELL_DISPEL,%s,%s,1002,"Purification",0x2,666,"Marque",0x20,DEBUFF'
+        % (HEALER, DPS))
+    # A second healing target, so "who was healed" has more than one row.
+    add("23:59:09.000",
+        'SPELL_HEAL,%s,%s,555,"Vague apaisante",0x2,%s,4000,4000,1000,0,nil'
+        % (HEALER, DPS, advanced(DPS_GUID, 90000, 100000)))
     add("23:59:11.200", 'SPELL_AURA_REMOVED,%s,%s,111,"Peau de pierre",0x1,BUFF' % (TANK, TANK))
     # a killing blow: overkill positive rather than -1
     add("23:59:12.000",

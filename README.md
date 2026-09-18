@@ -70,9 +70,13 @@ lu serait pire que pas de rapport du tout.
   a coûté, combien de joueurs elle a touchés.
 - **Les morts**, chacune avec la chaîne des derniers coups et soins reçus
   avant la fin, et le pourcentage de vie restant à chaque étape.
-- **Par joueur** : ses capacités, ce qu'il a pris, la durée de ses effets
-  actifs, sa vie la plus basse, et ses plus longues pauses sans lancer
-  de sort.
+- **Ce que le groupe a empêché** : combien de sorts l'ennemi a commencés,
+  combien ont abouti, combien ont été coupés par une interruption, et
+  combien ont fini parce que le lanceur est mort.
+- **Par joueur** : ses capacités, ce qu'il a pris, **ses soins et sur qui
+  ils sont allés**, la durée de ses effets actifs, sa vie la plus basse,
+  ses interruptions et dissipations avec le nom de ce qui a été coupé,
+  et ses plus longues pauses sans lancer de sort.
 
 ## Ce qu'il ne fait pas, et pourquoi
 
@@ -83,6 +87,11 @@ lu serait pire que pas de rapport du tout.
 - **Il ne dit pas si un coup était évitable.** Le fichier dit qui a été
   touché et combien ; savoir que tel dégât venait d'une zone au sol
   demande de connaître le boss. Cet outil ne prétend pas le savoir.
+- **Il ne sait pas ce qu'est un contrôle.** Le journal n'écrit nulle part
+  qu'un sort est un étourdissement ou une peur. Un sort ennemi qui
+  s'arrête sans interruption et sans mort du lanceur est donc rangé sous
+  « cause non dite par le journal ». Distinguer un contrôle d'un simple
+  affaiblissement demanderait une liste de sorts à maintenir.
 - **Il ne juge pas votre rotation.** Il montre vos pauses, vos capacités
   et vos effets actifs. Dire « il fallait appuyer sur ceci » demande les
   règles de votre spécialisation, écrites et maintenues par quelqu'un qui
@@ -107,7 +116,7 @@ de **tout le groupe**, pas seulement les vôtres.
 python3 tests/run-tests.py
 ```
 
-56 tests, sans dépendance ni réseau. Ils tournent sur
+85 tests, sans dépendance ni réseau. Ils tournent sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 

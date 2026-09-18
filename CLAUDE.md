@@ -136,6 +136,32 @@ a 531M total, which are a dot finishing on something already dead. The
 smallest genuine pull in that run was 20M, two orders of magnitude clear.
 The count of what was dropped is shown rather than hidden.
 
+### What a healer's panel needs, and what "interrupts" is not
+
+Added 2026-09-18 after the owner looked at a healer's panel and found it
+showed damage tables and nothing else. `healing_by_ability` had been
+accumulated since the first commit and simply never rendered. The panel
+now carries the spells, their own overheal rate, and **who the healing
+went to** (`Player.healing_to`), which for a healer is most of the story.
+
+The same look found a labelling failure rather than a bug: they saw
+"Interruptions: 0" everywhere and reasonably suspected the counter. It is
+correct -- 220 counted across the owner's log, player to monster, with
+the interrupted spell now named. What was wrong is that the healer they
+were looking at kicks nothing and **dispels 3 to 20 times per fight**,
+and dispels were not on the panel at all. A number that is right and a
+panel that hides the number next to it read the same way to a reader.
+
+**Crowd control cannot be separated from an ordinary debuff here, and
+must not be guessed at.** A probe that credited "the aura a player
+applied to the caster during its cast" returned Jugement, Consecration
+and Expurgation -- damage spells. The file never says a spell is a stun,
+so `enemy_casts` counts what is knowable (started, completed, cut by an
+interrupt, caster killed mid-cast) and names the remainder "cause non
+dite par le journal" rather than claiming it was control. Telling those
+apart needs a maintained spell list, which is the same structural cost as
+the rotation verdict above.
+
 ### The timestamp rollover that was wrong
 
 The reader used to roll the clock forward a day on any large backward
@@ -190,7 +216,7 @@ it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 75 tests, no network, fast.
+1. `python3 tests/run-tests.py` -- 85 tests, no network, fast.
 2. `python3 -m logswow diagnose <a real log>` -- the number that matters
    is `PROBLEMES DE LECTURE : 0`.
 3. If you touched anything about field positions, check a real file's

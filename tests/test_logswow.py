@@ -405,9 +405,11 @@ class TestAnalysis(unittest.TestCase):
         self.assertEqual(ardoise.damage_taken, 30000)
 
     def test_effective_healing_excludes_overheal(self):
+        """Two heals in the fixture: 25000 with 5000 wasted on the tank,
+        then 4000 with 1000 wasted on the damage dealer."""
         tisane = self._player(self.first, "Tisane")
-        self.assertEqual(tisane.healing_done, 25000 - 5000)
-        self.assertEqual(tisane.overhealing, 5000)
+        self.assertEqual(tisane.healing_done, (25000 - 5000) + (4000 - 1000))
+        self.assertEqual(tisane.overhealing, 5000 + 1000)
 
     def test_interrupts_are_counted(self):
         self.assertEqual(self._player(self.first, "Ardoise").interrupts, 1)
@@ -561,6 +563,97 @@ class TestMainTarget(unittest.TestCase):
                 self.assertEqual(analysis.boss_name, "")
 
 
+class TestHealingDetail(unittest.TestCase):
+    """A healer's panel used to show damage tables and nothing else."""
+
+    def setUp(self):
+        self.log, self.segments = run_fixture()
+        self.first = self.segments[0].analysis
+
+    def _player(self, name):
+        for player in self.first.players.values():
+            if player.short_name == name:
+                return player
+        self.fail("joueur absent : %s" % name)
+
+    def test_healing_is_broken_down_by_spell(self):
+        healer = self._player("Tisane")
+        names = {ability.name for ability in healer.healing_by_ability.values()}
+        self.assertIn("Vague apaisante", names)
+
+    def test_each_spell_carries_its_own_overheal(self):
+        healer = self._player("Tisane")
+        ability = next(iter(healer.healing_by_ability.values()))
+        self.assertGreater(ability.overheal, 0)
+        self.assertGreater(ability.overheal_rate, 0)
+        self.assertLess(ability.overheal_rate, 1)
+
+    def test_who_was_healed_is_recorded(self):
+        healer = self._player("Tisane")
+        self.assertEqual(set(healer.healing_to), {"Ardoise", "Braise"})
+        self.assertEqual(healer.healing_to["Ardoise"], 20000)
+
+    def test_healing_targets_sum_to_the_healing_done(self):
+        healer = self._player("Tisane")
+        self.assertEqual(sum(healer.healing_to.values()), healer.healing_done)
+
+
+class TestWhatThePlayersStopped(unittest.TestCase):
+    """The owner asked what players did *to* the monsters."""
+
+    def setUp(self):
+        self.log, self.segments = run_fixture()
+        self.first = self.segments[0].analysis
+
+    def _player(self, name):
+        for player in self.first.players.values():
+            if player.short_name == name:
+                return player
+        self.fail("joueur absent : %s" % name)
+
+    def test_an_interrupt_names_the_spell_it_stopped(self):
+        tank = self._player("Ardoise")
+        self.assertEqual(tank.interrupts, 1)
+        self.assertEqual(tank.interrupted_spells, {"Incantation": 1})
+        self.assertEqual(self.first.interrupted_spells, {"Incantation": 1})
+
+    def test_a_dispel_names_what_was_removed(self):
+        healer = self._player("Tisane")
+        self.assertEqual(healer.dispels, 1)
+        self.assertEqual(healer.dispelled_spells, {"Marque": 1})
+
+    def test_enemy_casts_are_counted_by_outcome(self):
+        casts = self.first.enemy_casts
+        self.assertEqual(casts["commences"], 2)
+        self.assertEqual(casts["coupes"], 1)
+        self.assertEqual(casts["aboutis"], 1)
+
+    def test_the_outcomes_add_up_to_what_was_started(self):
+        casts = self.first.enemy_casts
+        self.assertEqual(
+            casts["aboutis"] + casts["coupes"] + casts["cible morte"] + casts["autre"],
+            casts["commences"],
+        )
+
+    def test_a_caster_killed_mid_cast_is_not_called_an_interrupt(self):
+        """Killing something that is casting is not a kick, and saying so
+        would flatter the group."""
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        payloads = (
+            'ENCOUNTER_START,1,"Boss",16,5,2000',
+            'SPELL_CAST_START,Creature-1,"B",0xa48,0x0,Player-1,"A",0x511,0x0,5,"Sort",0x1',
+            "UNIT_DIED,0000000000000000,nil,0x80000000,0x80000000,"
+            'Creature-1,"B",0xa48,0x0,0',
+            'ENCOUNTER_END,1,"Boss",16,5,1,1000',
+        )
+        for payload in payloads:
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(0, fields, 1))
+        analysis = splitter.finish()[0].analysis
+        self.assertEqual(analysis.enemy_casts["cible morte"], 1)
+        self.assertEqual(analysis.enemy_casts["coupes"], 0)
+
+
 class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
     def test_the_fixtures_deliberate_bad_lines_are_reported(self):
         log, _segments = run_fixture()
@@ -631,6 +724,21 @@ class TestReport(unittest.TestCase):
         self.assertIn("text-anchor='end'", page)  # the left axis values
         self.assertIn("Courbe et echelle de droite", page)
         self.assertIn("Golem d&#x27;essai", page)  # the curve says whose health it is  # what the curve is
+
+    def test_a_healers_panel_shows_healing_not_only_damage(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "rapport.html")
+            ReportWriter(self.log, self.segments, target).write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertIn("Ses soins", page)
+        self.assertIn("Qui il a soigne", page)
+        self.assertIn("Surguerison", page)
+        self.assertIn("Dissipations", page)
+        self.assertIn("Sorts ennemis coupes", page)
+        self.assertIn("Ce que le groupe a empeche", page)
 
     def test_the_pull_table_appears_only_for_a_run_with_several(self):
         import tempfile

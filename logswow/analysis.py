@@ -50,7 +50,9 @@ MAX_HP_SAMPLES = 400
 class Ability:
     """One spell's contribution, on one side of one ledger."""
 
-    __slots__ = ("spell_id", "name", "total", "hits", "crits", "targets", "overkill")
+    __slots__ = (
+        "spell_id", "name", "total", "hits", "crits", "targets", "overkill", "overheal",
+    )
 
     def __init__(self, spell_id, name):
         self.spell_id = spell_id
@@ -60,8 +62,9 @@ class Ability:
         self.crits = 0
         self.targets = set()
         self.overkill = 0
+        self.overheal = 0
 
-    def add(self, amount, critical=False, target=None, overkill=0):
+    def add(self, amount, critical=False, target=None, overkill=0, overheal=0):
         self.total += amount
         self.hits += 1
         if critical:
@@ -70,6 +73,13 @@ class Ability:
             self.targets.add(target)
         if overkill > 0:
             self.overkill += overkill
+        if overheal > 0:
+            self.overheal += overheal
+
+    @property
+    def overheal_rate(self):
+        total = self.total + self.overheal
+        return (self.overheal / total) if total else 0.0
 
     @property
     def crit_rate(self):
@@ -133,7 +143,8 @@ class Player:
         "guid", "name", "damage_done", "healing_done", "overhealing",
         "damage_taken", "absorbed_taken", "deaths", "interrupts", "dispels",
         "casts", "damage_by_ability", "healing_by_ability", "taken_by_ability",
-        "casts_by_ability", "first_cast_ts", "last_cast_ts", "downtime_ms",
+        "casts_by_ability", "healing_to", "interrupted_spells", "dispelled_spells",
+        "first_cast_ts", "last_cast_ts", "downtime_ms",
         "longest_gaps", "recent", "hp_fraction", "min_hp_fraction", "max_hp",
         "active_ms", "died_at",
     )
@@ -154,6 +165,9 @@ class Player:
         self.healing_by_ability = {}
         self.taken_by_ability = {}
         self.casts_by_ability = {}
+        self.healing_to = {}
+        self.interrupted_spells = {}
+        self.dispelled_spells = {}
         self.first_cast_ts = None
         self.last_cast_ts = None
         self.downtime_ms = 0
@@ -209,6 +223,19 @@ class SegmentAnalysis:
         self.boss_name = ""
         self.blocks = []
         self.dropped_pulls = 0
+        # What became of the spells the enemy tried to cast. The file
+        # answers this without any boss knowledge: a cast either reaches
+        # its SPELL_CAST_SUCCESS or it does not, and an interrupt or a
+        # death in between says why.
+        self.enemy_casts = {
+            "commences": 0,
+            "aboutis": 0,
+            "coupes": 0,
+            "cible morte": 0,
+            "autre": 0,
+        }
+        self.interrupted_spells = {}
+        self._pending_casts = {}
         self._block = None
         self._enemy_damage = {}
         self._enemy_names = {}
@@ -298,18 +325,30 @@ class SegmentAnalysis:
         elif kind == "_HEAL":
             self._feed_heal(event)
         elif kind == "_CAST_SUCCESS":
+            if event.source.is_hostile and not event.source.is_player:
+                self._resolve_enemy_cast(event.source.guid, event.spell_id, "aboutis")
             self._feed_cast(event)
         elif kind == "_INTERRUPT":
-            if self._is_ours(event.source):
-                self._player(event.source).interrupts += 1
+            self._feed_interrupt(event)
         elif kind in ("_DISPEL", "_STOLEN"):
             if self._is_ours(event.source):
-                self._player(event.source).dispels += 1
+                player = self._player(event.source)
+                player.dispels += 1
+                name = event.extra_spell_name or "?"
+                player.dispelled_spells[name] = player.dispelled_spells.get(name, 0) + 1
+        elif kind == "_CAST_START":
+            self._feed_enemy_cast_start(event)
         elif kind in ("_AURA_APPLIED", "_AURA_REFRESH"):
             self._aura_open(event)
         elif kind == "_AURA_REMOVED":
             self._aura_close(event)
         elif subevent == "UNIT_DIED":
+            if not event.dest.is_player:
+                for key in [
+                    k for k in self._pending_casts if k[0] == event.dest.guid
+                ]:
+                    del self._pending_casts[key]
+                    self.enemy_casts["cible morte"] += 1
             self._feed_death(event)
         elif subevent == "SPELL_ABSORBED":
             if event.dest.is_player:
@@ -383,6 +422,36 @@ class SegmentAnalysis:
             if event.source.is_hostile and not event.source.is_pet:
                 block.note_enemy(event.source.guid, event.source.name)
 
+    def _feed_enemy_cast_start(self, event):
+        """An enemy started casting. Remember it until something ends it."""
+        if event.source.is_player or not event.source.is_hostile:
+            return
+        self.enemy_casts["commences"] += 1
+        if len(self._pending_casts) >= 400:
+            # Bounded: a cast nobody ever resolved is stale after a while.
+            cutoff = event.ts - 60000
+            for key in [k for k, ts in self._pending_casts.items() if ts < cutoff]:
+                del self._pending_casts[key]
+                self.enemy_casts["autre"] += 1
+        self._pending_casts[(event.source.guid, event.spell_id)] = event.ts
+
+    def _resolve_enemy_cast(self, guid, spell_id, outcome):
+        if self._pending_casts.pop((guid, spell_id), None) is not None:
+            self.enemy_casts[outcome] += 1
+            return True
+        return False
+
+    def _feed_interrupt(self, event):
+        """A player cut an enemy cast. Records which spell, not just how many."""
+        if not self._is_ours(event.source):
+            return
+        player = self._player(event.source)
+        player.interrupts += 1
+        stopped = event.extra_spell_name or "?"
+        player.interrupted_spells[stopped] = player.interrupted_spells.get(stopped, 0) + 1
+        self.interrupted_spells[stopped] = self.interrupted_spells.get(stopped, 0) + 1
+        self._resolve_enemy_cast(event.dest.guid, event.extra_spell_id, "coupes")
+
     def _sample_enemy_health(self, event):
         guid = event.dest.guid
         fraction = event.advanced.health_fraction
@@ -431,8 +500,22 @@ class SegmentAnalysis:
             player.healing_done += effective
             player.overhealing += event.overhealing
             ability = _bucket(player.healing_by_ability, event.spell_id, event.spell_name)
-            ability.add(effective, event.is_critical, event.dest.name)
+            ability.add(
+                effective,
+                event.is_critical,
+                event.dest.name,
+                overheal=event.overhealing,
+            )
             self.total_healing += effective
+            # Who the healing actually went to. For a healer this is most
+            # of the story, and the file has it on every line.
+            target = event.dest.name.split("-", 1)[0] if event.dest.name else "?"
+            if effective or event.overhealing:
+                current = player.healing_to.get(target)
+                if current is None and len(player.healing_to) >= 60:
+                    target = "autres"
+                    current = player.healing_to.get(target)
+                player.healing_to[target] = (current or 0) + effective
         if self._is_ours(event.dest):
             target = self._player(event.dest)
             if effective:
@@ -558,6 +641,13 @@ class SegmentAnalysis:
                     self.boss_hp = samples
                     break
         self._hp_samples = {}
+
+        # Whatever is still pending never completed and nothing here can
+        # say why: a stun, a fear, a knockback, the caster walking out of
+        # range. The file does not label a spell as crowd control, so this
+        # bucket is named for what is known rather than guessed at.
+        self.enemy_casts["autre"] += len(self._pending_casts)
+        self._pending_casts = {}
 
         # Drop the stray ticks, but never drop the only pull there is.
         if len(self.blocks) > 1 and self.total_damage > 0:
