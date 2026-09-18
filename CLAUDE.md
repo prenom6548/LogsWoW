@@ -103,6 +103,12 @@ files, not a guess:
 - `SPELL_ABSORBED` comes in two widths, with and without the attacker's
   spell, and both end on `absorbedAmount, totalAmount, critical`, so it
   is read tail-anchored.
+- **The killing blow is the hit with a positive `overkill`**, not simply
+  the last damaging event before `UNIT_DIED`. On a real key, the last
+  event before a death was a Spirit Link Totem redistribution reported at
+  97% health, which is the last event and plainly not the cause; reading
+  the overkill marker instead named "Trait de lave" correctly, and all 14
+  deaths in that run carry one.
 - Difficulty 208 appears in the owner's arena logs and is not in any
   table here. Unknown ids print as `difficulte 208` rather than being
   guessed at.

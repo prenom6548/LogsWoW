@@ -351,12 +351,17 @@ class ReportWriter:
         start = analysis.first_ts or 0
         for death in analysis.deaths[:24]:
             chain = []
-            for ts, source, spell, delta, fraction in death["chain"]:
+            for moment in death["chain"]:
+                ts, source, spell, delta, fraction = moment[:5]
+                overkill = moment[5] if len(moment) > 5 else 0
                 css = "hit" if delta < 0 else "heal"
                 hp = (" → %s" % percent(fraction)) if fraction is not None else ""
+                # The log marks the hit that killed with a positive
+                # overkill; every other hit writes -1.
+                mark = " <b>coup fatal</b>" if overkill > 0 else ""
                 chain.append(
                     "<li><span class=dim>%s</span> <span class=%s>%s%s</span> "
-                    "%s <span class=dim>%s</span>%s</li>"
+                    "%s <span class=dim>%s</span>%s%s</li>"
                     % (
                         format_duration(ts - start),
                         css,
@@ -365,6 +370,7 @@ class ReportWriter:
                         esc(spell or "Attaque"),
                         esc(source or ""),
                         hp,
+                        mark,
                     )
                 )
             blocks.append(

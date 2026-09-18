@@ -285,7 +285,14 @@ class SegmentAnalysis:
             # player is present is a pet being counted as a person.
             raid_ability.add(amount, False, player.short_name)
             player.recent.append(
-                (event.ts, event.source.name, event.spell_name, -amount, self._hp_of(event))
+                (
+                    event.ts,
+                    event.source.name,
+                    event.spell_name,
+                    -amount,
+                    self._hp_of(event),
+                    event.overkill,
+                )
             )
             self._track_hp(event, player)
             self._timeline_add(event.ts, "damage_taken", amount)
@@ -309,7 +316,14 @@ class SegmentAnalysis:
             target = self._player(event.dest)
             if effective:
                 target.recent.append(
-                    (event.ts, event.source.name, event.spell_name, effective, self._hp_of(event))
+                    (
+                        event.ts,
+                        event.source.name,
+                        event.spell_name,
+                        effective,
+                        self._hp_of(event),
+                        0,
+                    )
                 )
             self._track_hp(event, target)
             self._timeline_add(event.ts, "healing", effective)
@@ -353,11 +367,21 @@ class SegmentAnalysis:
         player.deaths += 1
         player.died_at.append(event.ts)
         chain = list(player.recent)
+        # The killing blow is the hit the log itself marks as one: a hit
+        # that killed something writes a positive overkill, where every
+        # other hit writes -1. Taking "the last damaging event" instead
+        # named a 0%-to-97% redistribution from a Spirit Link Totem on a
+        # real log, which is the last event but plainly not the cause.
         killing_blow = ""
         for moment in reversed(chain):
-            if moment[3] < 0:
+            if len(moment) > 5 and moment[5] > 0:
                 killing_blow = "%s (%s)" % (moment[2] or "Attaque", moment[1] or "?")
                 break
+        if not killing_blow:
+            for moment in reversed(chain):
+                if moment[3] < 0:
+                    killing_blow = "%s (%s)" % (moment[2] or "Attaque", moment[1] or "?")
+                    break
         self.deaths.append(
             {
                 "ts": event.ts,

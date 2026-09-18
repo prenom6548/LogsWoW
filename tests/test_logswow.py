@@ -409,8 +409,17 @@ class TestAnalysis(unittest.TestCase):
     def test_the_death_chain_holds_the_hits_before_it(self):
         chain = self.second.deaths[0]["chain"]
         self.assertGreaterEqual(len(chain), 2)
-        self.assertTrue(all(len(moment) == 5 for moment in chain))
+        self.assertTrue(all(len(moment) == 6 for moment in chain))
         self.assertTrue(any(moment[3] < 0 for moment in chain))
+
+    def test_the_killing_blow_is_the_hit_the_log_marks_with_an_overkill(self):
+        """Not simply the last damaging event. On a real log that named a
+        post-death redistribution from a Spirit Link Totem instead of the
+        hit that actually killed."""
+        chain = self.second.deaths[0]["chain"]
+        marked = [moment for moment in chain if moment[5] > 0]
+        self.assertEqual(len(marked), 1)
+        self.assertIn(marked[0][2], self.second.deaths[0]["killing_blow"])
 
     def test_health_fraction_is_taken_from_the_advanced_block(self):
         tisane = self._player(self.second, "Tisane")
