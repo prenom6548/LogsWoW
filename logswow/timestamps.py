@@ -11,9 +11,17 @@ this module never trusts a single layout:
 
 Only *relative* time matters for every number this package reports (a
 fight's duration, DPS, the gap between two casts), so the absolute epoch
-is a convenience, not a dependency. When the year is missing we anchor
-to a caller-supplied year and roll the day forward when the clock goes
-backwards, which is what a raid crossing midnight looks like.
+is a convenience, not a dependency.
+
+Crossing midnight needs no special handling: every shape above carries
+the month and the day, so the client writes the new date itself. The one
+case that does is a **year** boundary in the year-less shape, where
+12/31 is followed by 1/1 and the supplied year would send the clock back
+eleven months. That, and nothing else, is what the rollover below is
+for. An earlier version rolled on any large backward jump, which a
+single out-of-order line near midnight was enough to trigger -- it moved
+every following timestamp a day into the future, and the only thing that
+caught it was a test fixture that happened to contain one.
 """
 
 import re
@@ -72,7 +80,7 @@ class TimestampReader:
     def __init__(self, default_year=None):
         self.default_year = default_year or datetime.now().year
         self._last_ms = None
-        self._day_rollovers = 0
+        self._year_rollovers = 0
         self.unparsed = 0
 
     def read(self, text):
@@ -87,14 +95,32 @@ class TimestampReader:
 
     def _build(self, match):
         parts = match.groupdict()
-        year = parts.get("year")
-        if year is None:
-            year = self.default_year
+        stated_year = parts.get("year")
+        if stated_year is None:
+            year = self.default_year + self._year_rollovers
         else:
-            year = int(year)
+            year = int(stated_year)
             if year < 100:  # two-digit year, seen in some old files
                 year += 2000
         offset = _tz_to_offset(parts.get("tz"))
+        milliseconds = self._to_ms(year, parts, offset)
+
+        # Only a year-less timestamp can go backwards by months, and only
+        # at New Year. A line merely out of order moves by seconds, and
+        # must leave every timestamp after it alone.
+        if (
+            stated_year is None
+            and self._last_ms is not None
+            and milliseconds < self._last_ms - 300 * 86400 * 1000
+        ):
+            self._year_rollovers += 1
+            milliseconds = self._to_ms(year + 1, parts, offset)
+
+        if self._last_ms is None or milliseconds > self._last_ms:
+            self._last_ms = milliseconds
+        return milliseconds
+
+    def _to_ms(self, year, parts, offset):
         moment = datetime(
             year,
             int(parts["month"]),
@@ -105,18 +131,7 @@ class TimestampReader:
             _fraction_to_ms(parts["frac"]) * 1000,
             tzinfo=timezone(offset) if offset is not None else timezone.utc,
         )
-        moment = moment + timedelta(days=self._day_rollovers)
-        milliseconds = int(moment.timestamp() * 1000)
-        # A raid that crosses midnight, in a file whose timestamps carry no
-        # year: the clock jumps backwards by nearly a day. Anything smaller
-        # than that is an out-of-order line, which happens, and must not
-        # shift every timestamp after it.
-        if self._last_ms is not None and milliseconds < self._last_ms - 20 * 3600 * 1000:
-            self._day_rollovers += 1
-            milliseconds += 86400 * 1000
-        if self._last_ms is None or milliseconds > self._last_ms:
-            self._last_ms = milliseconds
-        return milliseconds
+        return int(moment.timestamp() * 1000)
 
 
 def format_duration(milliseconds):

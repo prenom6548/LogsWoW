@@ -38,7 +38,7 @@ python3 -m logswow where
 
 | Commande | Ce qu'elle fait |
 |---|---|
-| `report FICHIER` | écrit la page HTML complète (`-o` pour choisir le nom) |
+| `report FICHIER` | écrit la page HTML complète (`-o` pour le nom, `--pull-gap` pour le découpage des pulls) |
 | `list FICHIER` | liste les combats du fichier, une ligne chacun |
 | `diagnose FICHIER` | montre ce que le lecteur a compris, et ce qu'il n'a pas compris |
 | `where` | cherche le dossier `Logs` du jeu |
@@ -55,7 +55,15 @@ lu serait pire que pas de rapport du tout.
   durée, son issue, et le nombre de morts. Une clé et les boss qu'elle
   contient apparaissent tous les deux.
 - **Une frise** des dégâts subis par le groupe seconde par seconde, avec
-  les morts en rouge et la vie de la cible principale en courbe.
+  une échelle chiffrée à gauche, les morts en rouge, et en courbe la vie
+  de la cible la plus frappée, **nommée** sous le graphique. Sur un pull
+  de boss c'est le boss ; dans une clé c'est l'unité qui a encaissé le
+  plus, et le journal ne donne pas toujours la vie du boss lui-même.
+- **La liste des pulls** dès qu'un combat en contient plusieurs, ce qui
+  est le cas de toute clé mythique : heure de début, durée, ce qui a été
+  engagé et en quel nombre, dégâts infligés et subis, morts. Un pull se
+  termine après six secondes sans dégâts de part ni d'autre ;
+  `--pull-gap` change ce seuil si votre groupe enchaîne les packs.
 - **Dégâts et soins** par joueur, avec le DPS, le HPS et la part de soin
   perdue en surguérison.
 - **Ce qui a fait mal au groupe** : chaque capacité ennemie, combien elle

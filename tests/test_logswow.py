@@ -90,11 +90,29 @@ class TestTimestamps(unittest.TestCase):
         self.assertIsNone(reader.read("pas une date"))
         self.assertEqual(reader.unparsed, 1)
 
-    def test_midnight_rolls_forward_instead_of_backwards(self):
+    def test_midnight_needs_no_special_case(self):
+        """Every shape carries the date, so the client rolls it itself."""
         reader = TimestampReader(2026)
         before = reader.read("9/18 23:59:59.500")
-        after = reader.read("9/18 00:00:01.500")
+        after = reader.read("9/19 00:00:01.500")
         self.assertEqual(after - before, 2000)
+
+    def test_new_year_rolls_the_year_forward(self):
+        """The one case a year-less timestamp cannot express on its own."""
+        reader = TimestampReader(2026)
+        before = reader.read("12/31 23:59:59.000")
+        after = reader.read("1/1 00:00:01.000")
+        self.assertEqual(after - before, 2000)
+
+    def test_an_out_of_order_line_near_midnight_shifts_nothing(self):
+        """This broke: one line out of order rolled every later timestamp
+        a whole day forward, and only a fixture caught it."""
+        reader = TimestampReader(2026)
+        reader.read("9/18 23:59:51.000")
+        reader.read("9/19 00:00:01.000")
+        stray = reader.read("9/18 23:59:52.000")  # out of order, as real logs are
+        after = reader.read("9/19 00:00:30.000")
+        self.assertEqual(after - stray, 38000)
 
     def test_out_of_order_line_does_not_trigger_a_rollover(self):
         reader = TimestampReader(2026)
@@ -303,9 +321,11 @@ class TestSegments(unittest.TestCase):
     def setUp(self):
         self.log, self.segments = run_fixture()
 
-    def test_two_pulls_found(self):
-        self.assertEqual(len(self.segments), 2)
-        self.assertEqual([s.kind for s in self.segments], ["encounter", "encounter"])
+    def test_every_marked_fight_is_found(self):
+        self.assertEqual(len(self.segments), 3)
+        self.assertEqual(
+            [s.kind for s in self.segments], ["encounter", "encounter", "keystone"]
+        )
 
     def test_outcomes_are_read_from_the_end_marker(self):
         self.assertTrue(self.segments[0].success)
@@ -317,7 +337,7 @@ class TestSegments(unittest.TestCase):
         self.assertGreater(self.segments[1].duration_ms, 0)
 
     def test_indices_are_contiguous_from_one(self):
-        self.assertEqual([s.index for s in self.segments], [1, 2])
+        self.assertEqual([s.index for s in self.segments], [1, 2, 3])
 
     def test_difficulty_is_named_or_numbered_never_guessed(self):
         self.assertEqual(difficulty_name(16), "Mythique")
@@ -442,6 +462,105 @@ class TestAnalysis(unittest.TestCase):
         self.assertLessEqual(self.first.boss_hp[-1][1], self.first.boss_hp[0][1])
 
 
+class TestPulls(unittest.TestCase):
+    """A run is several fights, and the file can say which."""
+
+    def setUp(self):
+        self.log, self.segments = run_fixture()
+        self.boss = self.segments[0].analysis
+        self.key = self.segments[2].analysis
+
+    def test_a_boss_pull_is_one_pull(self):
+        self.assertEqual(len(self.boss.blocks), 1)
+        self.assertFalse(self.boss.has_several_pulls)
+
+    def test_a_key_is_split_where_the_fighting_stopped(self):
+        self.assertEqual(len(self.key.blocks), 2)
+        self.assertTrue(self.key.has_several_pulls)
+
+    def test_each_pull_names_what_was_engaged_and_how_many(self):
+        labels = [block.label() for block in self.key.blocks]
+        self.assertIn("Sbire d'essai x2", labels[0])
+        self.assertIn("Brute d'essai", labels[1])
+
+    def test_pull_totals_add_up_to_the_run(self):
+        self.assertEqual(
+            sum(block.damage_done for block in self.key.blocks),
+            sum(player.damage_done for player in self.key.players.values()),
+        )
+
+    def test_a_longer_gap_merges_the_two_pulls(self):
+        """The threshold is a judgement call, so it is tunable and tested."""
+        from logswow.parse import LogFile as _LogFile
+
+        log = _LogFile(FIXTURE)
+        splitter = Splitter(
+            analysis_factory=lambda segment: SegmentAnalysis(segment, pull_gap_ms=120000)
+        )
+        for event in log.events():
+            splitter.feed(event)
+        key = splitter.finish()[2].analysis
+        self.assertEqual(len(key.blocks), 1)
+
+    def test_a_negligible_pull_is_dropped_and_counted(self):
+        """A real key produced two 'pulls' of 7.9k damage against 531M."""
+        from logswow.analysis import CombatBlock, MIN_PULL_SHARE
+
+        self.assertLess(MIN_PULL_SHARE, 0.01)
+        crumb = CombatBlock(self.key.first_ts)
+        crumb.damage_done = 1
+        self.key.blocks.append(crumb)
+        self.key.finish(self.segments[2])
+        self.assertNotIn(crumb, self.key.blocks)
+        self.assertGreaterEqual(self.key.dropped_pulls, 1)
+
+    def test_the_only_pull_is_never_dropped(self):
+        self.assertEqual(len(self.boss.blocks), 1)
+
+    def test_a_death_is_counted_against_the_pull_it_happened_in(self):
+        second = self.segments[1].analysis
+        self.assertEqual(sum(block.deaths for block in second.blocks), 1)
+
+
+class TestMainTarget(unittest.TestCase):
+    """The health curve has to say whose health it is."""
+
+    def setUp(self):
+        self.log, self.segments = run_fixture()
+
+    def test_it_is_named_not_left_to_the_reader_to_guess(self):
+        analysis = self.segments[0].analysis
+        self.assertEqual(analysis.boss_name, "Golem d'essai")
+
+    def test_a_unit_with_no_health_in_the_log_cannot_be_the_curve(self):
+        """One real encounter never wrote the boss's health at all, so the
+        curve falls back to the most-damaged unit that does have it, and
+        says which one that is rather than implying it is the boss."""
+        for segment in self.segments:
+            analysis = segment.analysis
+            if analysis.boss_name:
+                self.assertGreaterEqual(len(analysis.boss_hp), 3)
+
+    def test_it_is_the_unit_that_took_the_most_damage(self):
+        """Not the one with the biggest health pool, which was the old
+        guess and picked the wrong unit in a dungeon."""
+        analysis = self.segments[2].analysis
+        totals = {}
+        for block in analysis.blocks:
+            for name in block.enemies:
+                totals[name] = totals.get(name, 0) + block.damage_done
+        if analysis.boss_name:
+            self.assertEqual(analysis.boss_name, max(totals, key=lambda key: totals[key]))
+
+    def test_no_curve_is_drawn_from_too_few_samples(self):
+        for segment in self.segments:
+            analysis = segment.analysis
+            if analysis.boss_hp:
+                self.assertGreaterEqual(len(analysis.boss_hp), 3)
+            else:
+                self.assertEqual(analysis.boss_name, "")
+
+
 class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
     def test_the_fixtures_deliberate_bad_lines_are_reported(self):
         log, _segments = run_fixture()
@@ -450,7 +569,7 @@ class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
 
     def test_a_broken_line_does_not_stop_the_read(self):
         log, segments = run_fixture()
-        self.assertEqual(len(segments), 2)
+        self.assertEqual(len(segments), 3)
         self.assertGreater(log.event_count, 30)
 
 
@@ -499,6 +618,30 @@ class TestReport(unittest.TestCase):
         self.assertNotIn("https://", page)
         self.assertNotIn("<script", page)
         self.assertIn("Golem d&#x27;essai", page)
+
+    def test_the_timeline_carries_a_readable_scale(self):
+        """The owner asked for the axis labels a log site shows."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "rapport.html")
+            ReportWriter(self.log, self.segments, target).write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertIn("text-anchor='end'", page)  # the left axis values
+        self.assertIn("Courbe et echelle de droite", page)
+        self.assertIn("Golem d&#x27;essai", page)  # the curve says whose health it is  # what the curve is
+
+    def test_the_pull_table_appears_only_for_a_run_with_several(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "rapport.html")
+            ReportWriter(self.log, self.segments, target).write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertIn("Ce qui a ete engage", page)
+        self.assertEqual(page.count("Ce qui a ete engage"), 1)
 
     def test_french_agreement(self):
         self.assertEqual(plural(0, "mort"), "0 mort")

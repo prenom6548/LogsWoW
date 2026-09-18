@@ -24,6 +24,28 @@ DOWNTIME_THRESHOLD_MS = 2000
 DEATH_CHAIN_LENGTH = 12
 MAX_TIMELINE_BUCKETS = 400
 
+# How long the group has to stop dealing and taking damage before what
+# follows counts as a new pull. Six seconds is long enough to survive a
+# ranged gap-close or a cast finishing after the last mob dies, and short
+# enough to separate two trash packs in a Mythic+ key.
+PULL_GAP_MS = 6000
+
+# A "pull" worth a line has to be a meaningful share of the run. A real
+# key produced two blocks of 7.9k and 14.1k damage against a 531M total:
+# a dot finishing on something already dead, or a critter. One part in a
+# thousand cuts those and leaves the smallest genuine pull (20M) two
+# orders of magnitude clear.
+MIN_PULL_SHARE = 0.001
+
+# How many enemy units a single pull bothers to name.
+PULL_LABEL_UNITS = 3
+
+# Bounds on the per-enemy health sampling, so a 20-minute key cannot grow
+# without limit while it works out which unit was the main target.
+MAX_TRACKED_ENEMIES = 40
+KEEP_TRACKED_ENEMIES = 20
+MAX_HP_SAMPLES = 400
+
 
 class Ability:
     """One spell's contribution, on one side of one ledger."""
@@ -56,6 +78,52 @@ class Ability:
     @property
     def average(self):
         return (self.total / self.hits) if self.hits else 0
+
+
+class CombatBlock:
+    """One pull: a stretch of fighting with no long silence inside it.
+
+    A boss encounter is one of these. A Mythic+ key is a few dozen, which
+    is the whole reason this exists -- "what did we actually pull" is a
+    question the file can answer and a single 20-minute total cannot.
+    """
+
+    __slots__ = ("start_ts", "end_ts", "damage_done", "damage_taken", "deaths", "enemies")
+
+    def __init__(self, start_ts):
+        self.start_ts = start_ts
+        self.end_ts = start_ts
+        self.damage_done = 0
+        self.damage_taken = 0
+        self.deaths = 0
+        self.enemies = {}
+
+    def note_enemy(self, guid, name):
+        # "nil" is what the client writes for a unit with no name, which
+        # is not an enemy worth listing in a pull.
+        if not name or name == "nil":
+            return
+        seen = self.enemies.get(name)
+        if seen is None:
+            if len(self.enemies) >= 24:
+                return
+            seen = set()
+            self.enemies[name] = seen
+        seen.add(guid)
+
+    @property
+    def duration_ms(self):
+        return max(0, self.end_ts - self.start_ts)
+
+    def label(self, limit=PULL_LABEL_UNITS):
+        """'Voyou de l'allee x4, Chaman ensorcele x2'."""
+        ranked = sorted(self.enemies.items(), key=lambda item: -len(item[1]))
+        pieces = []
+        for name, guids in ranked[:limit]:
+            pieces.append("%s x%d" % (name, len(guids)) if len(guids) > 1 else name)
+        if len(ranked) > limit:
+            pieces.append("et %d autre(s)" % (len(ranked) - limit))
+        return ", ".join(pieces)
 
 
 class Player:
@@ -124,8 +192,9 @@ def _bucket(store, spell_id, name):
 class SegmentAnalysis:
     """Accumulates one segment. `feed` per event, `finish` once."""
 
-    def __init__(self, segment):
+    def __init__(self, segment, pull_gap_ms=PULL_GAP_MS):
         self.segment = segment
+        self.pull_gap_ms = pull_gap_ms
         self.players = {}
         self.pet_owner = {}
         self.enemy_damage_by_ability = {}  # what hit the group, raid-wide
@@ -137,7 +206,13 @@ class SegmentAnalysis:
         self.aura_open = {}
         self.aura_uptime = {}
         self.boss_hp = []
-        self._boss_guid = None
+        self.boss_name = ""
+        self.blocks = []
+        self.dropped_pulls = 0
+        self._block = None
+        self._enemy_damage = {}
+        self._enemy_names = {}
+        self._hp_samples = {}
         self._timeline = {}
         self._bucket_ms = 1000
         self.events_seen = 0
@@ -240,26 +315,20 @@ class SegmentAnalysis:
             if event.dest.is_player:
                 self._player(event.dest).absorbed_taken += event.absorbed_amount
 
-        # A boss's health curve, taken from the advanced block on whatever
-        # the group is hitting hardest. No boss database needed.
+        # The health curve of whatever the group actually spent the fight
+        # killing. Picking the unit with the biggest health pool was a
+        # guess, and on a dungeon key it was often the wrong one; this
+        # ranks by damage received and the answer is only known at the
+        # end, so several candidates are sampled and pruned as it goes.
         if (
             event.advanced is not None
             and kind in ("_DAMAGE", "_DAMAGE_LANDED")  # health only, not a total
             and event.dest.is_hostile
+            and not event.dest.is_pet
             and event.advanced.max_hp > 0
+            and event.advanced.info_guid == event.dest.guid
         ):
-            if self._boss_guid is None or event.advanced.max_hp > self._boss_max_hp():
-                if not event.dest.is_pet:
-                    self._boss_guid = event.dest.guid
-                    self._boss_max = event.advanced.max_hp
-            if event.dest.guid == self._boss_guid:
-                fraction = event.advanced.health_fraction
-                if fraction is not None:
-                    if not self.boss_hp or event.ts - self.boss_hp[-1][0] >= 1000:
-                        self.boss_hp.append((event.ts, fraction))
-
-    def _boss_max_hp(self):
-        return getattr(self, "_boss_max", 0)
+            self._sample_enemy_health(event)
 
     def _feed_damage(self, event):
         amount = event.amount
@@ -273,6 +342,19 @@ class SegmentAnalysis:
             ability = _bucket(player.damage_by_ability, event.spell_id, event.spell_name)
             ability.add(amount, event.is_critical, event.dest.name, max(0, event.overkill))
             self.total_damage += amount
+            self._enemy_damage[event.dest.guid] = (
+                self._enemy_damage.get(event.dest.guid, 0) + amount
+            )
+            # Record the name here rather than only where health is
+            # sampled: a unit can take damage for a whole fight without a
+            # single event carrying its advanced block, and it was then
+            # the top target with no name at all.
+            if event.dest.name and event.dest.guid not in self._enemy_names:
+                self._enemy_names[event.dest.guid] = event.dest.name
+            block = self._touch_block(event)
+            block.damage_done += amount
+            if not event.dest.is_pet:
+                block.note_enemy(event.dest.guid, event.dest.name)
 
         if dest_ours:
             player = self._player(event.dest)
@@ -296,6 +378,45 @@ class SegmentAnalysis:
             )
             self._track_hp(event, player)
             self._timeline_add(event.ts, "damage_taken", amount)
+            block = self._touch_block(event)
+            block.damage_taken += amount
+            if event.source.is_hostile and not event.source.is_pet:
+                block.note_enemy(event.source.guid, event.source.name)
+
+    def _sample_enemy_health(self, event):
+        guid = event.dest.guid
+        fraction = event.advanced.health_fraction
+        if fraction is None:
+            return
+        self._enemy_names.setdefault(guid, event.dest.name)
+        samples = self._hp_samples.get(guid)
+        if samples is None:
+            if len(self._hp_samples) >= MAX_TRACKED_ENEMIES:
+                self._prune_tracked_enemies()
+            samples = []
+            self._hp_samples[guid] = samples
+        if not samples or event.ts - samples[-1][0] >= 1000:
+            if len(samples) < MAX_HP_SAMPLES:
+                samples.append((event.ts, fraction))
+
+    def _prune_tracked_enemies(self):
+        """Keep sampling only the units worth being the main target."""
+        ranked = sorted(
+            self._hp_samples,
+            key=lambda guid: -self._enemy_damage.get(guid, 0),
+        )
+        for guid in ranked[KEEP_TRACKED_ENEMIES:]:
+            self._hp_samples.pop(guid, None)
+
+    def _touch_block(self, event):
+        """Open, extend or restart the current pull."""
+        block = self._block
+        if block is None or event.ts - block.end_ts > self.pull_gap_ms:
+            block = CombatBlock(event.ts)
+            self._block = block
+            self.blocks.append(block)
+        block.end_ts = max(block.end_ts, event.ts)
+        return block
 
     def _feed_landed(self, event):
         """A resolved melee hit: health and position only, never a total."""
@@ -382,6 +503,8 @@ class SegmentAnalysis:
                 if moment[3] < 0:
                     killing_blow = "%s (%s)" % (moment[2] or "Attaque", moment[1] or "?")
                     break
+        if self._block is not None:
+            self._block.deaths += 1
         self.deaths.append(
             {
                 "ts": event.ts,
@@ -415,6 +538,34 @@ class SegmentAnalysis:
 
     def finish(self, segment):
         end = segment.end_ts or self.last_ts or self.first_ts or 0
+
+        # Which unit the group actually spent the fight killing, known only
+        # now. On a boss pull this is the boss; in a key it is whichever
+        # single unit soaked the most damage, and the report names it
+        # rather than leaving the reader to guess what the curve shows.
+        if self._enemy_damage:
+            ranked = sorted(
+                self._enemy_damage, key=lambda guid: -self._enemy_damage[guid]
+            )
+            # The unit that took the most damage, among those with enough
+            # health samples to draw an honest line. Some units take
+            # damage for a whole fight without one event carrying their
+            # advanced block, and a curve cannot be invented for them.
+            for guid in ranked:
+                samples = self._hp_samples.get(guid) or []
+                if len(samples) >= 3:
+                    self.boss_name = self._enemy_names.get(guid, "")
+                    self.boss_hp = samples
+                    break
+        self._hp_samples = {}
+
+        # Drop the stray ticks, but never drop the only pull there is.
+        if len(self.blocks) > 1 and self.total_damage > 0:
+            floor = self.total_damage * MIN_PULL_SHARE
+            kept = [block for block in self.blocks if block.damage_done >= floor]
+            self.dropped_pulls = len(self.blocks) - len(kept)
+            if kept:
+                self.blocks = kept
         for key, opened in list(self.aura_open.items()):
             self.aura_uptime[key] = self.aura_uptime.get(key, 0) + max(0, end - opened)
         self.aura_open = {}
@@ -489,6 +640,11 @@ class SegmentAnalysis:
                 )
             )
         return series, self._bucket_ms
+
+    @property
+    def has_several_pulls(self):
+        """True when a pull table would say something a total cannot."""
+        return len(self.blocks) > 1
 
     def player_uptimes(self, guid, limit=14):
         rows = []

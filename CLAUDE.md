@@ -109,11 +109,44 @@ files, not a guess:
   97% health, which is the last event and plainly not the cause; reading
   the overkill marker instead named "Trait de lave" correctly, and all 14
   deaths in that run carry one.
+- **A unit can take damage for a whole encounter without one event
+  carrying its advanced block.** "Chasselumiere Ikuzz" took 31.7M damage
+  with zero health samples, so the health curve falls back to the most
+  damaged unit that does have them and the caption names it. Never label
+  that curve "the boss": it is the most-hit unit whose health the file
+  actually gives.
 - Difficulty 208 appears in the owner's arena logs and is not in any
   table here. Unknown ids print as `difficulte 208` rather than being
   guessed at.
 
 Both files now read with **zero unresolved lines and zero read problems**.
+
+### Pulls inside a run, and why the thresholds are what they are
+
+Added 2026-09-18 after the owner asked whether the pulls of a Mythic+ key
+could be seen. A pull ends after `PULL_GAP_MS` (6 s) with the group
+neither dealing nor taking damage. Measured on the owner's keys, that
+gives 5 to 10 pulls for a 20-minute run, because this group chain-pulls;
+`--pull-gap` exists so the threshold is the reader's judgement rather
+than a hidden constant.
+
+`MIN_PULL_SHARE` (one part in a thousand of the run's damage) drops the
+crumbs: a real key produced two "pulls" of 7.9k and 14.1k damage against
+a 531M total, which are a dot finishing on something already dead. The
+smallest genuine pull in that run was 20M, two orders of magnitude clear.
+The count of what was dropped is shown rather than hidden.
+
+### The timestamp rollover that was wrong
+
+The reader used to roll the clock forward a day on any large backward
+jump, which is what a raid crossing midnight was assumed to look like.
+It is not: **every timestamp shape carries the month and the day**, so
+the client writes the new date itself. What that heuristic actually did
+was fire on a single out-of-order line near midnight and push every
+later timestamp 24 hours into the future -- a fixture caught it, showing
+a 41-second pull as 24:00:41. The only real case is a **year** boundary
+in the year-less shape (12/31 followed by 1/1), and that is all the code
+now handles.
 
 ### Performance, measured
 
@@ -157,7 +190,7 @@ it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 56 tests, no network, fast.
+1. `python3 tests/run-tests.py` -- 75 tests, no network, fast.
 2. `python3 -m logswow diagnose <a real log>` -- the number that matters
    is `PROBLEMES DE LECTURE : 0`.
 3. If you touched anything about field positions, check a real file's

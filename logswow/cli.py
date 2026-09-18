@@ -33,9 +33,15 @@ def default_log_locations():
     return [path for path in candidates if os.path.isdir(path)]
 
 
-def _build(path, year=None, verbose=True):
+def _build(path, year=None, verbose=True, pull_gap_ms=None):
     log = LogFile(path, default_year=year)
-    splitter = Splitter(analysis_factory=SegmentAnalysis)
+    if pull_gap_ms is None:
+        factory = SegmentAnalysis
+    else:
+        def factory(segment):
+            return SegmentAnalysis(segment, pull_gap_ms=pull_gap_ms)
+
+    splitter = Splitter(analysis_factory=factory)
     started = time.time()
     last_report = started
     for event in log.events():
@@ -53,11 +59,18 @@ def _build(path, year=None, verbose=True):
     return log, segments, time.time() - started
 
 
+def _pull_gap_ms(args):
+    seconds = getattr(args, "pull_gap", None)
+    return None if seconds is None else int(seconds * 1000)
+
+
 def command_report(args):
     if not os.path.exists(args.log):
         sys.stderr.write("Fichier introuvable : %s\n" % args.log)
         return 2
-    log, segments, elapsed = _build(args.log, args.year, not args.quiet)
+    log, segments, elapsed = _build(
+        args.log, args.year, not args.quiet, _pull_gap_ms(args)
+    )
     out = args.out or os.path.splitext(args.log)[0] + ".html"
     ReportWriter(log, segments, out).write()
     if not args.quiet:
@@ -74,7 +87,9 @@ def command_list(args):
     if not os.path.exists(args.log):
         sys.stderr.write("Fichier introuvable : %s\n" % args.log)
         return 2
-    log, segments, _elapsed = _build(args.log, args.year, not args.quiet)
+    log, segments, _elapsed = _build(
+        args.log, args.year, not args.quiet, _pull_gap_ms(args)
+    )
     print("%-4s %-46s %9s %10s %7s" % ("#", "Combat", "Duree", "Degats", "Morts"))
     for segment in segments:
         analysis = segment.analysis
@@ -133,6 +148,15 @@ def build_parser():
         subparser.add_argument("--year", type=int, default=None,
                                help="annee, pour les journaux dont l'horodatage n'en porte pas")
         subparser.add_argument("-q", "--quiet", action="store_true")
+        subparser.add_argument(
+            "--pull-gap",
+            type=float,
+            default=None,
+            metavar="SECONDES",
+            help="silence necessaire pour separer deux pulls (defaut 6 s) ; "
+                 "baissez-le si vos packs sont regroupes, montez-le si un pull "
+                 "unique est coupe en deux",
+        )
         return subparser
 
     report = common(subparsers.add_parser("report", help="produit le rapport HTML"))

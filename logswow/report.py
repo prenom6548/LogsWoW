@@ -95,6 +95,10 @@ def percent(value):
     return "%.0f %%" % (value * 100)
 
 
+# The narrow no-break space French puts before ; : ! ? and inside numbers.
+NBSP = "\u202f"
+
+
 def plural(count, singular, many=None):
     """French agreement: 1 joueur, 2 joueurs, 0 joueur."""
     word = singular if abs(count) < 2 else (many or singular + "s")
@@ -141,7 +145,7 @@ class ReportWriter:
             rows.append(
                 "<tr><td><a href='#s%d' class=name>%s</a>%s</td>"
                 "<td class=n>%s</td><td class=n>%s</td><td class=n>%s</td>"
-                "<td class=n>%s</td><td class=n>%d</td></tr>"
+                "<td class=n>%s</td><td class=n>%s</td><td class=n>%d</td></tr>"
                 % (
                     segment.index,
                     esc(segment.label),
@@ -149,12 +153,15 @@ class ReportWriter:
                     format_duration(analysis.duration_ms),
                     compact(analysis.total_damage),
                     compact(analysis.total_healing),
+                    len(analysis.blocks) if analysis.has_several_pulls else "1",
                     len(analysis.players),
                     len(analysis.deaths),
                 )
             )
         if not rows:
-            rows.append("<tr><td colspan=7 class=dim>Aucun combat delimite dans ce fichier.</td></tr>")
+            rows.append(
+                "<tr><td colspan=8 class=dim>Aucun combat delimite dans ce fichier.</td></tr>"
+            )
 
         generated = datetime.now().strftime("%d/%m/%Y %H:%M")
         return (
@@ -167,7 +174,8 @@ class ReportWriter:
             "<div class=grid>%s</div>"
             "<h2>Combats</h2><div class=card><table>"
             "<tr><th>Combat</th><th class=n>Duree</th><th class=n>Degats</th>"
-            "<th class=n>Soins</th><th class=n>Joueurs</th><th class=n>Morts</th></tr>"
+            "<th class=n>Soins</th><th class=n>Pulls</th><th class=n>Joueurs</th>"
+            "<th class=n>Morts</th></tr>"
             "%s</table></div>"
             % (
                 esc(os.path.basename(self.log.path)),
@@ -222,6 +230,7 @@ class ReportWriter:
         body = [
             head,
             self._timeline(analysis),
+            self._pulls(analysis),
             "<div class=cols>",
             self._ranking(analysis, "damage_done", "Degats infliges", "DPS", seconds),
             self._ranking(analysis, "healing_done", "Soins effectifs", "HPS", seconds),
@@ -233,57 +242,156 @@ class ReportWriter:
         return "".join(body)
 
     def _timeline(self, analysis):
+        """Damage taken per interval, with a real scale on both sides.
+
+        Left axis: how much the group took in one interval. Right axis:
+        the main target's health, so the two can be read against each
+        other -- a spike of damage taken against a flat health bar is a
+        different story from one during a burn phase.
+        """
         series, bucket_ms = analysis.timeline_series()
         if len(series) < 3:
             return ""
-        width, height = 1000, 150
+
+        width, height = 1060, 190
+        left, right = 62, 1016          # the plot area, leaving room for both axes
+        top, bottom = 14, 158
+        plot_width = right - left
+        plot_height = bottom - top
         peak = max(max(row[1] for row in series), 1)
-        step = width / float(len(series))
-        bars = []
-        for index, (_, taken, _healing, deaths) in enumerate(series):
+        step = plot_width / float(len(series))
+
+        pieces = []
+
+        # -- left axis: four gridlines and their values -------------------
+        for fraction in (0.0, 0.25, 0.5, 0.75, 1.0):
+            y = bottom - fraction * plot_height
+            pieces.append(
+                "<line x1='%d' y1='%.1f' x2='%d' y2='%.1f' stroke='var(--line)' "
+                "stroke-width='1' />" % (left, y, right, y)
+            )
+            pieces.append(
+                "<text x='%d' y='%.1f' font-size='11' fill='var(--muted)' "
+                "text-anchor='end'>%s</text>" % (left - 8, y + 3.5, compact(peak * fraction))
+            )
+
+        # -- right axis: the main target's health -------------------------
+        if len(analysis.boss_hp) > 3:
+            for fraction in (0.0, 0.5, 1.0):
+                y = bottom - fraction * plot_height
+                pieces.append(
+                    "<text x='%d' y='%.1f' font-size='11' fill='var(--accent)' "
+                    "text-anchor='start'>%s</text>"
+                    % (right + 8, y + 3.5, percent(fraction))
+                )
+
+        # -- the bars, and a marker per death -----------------------------
+        for index, (_seconds, taken, _healing, deaths) in enumerate(series):
+            x = left + index * step
             if taken:
-                bar_height = max(1.0, taken / peak * (height - 26))
-                bars.append(
+                bar_height = max(1.0, taken / peak * plot_height)
+                pieces.append(
                     "<rect x='%.2f' y='%.2f' width='%.2f' height='%.2f' fill='var(--bar)' />"
-                    % (index * step, height - 20 - bar_height, max(1.0, step - 0.5), bar_height)
+                    % (x, bottom - bar_height, max(1.0, step - 0.5), bar_height)
                 )
             if deaths:
-                bars.append(
-                    "<rect x='%.2f' y='0' width='%.2f' height='%d' fill='var(--bad)' "
-                    "opacity='.55' />" % (index * step, max(1.5, step), height - 20)
+                pieces.append(
+                    "<rect x='%.2f' y='%d' width='%.2f' height='%d' fill='var(--bad)' "
+                    "opacity='.55' />" % (x, top, max(1.5, step), plot_height)
                 )
-        ticks = []
-        for index in range(0, len(series), max(1, len(series) // 8)):
-            seconds = series[index][0]
-            ticks.append(
-                "<text x='%.1f' y='%d' font-size='11' fill='var(--muted)'>%s</text>"
-                % (index * step + 2, height - 6, format_duration(seconds * 1000))
-            )
-        boss = ""
+
+        # -- the main target's health curve -------------------------------
         if len(analysis.boss_hp) > 3 and analysis.first_ts is not None:
             span = max(1, (analysis.last_ts or 0) - analysis.first_ts)
             points = " ".join(
                 "%.1f,%.1f"
                 % (
-                    (ts - analysis.first_ts) / span * width,
-                    (height - 20) - fraction * (height - 26),
+                    left + (ts - analysis.first_ts) / span * plot_width,
+                    bottom - fraction * plot_height,
                 )
                 for ts, fraction in analysis.boss_hp
             )
-            boss = (
+            pieces.append(
                 "<polyline points='%s' fill='none' stroke='var(--accent)' "
-                "stroke-width='1.6' opacity='.9' />" % points
+                "stroke-width='1.8' opacity='.95' />" % points
             )
+
+        # -- the time axis -------------------------------------------------
+        pieces.append(
+            "<line x1='%d' y1='%d' x2='%d' y2='%d' stroke='var(--line)' />"
+            % (left, bottom, right, bottom)
+        )
+        for index in range(0, len(series), max(1, len(series) // 8)):
+            pieces.append(
+                "<text x='%.1f' y='%d' font-size='11' fill='var(--muted)'>%s</text>"
+                % (left + index * step, bottom + 18,
+                   format_duration(series[index][0] * 1000))
+            )
+
+        target = ""
+        if analysis.boss_name and len(analysis.boss_hp) > 3:
+            # Deliberately precise: on one real encounter the boss itself
+            # never had its health written to the file, and the curve is
+            # an add's. Naming it beats implying it is always the boss.
+            target = (" Courbe et echelle de droite%s: vie de <b>%s</b>, la cible la plus "
+                      "frappee parmi celles dont le journal donne les points de vie."
+                      % (NBSP, esc(analysis.boss_name)))
         return (
             "<h3>Degats subis par le groupe, seconde par seconde</h3>"
-            "<div class=card><svg viewBox='0 0 %d %d' preserveAspectRatio='none' "
-            "role=img aria-label='Degats subis au fil du combat'>%s%s%s</svg>"
-            "<p class=dim style='margin:6px 0 0;font-size:12px'>Barres&nbsp;: degats subis "
-            "par intervalle de %s. Traits rouges&nbsp;: morts. Courbe&nbsp;: vie de la cible "
-            "principale.</p></div>"
-            % (width, height, "".join(bars), boss, "".join(ticks),
-               "%.0f s" % (bucket_ms / 1000.0))
+            "<div class=card><svg viewBox='0 0 %d %d' role=img "
+            "aria-label='Degats subis au fil du combat'>%s</svg>"
+            "<p class=dim style='margin:6px 0 0;font-size:12px'>Barres et echelle de "
+            "gauche%s: degats subis par intervalle de %s. Traits rouges%s: morts.%s</p></div>"
+            % (width, height, "".join(pieces), NBSP,
+               "%.0f%ss" % (bucket_ms / 1000.0, NBSP), NBSP, target)
         )
+
+    def _pulls(self, analysis):
+        """The pulls inside a run. Only worth showing when there are several."""
+        if not analysis.has_several_pulls:
+            return ""
+        start = analysis.first_ts or 0
+        rows = []
+        peak = max(block.damage_done for block in analysis.blocks) or 1
+        for index, block in enumerate(analysis.blocks, start=1):
+            rows.append(
+                "<tr><td class=n>%d</td><td class=n>%s</td><td class=n>%s</td>"
+                "%s<td class=n>%s</td><td class=n>%s</td><td class=n>%s</td></tr>"
+                % (
+                    index,
+                    format_duration(block.start_ts - start),
+                    format_duration(block.duration_ms),
+                    _bar_row(esc(block.label()) or "<span class=dim>?</span>",
+                             block.damage_done / peak),
+                    compact(block.damage_done),
+                    compact(block.damage_taken),
+                    ("<span class=dim>0</span>" if not block.deaths else str(block.deaths)),
+                )
+            )
+        return (
+            "<h3>%s</h3><div class=card><table>"
+            "<tr><th class=n>#</th><th class=n>Debut</th><th class=n>Duree</th>"
+            "<th>Ce qui a ete engage</th><th class=n>Degats</th>"
+            "<th class=n>Subis</th><th class=n>Morts</th></tr>%s</table>"
+            "<p class=dim style='margin:10px 0 0;font-size:12px'>Un pull se termine "
+            "quand le groupe passe plus de %s sans infliger ni subir de degats. "
+            "Un groupe qui encha%sne les packs sans pause les verra donc regroupes%s: "
+            "<code>--pull-gap</code> change ce seuil.%s</p></div>"
+            % (
+                plural(len(analysis.blocks), "pull"),
+                "".join(rows),
+                "%d%ss" % (analysis.pull_gap_ms / 1000, NBSP),
+                "î",
+                NBSP,
+                (" %s ecarte%s, trop petits pour compter (moins d'un milli%sme "
+                 "des degats de la course)."
+                 % (analysis.dropped_pulls,
+                    "s" if analysis.dropped_pulls > 1 else "",
+                    "è"))
+                if analysis.dropped_pulls else "",
+            )
+        )
+
 
     def _ranking(self, analysis, key, title, rate_label, seconds):
         rows = analysis.ranked_players(key)

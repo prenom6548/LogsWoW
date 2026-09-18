@@ -48,7 +48,12 @@ def build():
     lines = []
 
     def add(time_text, payload):
-        lines.append("9/18/2026 %s  %s" % (time_text, payload))
+        # A real client writes the new date itself once the clock passes
+        # midnight, so the fixture does too: the pulls below run from
+        # 23:59 on the 18th into the small hours of the 19th.
+        day = 19 if time_text.startswith("00:") or time_text.startswith("01:") \
+            or time_text.startswith("02:") else 18
+        lines.append("9/%d/2026 %s  %s" % (day, time_text, payload))
 
     add("23:59:00.000", "COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.1.0,PROJECT_ID,1")
     add("23:59:00.100", 'ZONE_CHANGE,2000,"Salle d\'essai",23')
@@ -118,6 +123,28 @@ def build():
     add("00:00:30.000", 'SPELL_CAST_SUCCESS,%s,%s,222,"Frappe d\'essai",0x1,%s'
         % (DPS, ADD, advanced(ADD.split(",")[0])))
     add("00:00:31.000", 'ENCOUNTER_END,9002,"Eclat d\'essai",16,3,0,41000')
+
+    # -- a key with two trash packs, separated by a real silence ---------
+    # This is what makes the pull table mean anything: one segment that
+    # contains several distinct fights rather than one long total.
+    add("00:01:00.000", 'CHALLENGE_MODE_START,"Donjon d\'essai",2000,500,7,[165,162]')
+    for index, guid_tail in enumerate(("0000AA0001", "0000AA0002")):
+        mob = ('Creature-0-9999-2222-1111-70002-%s,"Sbire d\'essai",0xa48,0x0' % guid_tail)
+        for tick in range(3):
+            add("00:01:%02d.000" % (5 + index * 2 + tick),
+                'SPELL_DAMAGE,%s,%s,222,"Frappe d\'essai",0x1,%s,3000,3000,-1,1,0,0,0,'
+                "nil,nil,nil,AOE"
+                % (DPS, mob, advanced("Creature-0-9999-2222-1111-70002-%s" % guid_tail,
+                                      30000 - tick * 10000, 30000)))
+    # forty seconds of nothing at all, then a second pack
+    for tick in range(2):
+        mob = 'Creature-0-9999-2222-1111-70003-0000BB0001,"Brute d\'essai",0xa48,0x0'
+        add("00:02:%02d.000" % (5 + tick),
+            'SPELL_DAMAGE,%s,%s,222,"Frappe d\'essai",0x1,%s,8000,8000,-1,1,0,0,0,'
+            "nil,nil,nil,ST"
+            % (DPS, mob, advanced("Creature-0-9999-2222-1111-70003-0000BB0001",
+                                  60000 - tick * 30000, 60000)))
+    add("00:02:30.000", "CHALLENGE_MODE_END,2000,1,7,90000")
     return "\n".join(lines) + "\n"
 
 
