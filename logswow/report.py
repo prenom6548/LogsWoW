@@ -268,10 +268,11 @@ class ReportWriter:
         """Damage the file gives to nobody, when there is enough to matter.
 
         A pet summoned before the pull began, on lines whose advanced
-        block carries no ownerGUID, cannot be routed to its owner -- so
-        its damage is in no player's row and in no total. That is the
-        honest choice; saying nothing about it is not, because the
-        group's total would be quietly short.
+        block carries no ownerGUID, cannot be routed to its owner -- nor
+        can a friendly NPC that belongs to no player at all. Their damage
+        is in no player's row and in no total. That is the honest choice;
+        saying nothing about it is not, because the group's total would
+        be quietly short.
         """
         dropped = analysis.orphan_damage
         if not dropped:
@@ -284,9 +285,10 @@ class ReportWriter:
                           for name, value in ranked[:4])
         return (
             "<div class=note><b>%s de degats ne sont comptes pour personne.</b> "
-            "Ils viennent d'unites alliees dont le journal ne nomme jamais le "
-            "maitre%s: %s. Le fichier ne dit pas a qui les attribuer, donc ils "
-            "ne sont ni dans le total ci-dessus ni dans la ligne d'un joueur.</div>"
+            "Ils viennent d'unites alliees qui n'appartiennent a aucun joueur "
+            "nomme par le journal%s: %s. Faute de savoir a qui les attribuer, "
+            "ils ne sont ni dans le total ci-dessus ni dans la ligne d'un "
+            "joueur.</div>"
             % (compact(dropped), NBSP, names)
         )
 

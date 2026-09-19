@@ -144,6 +144,11 @@ de style, un `src=`, un `@import` ou un `url(` s'y glisse, et si une
 adresse autre que Wowhead y apparaît. Les liens Wowhead, eux, ne sont
 suivis que si vous cliquez dessus.
 
+Le rapport, lui, n'écrit jamais le **royaume** d'un joueur : les noms y
+apparaissent sous leur forme courte, dans les tableaux comme dans les
+chaînes de mort. Une capture d'écran du rapport identifie donc moins
+qu'une capture du journal.
+
 Rappel utile : un journal de combat contient le nom et les performances
 de **tout le groupe**, pas seulement les vôtres.
 
@@ -154,7 +159,7 @@ python3 tests/run-tests.py
 python3 tools/check-invariants.py WoWCombatLog.txt
 ```
 
-Les tests, 134, tournent sans dépendance ni réseau sur
+Les tests, 138, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 

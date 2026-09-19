@@ -371,6 +371,47 @@ to end, including a year-less log crossing New Year; a log where
 fuzzing -- mutated lines, truncated files, random bytes over a real
 fixture -- produced no exception and no truncated page.
 
+### The same audit, third pass: what reaches the page, and what grows
+
+The first pass read the code, the second ran whole files. The third
+looked at the two things neither had: the page itself, and how memory
+behaves on a file nobody has tried.
+
+- **The report carried players' realms.** Death chains named
+  "Tisane-Dalaran-EU", and so did a healer's main target, because the
+  ledgers stored `actor.name` while everything else used `short_name`.
+  The page is the artefact a reader shares -- a screenshot of it now
+  identifies less than a screenshot of the log. Every name the analysis
+  stores goes through `Actor.display_name`, which strips the realm **of
+  a player only**: a creature called "Garde-fou" would otherwise lose
+  half of itself. It covers the PvP case too, where the enemy is a
+  player with a realm.
+- **Two tables grew one entry per enemy GUID met, with nothing dropping
+  the tail.** `_enemy_damage` and `_enemy_names` exist only to rank
+  which single unit the group spent the fight killing, and only the
+  leaders can win that. On a 48 MB file with 150,000 distinct units they
+  were most of the process: 56 MB peak, against 28 MB with the tail
+  pruned (`MAX_DAMAGED_UNITS` / `KEEP_DAMAGED_UNITS`), and the run's
+  total is unchanged to the unit. `CombatBlock.note_enemy` now has a
+  bound too. Every other structure in `analysis.py` already had one;
+  these two were the exceptions.
+- `Player.realm` was dead code whose only purpose was to expose the
+  thing above, and `diagnose.py` still opened on a sentence pointing at
+  another repository of the owner's.
+
+**The page had never been checked against the analysis it renders.** It
+has its own arithmetic -- shares, rankings, sums -- and a new test
+re-renders the report with the rounding removed and asserts that the
+damage ranking adds up to the segment's total. A standing tool for that
+lives in the audit habit rather than the repo: render with
+`report.compact` replaced by an exact formatter, then compare the tables
+to the objects.
+
+Also checked, and clean: 185 rounds of fuzzing over three different log
+shapes (mutated lines, truncated files, random bytes) with no exception
+and no truncated page; the generated HTML parses with no mis-nested tag;
+and no module imports anything outside the standard library.
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -403,6 +444,13 @@ now handles.
 generator and the analysis accumulates as it goes; nothing holds a fight,
 let alone the file. Do not introduce a pass that collects events into a
 list -- a raid night is routinely several hundred megabytes.
+
+Two later measurements, on files built to be awkward rather than
+realistic: a 48 MB log whose 150,000 units are all distinct runs in 28 MB
+(56 MB before the per-GUID tables were bounded), and a 200,000-line file
+that is almost entirely *outside* any pull runs in 8.4 s / 25 MB (10.7 s
+/ 67 MB before the discarded fallback segment stopped being fed). The
+shape of the file, not only its size, decides what the reader costs.
 
 ## Layout
 
@@ -442,7 +490,7 @@ it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 134 tests, no network, fast.
+1. `python3 tests/run-tests.py` -- 138 tests, no network, fast.
    Every bug either audit found keeps a test there
    (`TestAuditFindings`, `TestSecondAuditFindings`), and each one was
    regression-checked the same way: stash the fix, watch the test fail,

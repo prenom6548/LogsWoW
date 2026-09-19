@@ -204,6 +204,18 @@ class Actor:
         """'Ardoise-Dalaran-EU' -> 'Ardoise'."""
         return self.name.split("-", 1)[0] if self.name else ""
 
+    @property
+    def display_name(self):
+        """The name to *write down*: a player without their realm.
+
+        Only a player's name carries a realm, and only a player's name
+        may be split on a dash -- a creature called "Garde-fou" would
+        lose half of itself. Every name the analysis stores for the
+        report goes through here, so a realm cannot reach the page from
+        a death chain, a healing target or a PvP opponent's panel.
+        """
+        return self.short_name if self.is_player else self.name
+
     def __repr__(self):
         return "Actor(%r)" % (self.name,)
 

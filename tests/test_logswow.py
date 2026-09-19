@@ -1327,6 +1327,107 @@ class TestThirdAuditFindings(unittest.TestCase):
         self.assertEqual(len(splitter.finish()), 1)
 
 
+class TestFourthAuditFindings(unittest.TestCase):
+    """The third pass of the 2026-09-19 audit: what reaches the page."""
+
+    def test_a_report_never_carries_a_realm(self):
+        """The log names everyone in the group, realm included. The page
+        is the thing a reader shares, and it had realms in it: the death
+        chains named "Tisane-Dalaran-EU", and so did a healer's main
+        target."""
+        import tempfile
+
+        log, segments = run_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "rapport.html")
+            ReportWriter(log, segments, target).write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertIn("Tisane", page)
+        self.assertNotIn("Dalaran", page)
+        self.assertNotIn("-EU", page)
+
+    def test_only_a_player_loses_the_part_after_its_dash(self):
+        """A creature called "Garde-fou" must keep all of itself."""
+        from logswow.events import Actor
+
+        player = Actor("Player-9-1", "Ardoise-Dalaran-EU", 0x511, 0)
+        creature = Actor("Creature-0-9-2-1-70000-1", "Garde-fou", 0xA48, 0)
+        self.assertEqual(player.display_name, "Ardoise")
+        self.assertEqual(creature.display_name, "Garde-fou")
+
+    def test_meeting_many_units_does_not_grow_without_limit(self):
+        """Damage was banked per enemy GUID with nothing dropping the
+        tail: 150,000 units on a 48 MB file took peak memory to 56 MB on
+        their own. Only the leaders can win the main-target ranking, so
+        the rest goes -- and the total must not move."""
+        from logswow.analysis import MAX_DAMAGED_UNITS
+
+        player = 'Player-9-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+        block = ",".join(advanced_block(19, info="Creature-0-9-2-1-70000-1"))
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        payloads = ['ENCOUNTER_START,1,"Foule",16,5,2000']
+        units = MAX_DAMAGED_UNITS * 3
+        for index in range(units):
+            payloads.append(
+                'SPELL_DAMAGE,%s,Creature-0-9-2-1-70000-%d,"Sbire",0xa48,0x0,'
+                '222,"Frappe",0x1,%s,100,100,-1,1,0,0,0,nil,nil,nil,ST'
+                % (player, index, block))
+        for index, payload in enumerate(payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(index * 10, fields, index + 1))
+        analysis = splitter.finish()[0].analysis
+        self.assertEqual(analysis.total_damage, units * 100)
+        self.assertLessEqual(len(analysis._enemy_damage), MAX_DAMAGED_UNITS + 1)
+        self.assertLessEqual(len(analysis._enemy_names), MAX_DAMAGED_UNITS + 1)
+
+    def test_the_page_shows_the_numbers_the_analysis_holds(self):
+        """The report has its own arithmetic -- shares, sums, rankings --
+        and nothing checked it against the analysis it renders. With the
+        rounding removed, every table must add up to its own total."""
+        import html as html_module
+        import tempfile
+
+        from logswow import report as report_module
+
+        log, segments = run_fixture()
+        original = report_module.compact
+        report_module.compact = lambda value: str(int(value))
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                target = os.path.join(directory, "rapport.html")
+                ReportWriter(log, segments, target).write()
+                with open(target, encoding="utf-8") as handle:
+                    page = handle.read()
+        finally:
+            report_module.compact = original
+
+        def cells(fragment):
+            return [
+                html_module.unescape(
+                    re.sub(r"<[^>]+>", "", cell)
+                ).strip().replace("\u202f", "")
+                for cell in re.findall(r"<td[^>]*>(.*?)</td>", fragment, re.S)
+            ]
+
+        checked = 0
+        for segment in segments:
+            analysis = segment.analysis
+            body = page.split("<h2 id='s%d'>" % segment.index, 1)[1]
+            body = body.split("<h2 id='s", 1)[0]
+            if "<h3>Degats infliges</h3>" not in body:
+                continue
+            table = body.split("<h3>Degats infliges</h3>", 1)[1].split("</table>", 1)[0]
+            rows = re.findall(r"<tr>(.*?)</tr>", table, re.S)[1:]
+            self.assertEqual(
+                sum(int(cells(row)[1]) for row in rows),
+                analysis.total_damage,
+                "segment %d" % segment.index,
+            )
+            checked += 1
+        self.assertGreater(checked, 0)
+
+
 class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
     def test_the_fixtures_deliberate_bad_lines_are_reported(self):
         log, _segments = run_fixture()

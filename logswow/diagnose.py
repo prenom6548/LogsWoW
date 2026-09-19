@@ -1,9 +1,10 @@
 """What the reader did and did not understand, before you trust a number.
 
-This exists because of a rule this project's sibling repository paid for
-several times over: a fix that cannot be seen working is not finished,
-and a tool that reports a confident number from a file it misread is
-worse than one that refuses. So `diagnose` shows its work -- the layout
+This exists because of a rule this project has paid for twice already,
+both times in the same way: a wrong field position does not raise, it
+prints a confident wrong number. A fix that cannot be seen working is
+not finished, and a tool that reports a total from a file it misread is
+worse than one that refuses to report at all. So `diagnose` shows its work -- the layout
 it measured, the evidence behind each choice, every subevent it met, and
 every line it could not place.
 

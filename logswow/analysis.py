@@ -54,6 +54,19 @@ MAX_TRACKED_ENEMIES = 40
 KEEP_TRACKED_ENEMIES = 20
 MAX_HP_SAMPLES = 400
 
+# Damage is banked per enemy GUID while the analysis works out which
+# single unit the group spent the fight killing. That is one entry per
+# distinct unit met, and a long run meets a great many: 150,000 of them
+# on a 48 MB test file, which took peak memory to 56 MB on their own.
+# Only the leaders can ever win that ranking, so the tail is dropped.
+MAX_DAMAGED_UNITS = 5000
+KEEP_DAMAGED_UNITS = 500
+
+# One pull naming the same unit more than this many times is a memory
+# guard, not a real pack: the count beside a name stops being exact
+# above it. No real pull comes close.
+MAX_UNITS_PER_NAME = 1000
+
 
 class Ability:
     """One spell's contribution, on one side of one ledger."""
@@ -182,7 +195,8 @@ class CombatBlock:
                 return
             seen = set()
             self.enemies[name] = seen
-        seen.add(guid)
+        if len(seen) < MAX_UNITS_PER_NAME:
+            seen.add(guid)
 
     @property
     def duration_ms(self):
@@ -269,11 +283,6 @@ class Player:
     @property
     def short_name(self):
         return self.name.split("-", 1)[0] if self.name else self.guid
-
-    @property
-    def realm(self):
-        parts = self.name.split("-", 1)
-        return parts[1] if len(parts) > 1 else ""
 
     @property
     def overheal_rate(self):
@@ -365,12 +374,13 @@ class SegmentAnalysis:
         self._bucket_ms = 1000
         self.events_seen = 0
         self.landed_seen = 0
-        # Damage dealt by a friendly non-player unit whose owner the file
-        # never names -- a pet summoned before the segment began, on a
-        # line whose advanced block carries no ownerGUID. It belongs to
+        # Damage dealt by a friendly unit that belongs to no player the
+        # file names -- usually a pet summoned before the segment began,
+        # on lines whose advanced block carries no ownerGUID, sometimes a
+        # friendly NPC fighting alongside the group. Either way it is in
         # nobody's ledger and is deliberately left out of the group's
         # total, but leaving it out *silently* is how a total goes quietly
-        # wrong: `diagnose` prints this, so the reader can see the size of
+        # wrong: the report says so, so the reader can see the size of
         # what was dropped instead of trusting that it was nothing.
         self.orphan_damage = 0
         self.orphan_sources = {}
@@ -399,7 +409,7 @@ class SegmentAnalysis:
 
     def _enemy(self, actor):
         """The aggregate for everything sharing this unit's name."""
-        name = actor.name or "?"
+        name = actor.display_name or "?"
         enemy = self.enemies.get(name)
         if enemy is None:
             if len(self.enemies) >= 150:
@@ -577,24 +587,27 @@ class SegmentAnalysis:
             player = self._player(event.source)
             player.damage_done += amount
             ability = _bucket(player.damage_by_ability, event.spell_id, event.spell_name)
-            ability.add(amount, event.is_critical, event.dest.name, max(0, event.overkill))
+            ability.add(amount, event.is_critical, event.dest.display_name,
+                        max(0, event.overkill))
             self.total_damage += amount
             self._enemy_damage[event.dest.guid] = (
                 self._enemy_damage.get(event.dest.guid, 0) + amount
             )
+            if len(self._enemy_damage) > MAX_DAMAGED_UNITS:
+                self._prune_damaged_units()
             # Record the name here rather than only where health is
             # sampled: a unit can take damage for a whole fight without a
             # single event carrying its advanced block, and it was then
             # the top target with no name at all.
             if event.dest.name and event.dest.guid not in self._enemy_names:
-                self._enemy_names[event.dest.guid] = event.dest.name
+                self._enemy_names[event.dest.guid] = event.dest.display_name
             block = self._touch_block(event)
             block.damage_done += amount
             if canon(event.dest.name) in self.boss_names:
                 block.damage_boss += amount
                 player.damage_to_bosses += amount
             if not event.dest.is_pet:
-                block.note_enemy(event.dest.guid, event.dest.name)
+                block.note_enemy(event.dest.guid, event.dest.display_name)
             enemy = self._enemy(event.dest)
             if enemy is not None:
                 enemy.damage_taken += amount
@@ -614,7 +627,7 @@ class SegmentAnalysis:
             # for a hit absorbed *entirely*, which the client records as
             # a MISSED with no damage event to carry an absorbed field.
             ability = _bucket(player.taken_by_ability, event.spell_id, event.spell_name)
-            ability.add(amount, False, event.source.name)
+            ability.add(amount, False, event.source.display_name)
             raid_ability = _bucket(self.enemy_damage_by_ability, event.spell_id, event.spell_name)
             # Count the owner, not the pet: "2 players hit" when only one
             # player is present is a pet being counted as a person.
@@ -622,7 +635,7 @@ class SegmentAnalysis:
             player.recent.append(
                 (
                     event.ts,
-                    event.source.name,
+                    event.source.display_name,
                     event.spell_name,
                     -amount,
                     self._hp_of(event),
@@ -636,7 +649,7 @@ class SegmentAnalysis:
             if canon(event.source.name) in self.boss_names:
                 block.taken_from_boss += amount
             if event.source.is_hostile and not event.source.is_pet:
-                block.note_enemy(event.source.guid, event.source.name)
+                block.note_enemy(event.source.guid, event.source.display_name)
             if not source_ours:
                 enemy = self._enemy(event.source)
                 if enemy is not None:
@@ -762,6 +775,28 @@ class SegmentAnalysis:
             if len(samples) < MAX_HP_SAMPLES:
                 samples.append((event.ts, fraction))
 
+    def _prune_damaged_units(self):
+        """Keep only the units that could still be the main target.
+
+        The ranking in `finish` reads the top of this table and nothing
+        else, so a unit sitting far below the leaders cannot change the
+        answer. Whatever is still being sampled for its health is kept
+        too, so the two tables cannot disagree about who exists.
+        """
+        ranked = sorted(
+            self._enemy_damage, key=lambda guid: -self._enemy_damage[guid]
+        )
+        keep = set(ranked[:KEEP_DAMAGED_UNITS])
+        keep.update(self._hp_samples)
+        self._enemy_damage = {
+            guid: amount for guid, amount in self._enemy_damage.items()
+            if guid in keep
+        }
+        self._enemy_names = {
+            guid: name for guid, name in self._enemy_names.items()
+            if guid in keep
+        }
+
     def _prune_tracked_enemies(self):
         """Keep sampling only the units worth being the main target."""
         ranked = sorted(
@@ -797,7 +832,7 @@ class SegmentAnalysis:
             ability.add(
                 effective,
                 event.is_critical,
-                event.dest.name,
+                event.dest.display_name,
                 overheal=event.overhealing,
             )
             self.total_healing += effective
@@ -816,7 +851,7 @@ class SegmentAnalysis:
                 target.recent.append(
                     (
                         event.ts,
-                        event.source.name,
+                        event.source.display_name,
                         event.spell_name,
                         effective,
                         self._hp_of(event),
@@ -952,6 +987,8 @@ class SegmentAnalysis:
             if self._aura_overflowed or self.first_ts is None:
                 return
             if event.ts <= self.first_ts or key in self._inferred_auras:
+                return
+            if len(self._inferred_auras) >= 4000:
                 return
             self._inferred_auras.add(key)
             opened = (
