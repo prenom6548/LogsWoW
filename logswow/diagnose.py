@@ -53,6 +53,9 @@ def run(path, default_year=None, limit=None):
     evidence = layout.evidence
     add("  bloc avance         : %d champs  (votes: %s)" % (
         layout.advanced_width, evidence.get("advanced_width", {})))
+    if evidence.get("advanced_width_tiebreak"):
+        add("    votes a egalite, departage par : %s"
+            % evidence["advanced_width_tiebreak"])
     add("  degats bruts        : %s  (position du -1: %s)" % (
         "present" if layout.has_base_amount else "absent",
         evidence.get("overkill_position", {})))

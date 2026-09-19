@@ -1138,6 +1138,195 @@ class TestSecondAuditFindings(unittest.TestCase):
                 return handle.read()
 
 
+class TestThirdAuditFindings(unittest.TestCase):
+    """The second pass of the 2026-09-19 audit: whole-file shapes the unit
+    tests covered field by field but had never read end to end."""
+
+    PLAYER = 'Player-9-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+    HEALER = 'Player-9-00000002,"Tisane-Dalaran-EU",0x512,0x0'
+    MOB = 'Creature-0-9-2-1-70000-0000000001,"Golem",0xa48,0x0'
+    MOB_GUID = "Creature-0-9-2-1-70000-0000000001"
+    MODERN = ("{i},0000000000000000,{hp},100000,1500,420,830,240,0,0,1,1100,"
+              "1300,0,1.0,2.0,2393,3.14,80")
+    OLD = ("{i},0000000000000000,{hp},100000,1500,420,830,240,1,1100,1300,0,"
+           "1.0,2.0,2393,3.14,80")
+
+    def _run(self, lines):
+        import tempfile
+
+        directory = tempfile.mkdtemp()
+        path = os.path.join(directory, "journal.txt")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(lines) + "\n")
+        log = LogFile(path)
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for event in log.events():
+            splitter.feed(event)
+        return log, splitter.finish(), path
+
+    def test_a_log_of_one_event_kind_still_measures_its_width(self):
+        """Every candidate width is backed by the same single subevent, so
+        the vote ties. It used to be broken by "take the widest", which
+        read every amount off the overkill field: thirty hits of 5,000
+        were reported as -30 damage."""
+        lines = ['9/18/2026 20:00:00.000  ENCOUNTER_START,1,"Golem",16,1,2000']
+        for index in range(30):
+            lines.append(
+                '9/18/2026 20:00:%02d.000  SPELL_DAMAGE,%s,%s,222,"Frappe",0x1,'
+                '%s,5000,6000,-1,1,0,0,0,nil,nil,nil,ST'
+                % (index + 1, self.PLAYER, self.MOB,
+                   self.MODERN.format(i=self.MOB_GUID, hp=100000 - index * 1000))
+            )
+        lines.append('9/18/2026 20:01:00.000  ENCOUNTER_END,1,"Golem",16,1,1,60000')
+        log, segments, _path = self._run(lines)
+        self.assertEqual(log.layout.advanced_width, 19)
+        self.assertEqual(segments[0].analysis.total_damage, 150000)
+
+    def test_the_documented_older_layout_reads_end_to_end(self):
+        """17 fields and no baseAmount: the layout the published
+        documentation describes, checked as a whole file rather than one
+        field at a time."""
+        lines = ['12/31 23:59:00.000  ENCOUNTER_START,1,"Golem",16,5,2000']
+        for index in range(12):
+            lines.append(
+                '12/31 23:59:%02d.000  SPELL_DAMAGE,%s,%s,222,"Frappe",0x1,'
+                '%s,5000,-1,1,0,0,0,nil,nil,nil'
+                % (index + 2, self.PLAYER, self.MOB,
+                   self.OLD.format(i=self.MOB_GUID, hp=100000 - index * 8000))
+            )
+            lines.append(
+                '12/31 23:59:%02d.600  SPELL_HEAL,%s,%s,555,"Soin",0x2,%s,3000,500,0,nil'
+                % (index + 2, self.HEALER, self.PLAYER,
+                   self.OLD.format(i="Player-9-00000001", hp=90000))
+            )
+        lines.append('1/1 00:00:21.000  ENCOUNTER_END,1,"Golem",16,5,1,80000')
+        log, segments, _path = self._run(lines)
+        self.assertEqual(log.layout.advanced_width, 17)
+        self.assertFalse(log.layout.has_base_amount)
+        analysis = segments[0].analysis
+        self.assertEqual(analysis.total_damage, 12 * 5000)
+        self.assertEqual(analysis.total_healing, 12 * 2500)
+        # ...and the year-less shape crossed New Year without a jump.
+        self.assertGreater(analysis.duration_ms, 0)
+        self.assertLess(analysis.duration_ms, 2 * 60 * 1000)
+
+    def test_a_log_without_advanced_logging_still_adds_up(self):
+        """Somebody forgets the setting every day. No positions, no health,
+        but the totals must be exact."""
+        lines = ['9/18/2026 20:00:00.000  ENCOUNTER_START,1,"Golem",16,5,2000']
+        for index in range(20):
+            lines.append(
+                '9/18/2026 20:00:%02d.000  SPELL_DAMAGE,%s,%s,222,"Frappe",0x1,'
+                '5000,6000,-1,1,0,0,0,nil,nil,nil,ST' % (index + 1, self.PLAYER, self.MOB))
+            lines.append(
+                '9/18/2026 20:00:%02d.700  SPELL_HEAL,%s,%s,555,"Soin",0x2,3000,3000,500,0,nil'
+                % (index + 1, self.HEALER, self.PLAYER))
+        lines.append('9/18/2026 20:01:00.000  ENCOUNTER_END,1,"Golem",16,5,1,60000')
+        log, segments, _path = self._run(lines)
+        self.assertFalse(log.layout.evidence.get("advanced_logging"))
+        self.assertEqual(segments[0].analysis.total_damage, 20 * 5000)
+        self.assertEqual(segments[0].analysis.total_healing, 20 * 2500)
+        self.assertEqual(log.problems.total, 0)
+
+    def test_a_line_earlier_than_the_fight_stays_on_the_graph(self):
+        """A log is not perfectly ordered. A timestamp before the first
+        event gave a negative bucket, which the series never walks, and
+        the damage vanished from the graph while staying in the table."""
+        lines = ['9/18/2026 20:00:10.000  ENCOUNTER_START,1,"Golem",16,5,2000']
+        for moment in ("20:00:11.000", "20:00:05.000", "20:00:13.000"):
+            lines.append(
+                '9/18/2026 %s  SPELL_DAMAGE,%s,%s,444,"Balayage",0x4,%s,'
+                '1000,1000,-1,4,0,0,0,nil,nil,nil,AOE'
+                % (moment, self.MOB, self.PLAYER,
+                   self.MODERN.format(i="Player-9-00000001", hp=50000)))
+        lines.append('9/18/2026 20:00:20.000  ENCOUNTER_END,1,"Golem",16,5,1,10000')
+        _log, segments, _path = self._run(lines)
+        analysis = segments[0].analysis
+        taken = sum(p.damage_taken for p in analysis.players.values())
+        drawn = sum(row[1] for row in analysis.timeline_series()[0])
+        self.assertEqual(taken, 3000)
+        self.assertEqual(drawn, taken)
+
+    def test_an_aura_up_before_the_pull_is_counted_from_the_start(self):
+        lines = [
+            '9/18/2026 20:00:00.000  SPELL_AURA_APPLIED,%s,%s,111,"Potion",0x1,BUFF'
+            % (self.PLAYER, self.PLAYER),
+            '9/18/2026 20:00:10.000  ENCOUNTER_START,1,"Golem",16,5,2000',
+            '9/18/2026 20:00:11.000  SPELL_DAMAGE,%s,%s,222,"Frappe",0x1,%s,'
+            '2000,2000,-1,1,0,0,0,nil,nil,nil,ST'
+            % (self.PLAYER, self.MOB, self.MODERN.format(i=self.MOB_GUID, hp=90000)),
+            '9/18/2026 20:00:40.000  SPELL_AURA_REMOVED,%s,%s,111,"Potion",0x1,BUFF'
+            % (self.PLAYER, self.PLAYER),
+            '9/18/2026 20:01:10.000  ENCOUNTER_END,1,"Golem",16,5,1,60000',
+        ]
+        _log, segments, _path = self._run(lines)
+        analysis = segments[0].analysis
+        self.assertEqual(analysis.auras_before_the_pull, 1)
+        uptimes = analysis.player_uptimes("Player-9-00000001", kind="BUFF")
+        self.assertEqual(len(uptimes), 1)
+        self.assertEqual(uptimes[0][0], "Potion")
+        self.assertEqual(uptimes[0][2], 29000)
+        # It can never be inferred twice for the same aura on the same
+        # unit: a file missing lines would otherwise credit the whole run
+        # again at every removal.
+        self.assertLessEqual(uptimes[0][2], analysis.duration_ms)
+
+    def test_a_second_unmatched_removal_infers_nothing(self):
+        lines = ['9/18/2026 20:00:00.000  ENCOUNTER_START,1,"Golem",16,5,2000',
+                 '9/18/2026 20:00:01.000  SPELL_DAMAGE,%s,%s,222,"Frappe",0x1,%s,'
+                 '2000,2000,-1,1,0,0,0,nil,nil,nil,ST'
+                 % (self.PLAYER, self.MOB, self.MODERN.format(i=self.MOB_GUID, hp=90000))]
+        for moment in ("20:00:20.000", "20:00:40.000"):
+            lines.append('9/18/2026 %s  SPELL_AURA_REMOVED,%s,%s,111,"Potion",0x1,BUFF'
+                         % (moment, self.PLAYER, self.PLAYER))
+        lines.append('9/18/2026 20:01:00.000  ENCOUNTER_END,1,"Golem",16,5,1,60000')
+        _log, segments, _path = self._run(lines)
+        analysis = segments[0].analysis
+        self.assertEqual(analysis.auras_before_the_pull, 1)
+        total = sum(analysis.players["Player-9-00000001"].auras_gained.values())
+        self.assertLessEqual(total, analysis.duration_ms)
+
+    def test_the_report_refuses_to_overwrite_the_log_it_read(self):
+        """`report journal.txt -o journal.txt` wrote the page over the
+        log. A combat log cannot be recovered."""
+        import shutil
+        import tempfile
+
+        from logswow.cli import main
+
+        with tempfile.TemporaryDirectory() as directory:
+            copy = os.path.join(directory, "journal.txt")
+            shutil.copy(FIXTURE, copy)
+            before = os.path.getsize(copy)
+            self.assertEqual(main(["report", copy, "-o", copy, "-q"]), 2)
+            self.assertEqual(os.path.getsize(copy), before)
+
+    def test_reading_the_same_file_twice_gives_the_same_numbers(self):
+        log, _segments, _path = self._run([
+            '9/18/2026 20:00:00.000  ENCOUNTER_START,1,"Golem",16,5,2000',
+            '9/18/2026 20:00:10.000  ENCOUNTER_END,1,"Golem",16,5,1,10000',
+        ])
+        first = (log.line_count, log.event_count, log.problems.total)
+        for _event in log.events():
+            pass
+        self.assertEqual((log.line_count, log.event_count, log.problems.total), first)
+
+    def test_a_million_is_not_printed_as_a_thousand_thousands(self):
+        from logswow.report import compact
+
+        self.assertTrue(compact(999999).endswith("M"))
+        self.assertEqual(compact(999), "999")
+
+    def test_finishing_a_splitter_twice_does_not_duplicate_a_session(self):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        _ts, fields = split_line(
+            '9/18/2026 20:00:00.000  SPELL_CAST_SUCCESS,%s,%s,222,"Frappe",0x1'
+            % (self.PLAYER, self.MOB))
+        splitter.feed(build_event(0, fields, 1))
+        self.assertEqual(len(splitter.finish()), 1)
+        self.assertEqual(len(splitter.finish()), 1)
+
+
 class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
     def test_the_fixtures_deliberate_bad_lines_are_reported(self):
         log, _segments = run_fixture()

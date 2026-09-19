@@ -321,6 +321,13 @@ class SegmentAnalysis:
         self.total_healing = 0
         self.aura_open = {}
         self.aura_uptime = {}
+        # True once an aura could not be tracked for want of room; see
+        # `_aura_close`, which stops inferring anything after that.
+        self._aura_overflowed = False
+        # Auras that were already up when the segment began, counted from
+        # its first event because the file gives no earlier bound.
+        self.auras_before_the_pull = 0
+        self._inferred_auras = set()
         self.boss_hp = []
         self.boss_name = ""
         self.blocks = []
@@ -411,10 +418,23 @@ class SegmentAnalysis:
             return True
         return False
 
+    def _bucket_index(self, ts):
+        """Which timeline bucket a moment falls in, never a negative one.
+
+        A log is not perfectly ordered -- a line can carry a timestamp
+        earlier than the first event of its own segment. That gave a
+        negative index, `timeline_series` only walks from zero, and the
+        damage on that line vanished from the graph while staying in the
+        player's row: 4,000 taken, 3,000 drawn. It is counted in the
+        first bucket instead, which is where it happened to within one
+        bucket's width.
+        """
+        return max(0, (ts - self.first_ts) // self._bucket_ms)
+
     def _timeline_add(self, ts, key, value):
         if self.first_ts is None:
             return
-        index = (ts - self.first_ts) // self._bucket_ms
+        index = self._bucket_index(ts)
         bucket = self._timeline.get(index)
         if bucket is None:
             bucket = {"damage_taken": 0, "healing": 0, "deaths": 0}
@@ -666,7 +686,7 @@ class SegmentAnalysis:
         """Once per timeline bucket, write the pooled health ratio."""
         if self.first_ts is None:
             return
-        index = (ts - self.first_ts) // self._bucket_ms
+        index = self._bucket_index(ts)
         if index == self._pool_last_index:
             return
         self._pool_last_index = index
@@ -890,6 +910,10 @@ class SegmentAnalysis:
         key = (event.dest.guid, event.spell_id)
         if key not in self.aura_open:
             if len(self.aura_open) >= 4000:
+                # Remember that one was dropped: `_aura_close` must not
+                # then read an unmatched removal as "it was up from the
+                # start", because here it demonstrably was not.
+                self._aura_overflowed = True
                 return
             self.aura_open[key] = (
                 event.ts,
@@ -901,10 +925,44 @@ class SegmentAnalysis:
             )
 
     def _aura_close(self, event):
+        """An aura ended. If it began before the segment did, say so.
+
+        A buff cast before the pull has no APPLIED line inside the
+        segment, so its removal used to match nothing and the whole
+        uptime was lost -- a shield taken before the pull read as 0%.
+        The file does say it was there: it was removed at this moment and
+        never applied within the segment, so it was up from the segment's
+        first event until now. That is the same reading the online sites
+        use, and it stays inside the bound the invariants check.
+
+        Two cases where that reasoning fails, and both are refused: a
+        removal whose APPLIED was dropped by the cap in `_aura_open`, and
+        a *second* unmatched removal of the same aura on the same unit.
+        The client writes an APPLIED before every REMOVED, so one
+        unmatched removal means the aura predates the segment -- but two
+        mean lines are missing, and inferring from the segment's start
+        each time credits the whole run again and again. A run of a
+        synthetic log did exactly that and came out at twenty-four times
+        the length of the fight, which is what the bounded-uptime
+        invariant is there to catch.
+        """
         key = (event.dest.guid, event.spell_id)
         opened = self.aura_open.pop(key, None)
         if opened is None:
-            return
+            if self._aura_overflowed or self.first_ts is None:
+                return
+            if event.ts <= self.first_ts or key in self._inferred_auras:
+                return
+            self._inferred_auras.add(key)
+            opened = (
+                self.first_ts,
+                event.source.short_name or "?",
+                event.spell_name,
+                event.aura_type or "BUFF",
+                event.dest.short_name or "?",
+                event.dest.is_player,
+            )
+            self.auras_before_the_pull += 1
         self._bank_aura(event.dest.guid, event.spell_id, opened, event.ts)
 
     def _bank_aura(self, guid, spell_id, opened, ended):

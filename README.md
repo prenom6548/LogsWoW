@@ -154,7 +154,7 @@ python3 tests/run-tests.py
 python3 tools/check-invariants.py WoWCombatLog.txt
 ```
 
-Les tests, 124, tournent sans dépendance ni réseau sur
+Les tests, 134, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 

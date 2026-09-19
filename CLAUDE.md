@@ -319,6 +319,58 @@ exactly (the independent recount agrees to the unit on a log containing
 HTML parses with no unclosed or mis-nested tag and references no URL
 outside wowhead.com.
 
+### The same audit, second pass: whole files rather than fields
+
+The first pass read the code. The second ran *shapes of file* the unit
+tests had only ever covered one field at a time -- and the worst finding
+of the whole audit is here.
+
+- **A log containing only one kind of damage event measured its own
+  width wrong, and reported negative damage.** Every candidate width is
+  backed by the same single subevent, so the vote ties, and the tie was
+  broken by "take the widest". On a modern log of nothing but
+  `SPELL_DAMAGE`, that is 21 instead of 19: every amount was then read
+  off the overkill field and **thirty hits of 5,000 came out as -30
+  total damage**. The tie is now broken by asking the file a *different*
+  question -- at which width does the overkill `-1` actually land where
+  a damage suffix would put it -- and only if that still cannot separate
+  them does proximity to the known width decide. `diagnose` prints which
+  of the two settled it. A dummy-parse session is exactly the file that
+  produces this shape, so it is not a hypothetical.
+- **A line timestamped before its own segment's first event vanished
+  from the graph.** It produced a negative bucket index, and
+  `timeline_series()` only walks from zero, so the damage stayed in the
+  player's row and left the drawing: 4,000 taken, 3,000 drawn. Logs are
+  not perfectly ordered -- the fixture itself contains such a line. It
+  is counted in the first bucket now.
+- **An aura already up when the pull began counted for nothing.** A
+  potion taken before the pull has no APPLIED line inside the segment,
+  so its removal matched nothing and the uptime read 0%. The file does
+  say it was there, and the only bound it gives is the segment's first
+  event, so that is what is used -- the same reading the online sites
+  take. Two guards, both paid for immediately: nothing is inferred after
+  the `aura_open` cap has dropped anything, and **never twice for the
+  same aura on the same unit**. Without that second rule a synthetic log
+  reached twenty-four times the fight's length, caught within a minute
+  by the bounded-uptime invariant, which is the whole reason that
+  invariant exists. The report says, on any panel where it happened,
+  that the duration is counted from the first event.
+- **`report journal.txt -o journal.txt` wrote the report over the log.**
+  It was tried during the audit and it destroyed the file: 67 lines of
+  log became 57 lines of HTML, and the command said "Rapport ecrit".
+  A combat log cannot be recovered. It is refused now.
+- `compact()` printed 999,999 as "1000 k" instead of "1 M"; reading the
+  same `LogFile` twice doubled its counters; `Splitter.finish()` called
+  twice appended the session segment twice.
+
+Checked and found right, so the next pass need not: a log with **no
+advanced logging at all** (the setting nobody remembers) gives exact
+totals and zero read problems; the documented 17-field layout reads end
+to end, including a year-less log crossing New Year; a log where
+`hideCaster` *is* present is detected and read; and 125 rounds of
+fuzzing -- mutated lines, truncated files, random bytes over a real
+fixture -- produced no exception and no truncated page.
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -390,7 +442,7 @@ it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 124 tests, no network, fast.
+1. `python3 tests/run-tests.py` -- 134 tests, no network, fast.
    Every bug either audit found keeps a test there
    (`TestAuditFindings`, `TestSecondAuditFindings`), and each one was
    regression-checked the same way: stash the fix, watch the test fail,

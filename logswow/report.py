@@ -90,9 +90,16 @@ def number(value):
 
 
 def compact(value):
+    """25361906 -> '25.4 M'. One decimal, French units.
+
+    The threshold carries the rounding with it: 999,999 is a thousand
+    thousands once rounded to one decimal, and printing it as "1000 k"
+    instead of "1 M" is the kind of small wrongness a reader notices
+    before they notice anything else.
+    """
     value = float(value)
     for limit, suffix in ((1e9, " Md"), (1e6, " M"), (1e3, " k")):
-        if abs(value) >= limit:
+        if abs(value) >= limit * 0.9995:
             return ("%.1f%s" % (value / limit, suffix)).replace(".0", "")
     return str(int(value))
 
@@ -767,6 +774,13 @@ class ReportWriter:
             analysis.player_uptimes(player.guid, 18, kind="DEBUFF"), duration, "De qui")))
         sections.append(("Ce qu'il a applique", self._aura_table(
             analysis.player_applied(player.guid, 18), duration, "Sur qui")))
+        if analysis.auras_before_the_pull:
+            sections.append(("", (
+                "<p class=dim style='font-size:12px;margin:0'>Un effet deja "
+                "actif quand le combat commence n'a pas de ligne d'application "
+                "dans le journal%s: sa duree est comptee depuis le premier "
+                "evenement du combat, ce qui est la seule borne que le fichier "
+                "donne.</p>" % NBSP)))
 
         gaps = "".join(
             "<li><span class=dim>%s</span> sans lancer de sort, a %s</li>"
@@ -789,7 +803,8 @@ class ReportWriter:
                          % (NBSP + ":", self._counted_list(player.dispelled_spells)))
 
         body = "".join(
-            "<h3>%s</h3>%s" % (esc(title), content) for title, content in sections
+            ("<h3>%s</h3>%s" % (esc(title), content)) if title else content
+            for title, content in sections
         )
         return (
             "<details><summary>%s <span class=dim>&middot; %s &middot; %s degats "

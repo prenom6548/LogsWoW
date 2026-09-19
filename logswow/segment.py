@@ -244,6 +244,8 @@ class Splitter:
             if self._fallback.analysis is not None:
                 self._fallback.analysis.finish(self._fallback)
             self.segments.append(self._fallback)
+            # Calling finish() twice must not append it twice.
+            self._fallback = None
         # Number them contiguously only now: a fallback segment that was
         # opened and then discarded must not leave a hole at the front.
         self.segments.sort(key=lambda segment: (segment.start_ts, segment.index))

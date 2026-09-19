@@ -134,6 +134,15 @@ def command_report(args):
         )
         return 2
     out = args.out or os.path.splitext(args.log)[0] + ".html"
+    if os.path.exists(out) and os.path.samefile(out, args.log):
+        # `report journal.txt -o journal.txt` wrote the report over the
+        # log it was made from. A combat log cannot be recovered, and the
+        # command had already destroyed one by the time it said "ecrit".
+        sys.stderr.write(
+            "Refus d'ecrire le rapport par-dessus le journal lui-meme (%s). "
+            "Choisissez un autre nom avec -o.\n" % out
+        )
+        return 2
     try:
         ReportWriter(log, chosen, out, wowhead=args.wowhead).write()
     except OSError as error:

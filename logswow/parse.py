@@ -27,6 +27,36 @@ from .tokenize import looks_like_guid, split_line
 WARMUP_LINES = 5000
 
 
+def _overkill_evidence(samples, offset, advanced_width):
+    """Count the damage lines whose overkill marker lands where expected.
+
+    A hit that killed nothing writes -1 as its overkill, and almost no hit
+    kills anything, so on the *right* width nearly every damage line shows
+    a -1 at suffix index 1 (no baseAmount) or 2 (with one). On a wrong
+    width it shows up at neither -- which makes this a test of the width
+    as well as of the field.
+    """
+    at_one = at_two = 0
+    for fields in samples:
+        if not fields or not fields[0].endswith(("_DAMAGE", "_DAMAGE_LANDED")):
+            continue
+        scheme = decompose(fields[0])
+        if scheme is None:
+            continue
+        _, prefix_n, _, suffix_counts = scheme
+        remainder = fields[offset + 8 :]
+        _, _, suffix, note = resolve_layout(
+            remainder, prefix_n, suffix_counts, advanced_width
+        )
+        if note or len(suffix) < 3:
+            continue
+        if suffix[1] == "-1":
+            at_one += 1
+        elif suffix[2] == "-1":
+            at_two += 1
+    return at_one, at_two
+
+
 def detect_layout(samples):
     """Work out how this file lays its fields out, by counting.
 
@@ -82,16 +112,50 @@ def detect_layout(samples):
             if width > 0:
                 width_votes[width] = width_votes.get(width, 0) + weight
                 width_backers.setdefault(width, set()).add(fields[0])
+    tiebreak = ""
     if width_votes:
         # The real width is the one every advanced-carrying event agrees
         # on, so the count of distinct subevents backing a width decides
         # first and the raw vote count only breaks ties. On a real 240 MB
         # log the raw counts alone were 19:3585 against 20:2985 -- true,
         # but far too close to rest a whole report on.
-        advanced_width = max(
+        ranked = sorted(
             width_votes,
-            key=lambda key: (len(width_backers[key]), width_votes[key], key),
+            key=lambda key: (len(width_backers[key]), width_votes[key]),
+            reverse=True,
         )
+        best = (len(width_backers[ranked[0]]), width_votes[ranked[0]])
+        tied = [
+            width for width in ranked
+            if (len(width_backers[width]), width_votes[width]) == best
+        ]
+        if len(tied) == 1:
+            advanced_width = tied[0]
+        else:
+            # Every candidate is backed by the same events -- which is
+            # what a file with a single kind of damage line looks like.
+            # Ask the file a *different* question: where does the overkill
+            # -1 land? A log of nothing but SPELL_DAMAGE used to answer
+            # this with "the widest candidate" and read every amount off
+            # the overkill field: 30 hits of 5,000 came out as -30.
+            scores = {
+                width: sum(_overkill_evidence(samples, offset, width))
+                for width in tied
+            }
+            if max(scores.values()) > 0:
+                tiebreak = "marqueur -1 : %s" % scores
+                tied = [
+                    width for width in tied
+                    if scores[width] == max(scores.values())
+                ]
+            # Still undecided: the file cannot tell these apart, so the
+            # width this client is known to use beats the largest number.
+            if len(tied) > 1:
+                tiebreak = ((tiebreak + ", ") if tiebreak else "") + (
+                    "puis proximite avec %d" % DEFAULT_ADVANCED_WIDTH)
+            advanced_width = min(
+                tied, key=lambda width: (abs(width - DEFAULT_ADVANCED_WIDTH), -width)
+            )
     else:
         advanced_width = DEFAULT_ADVANCED_WIDTH
     evidence["advanced_width"] = {
@@ -99,25 +163,11 @@ def detect_layout(samples):
         for width in sorted(width_votes, key=lambda key: -len(width_backers[key]))[:5]
     }
     evidence["advanced_width_chosen"] = advanced_width
+    evidence["advanced_width_tiebreak"] = tiebreak
     evidence["advanced_logging"] = bool(width_votes)
 
     # 3 -- the baseAmount field, found by where the -1 sits.
-    at_one = at_two = 0
-    for fields in samples:
-        if not fields or not fields[0].endswith(("_DAMAGE", "_DAMAGE_LANDED")):
-            continue
-        scheme = decompose(fields[0])
-        if scheme is None:
-            continue
-        _, prefix_n, _, suffix_counts = scheme
-        remainder = fields[offset + 8 :]
-        _, _, suffix, note = resolve_layout(remainder, prefix_n, suffix_counts, advanced_width)
-        if note or len(suffix) < 3:
-            continue
-        if suffix[1] == "-1":
-            at_one += 1
-        elif suffix[2] == "-1":
-            at_two += 1
+    at_one, at_two = _overkill_evidence(samples, offset, advanced_width)
     has_base_amount = at_two >= at_one
     evidence["overkill_position"] = {"index 1 (no baseAmount)": at_one, "index 2 (baseAmount)": at_two}
     evidence["has_base_amount"] = has_base_amount
@@ -207,6 +257,13 @@ class LogFile:
         measured before a single event is built from them; then they are
         replayed and the rest streams past.
         """
+        # Reading the same file twice must give the same numbers, not
+        # twice the numbers: the counters below belong to one pass.
+        self.problems = ParseProblems()
+        self.line_count = 0
+        self.event_count = 0
+        self.first_ts = None
+        self.last_ts = None
         clock = TimestampReader(self.default_year)
         buffered = []
         decided = False
