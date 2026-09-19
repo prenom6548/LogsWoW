@@ -116,9 +116,12 @@ class Splitter:
         self._saw_marker = False
         self._fallback = None
         self._counter = 0
+        self._last_ts = None
 
     def feed(self, event):
         subevent = event.subevent
+        if event.ts is not None:
+            self._last_ts = event.ts
         if subevent == "ENCOUNTER_START":
             self._open_encounter(event)
         elif subevent == "CHALLENGE_MODE_START":
@@ -128,7 +131,11 @@ class Splitter:
             for segment in self._active:
                 if segment.analysis is not None:
                     segment.analysis.feed(event)
-        else:
+        elif not self._saw_marker:
+            # Once the file is known to carry markers, the fallback is
+            # thrown away by `finish` -- so analysing the corridor
+            # between two pulls is work whose result nobody ever sees. A
+            # raid night spends most of its lines there.
             self._feed_fallback(event)
 
         if subevent == "ENCOUNTER_END":
@@ -226,7 +233,10 @@ class Splitter:
         for segment in list(self._active):
             segment.truncated = True
             if segment.end_ts is None:
-                segment.end_ts = segment.start_ts
+                # The last event the file actually contains, not the
+                # segment's own start: a log cut mid-pull is a pull of
+                # the length that was recorded, not a pull of zero.
+                segment.end_ts = max(segment.start_ts, self._last_ts or segment.start_ts)
             if segment.analysis is not None:
                 segment.analysis.finish(segment)
         self._active = []

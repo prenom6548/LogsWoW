@@ -913,6 +913,231 @@ class TestAuditFindings(unittest.TestCase):
         self.assertEqual(code, 2)
 
 
+class TestSecondAuditFindings(unittest.TestCase):
+    """The 2026-09-19 audit. Same rule as the class above: every bug it
+    found keeps a test here, so the third pass starts where this one
+    stopped rather than re-finding the same things."""
+
+    def _read(self, text, name="journal.txt", encoding="utf-8"):
+        import tempfile
+
+        directory = tempfile.mkdtemp()
+        path = os.path.join(directory, name)
+        with open(path, "w", encoding=encoding, newline="") as handle:
+            handle.write(text)
+        log = LogFile(path)
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for event in log.events():
+            splitter.feed(event)
+        return log, splitter.finish(), path
+
+    # -- crashes ---------------------------------------------------------
+
+    def test_an_impossible_timestamp_is_skipped_not_raised(self):
+        """A line can match a shape and still be impossible. The one that
+        needs no corruption at all is 29 February in a year-less log read
+        during a non-leap year."""
+        reader = TimestampReader(2026)
+        for text in ("2/30/2026 10:00:00.000", "13/45 10:00:00.000",
+                     "9/18/2026 99:00:00.000", "2/29 10:00:00.000",
+                     "9/18/2026 10:00:00.000-99"):
+            self.assertIsNone(reader.read(text), text)
+        self.assertEqual(reader.unparsed, 5)
+        self.assertIsNotNone(reader.read("9/18/2026 20:15:31.123-4"))
+
+    def test_an_infinite_number_does_not_raise(self):
+        """int(float("inf")) raises OverflowError, not ValueError."""
+        from logswow.tokenize import as_int
+
+        for text in ("inf", "-inf", "Infinity", "1e400"):
+            self.assertEqual(as_int(text), 0, text)
+        self.assertEqual(as_int("42"), 42)
+
+    def test_a_directory_is_an_error_message_not_a_traceback(self):
+        import tempfile
+
+        from logswow.cli import main
+
+        with tempfile.TemporaryDirectory() as directory:
+            for command in ("report", "list", "diagnose"):
+                self.assertEqual(main([command, directory, "-q"]), 2, command)
+
+    # -- numbers ---------------------------------------------------------
+
+    def test_one_unreadable_line_counts_as_one_problem(self):
+        """`unsplittable` used to be incremented beside `by_reason`, so
+        the fixture's two bad lines were reported as three -- in
+        `diagnose`, in the report's footer and in its own tile."""
+        log, _segments = run_fixture()
+        self.assertEqual(log.problems.total, 2)
+        self.assertEqual(log.problems.total, sum(log.problems.by_reason.values()))
+
+    def test_a_reported_problem_says_which_line_it_was_on(self):
+        log, _segments = run_fixture()
+        self.assertTrue(log.problems.samples)
+        for line_number, _reason, _text in log.problems.samples:
+            self.assertIsInstance(line_number, int)
+
+    def test_a_byte_order_mark_does_not_cost_the_first_line(self):
+        with open(FIXTURE, encoding="utf-8") as handle:
+            text = handle.read()
+        plain, _segments, _path = self._read(text)
+        marked, _segments, _path = self._read("\ufeff" + text, name="bom.txt")
+        self.assertEqual(marked.problems.total, plain.problems.total)
+        self.assertEqual(marked.event_count, plain.event_count)
+
+    def test_an_absorb_is_counted_once_not_twice(self):
+        """The client writes the same absorption in the hit's `absorbed`
+        field *and* as its own SPELL_ABSORBED line."""
+        boss = 'Creature-0-1-1-1-70000-0000000001,"Golem",0xa48,0x0'
+        tank = 'Player-1-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+        block = ",".join(advanced_block(19, info="Player-1-00000001"))
+        segments = self._analyse([
+            'ENCOUNTER_START,1,"Golem",16,5,2000',
+            'SPELL_DAMAGE,%s,%s,444,"Balayage",0x4,%s,1000,1500,-1,4,0,0,500,nil,nil,nil,ST'
+            % (boss, tank, block),
+            'SPELL_ABSORBED,%s,%s,%s,%s,1002,"Bouclier",0x2,500,1500,nil'
+            % (boss, tank, tank, tank),
+            'ENCOUNTER_END,1,"Golem",16,5,1,1000',
+        ])
+        players = segments[0].analysis.players.values()
+        self.assertEqual(sum(p.absorbed_taken for p in players), 500)
+
+    def test_damage_from_a_pet_nobody_owns_is_named_not_dropped(self):
+        """A pet summoned before the pull, on lines with no ownerGUID,
+        belongs to no ledger. Leaving it out is right; leaving it out
+        silently makes the group's total quietly short."""
+        pet = 'Pet-0-1-1-1-00099,"Cendre",0x1114,0x0'
+        mob = 'Creature-0-1-1-1-70000-0000000001,"Sbire",0xa48,0x0'
+        block = ",".join(advanced_block(19, info="Creature-0-1-1-1-70000-0000000001"))
+        segments = self._analyse([
+            'ENCOUNTER_START,1,"Sbire",16,5,2000',
+            'SPELL_DAMAGE,%s,%s,777,"Morsure",0x1,%s,700,700,-1,1,0,0,0,nil,nil,nil,ST'
+            % (pet, mob, block),
+            'ENCOUNTER_END,1,"Sbire",16,5,1,1000',
+        ])
+        analysis = segments[0].analysis
+        self.assertEqual(analysis.total_damage, 0)
+        self.assertEqual(analysis.orphan_damage, 700)
+        self.assertEqual(analysis.orphan_sources, {"Cendre": 700})
+
+    def test_a_truncated_pull_keeps_the_time_it_was_recorded_for(self):
+        """A log cut mid-fight used to end the pull on its own start."""
+        mob = 'Creature-0-1-1-1-70000-0000000001,"Sbire",0xa48,0x0'
+        player = 'Player-1-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+        block = ",".join(advanced_block(19, info="Creature-0-1-1-1-70000-0000000001"))
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        payloads = [
+            'ENCOUNTER_START,1,"Sbire",16,5,2000',
+            'SPELL_DAMAGE,%s,%s,222,"Frappe",0x1,%s,100,100,-1,1,0,0,0,nil,nil,nil,ST'
+            % (player, mob, block),
+        ]
+        for index, payload in enumerate(payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(index * 30000, fields, index + 1))
+        segments = splitter.finish()
+        self.assertTrue(segments[0].truncated)
+        self.assertEqual(segments[0].duration_ms, 30000)
+
+    def test_lines_between_two_pulls_are_not_analysed_for_nothing(self):
+        """Once the file is known to carry markers, the fallback segment
+        is discarded by `finish`, so feeding it is work nobody sees --
+        and on a night that is mostly corridor it was most of the work."""
+        mob = 'Creature-0-1-1-1-70000-0000000001,"Sbire",0xa48,0x0'
+        player = 'Player-1-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+        block = ",".join(advanced_block(19, info="Creature-0-1-1-1-70000-0000000001"))
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, payload in enumerate([
+            'ENCOUNTER_START,1,"Sbire",16,5,2000',
+            'ENCOUNTER_END,1,"Sbire",16,5,1,1000',
+            'SPELL_DAMAGE,%s,%s,222,"Frappe",0x1,%s,100,100,-1,1,0,0,0,nil,nil,nil,ST'
+            % (player, mob, block),
+        ]):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(index * 1000, fields, index + 1))
+        segments = splitter.finish()
+        self.assertEqual([segment.kind for segment in segments], ["encounter"])
+        self.assertIsNone(splitter._fallback)
+
+    # -- what the reader is told ------------------------------------------
+
+    def test_a_file_with_no_fight_says_so_instead_of_blaming_only(self):
+        """An empty file used to be reported as `--only None`, which the
+        reader never typed."""
+        import io
+        import tempfile
+        from contextlib import redirect_stderr
+
+        from logswow.cli import main
+
+        with tempfile.TemporaryDirectory() as directory:
+            empty = os.path.join(directory, "vide.txt")
+            open(empty, "w").close()
+            errors = io.StringIO()
+            with redirect_stderr(errors):
+                code = main(["report", empty, "-q"])
+        self.assertEqual(code, 2)
+        self.assertIn("Aucun combat", errors.getvalue())
+        self.assertNotIn("--only", errors.getvalue())
+
+    def test_the_overview_table_spans_its_own_columns(self):
+        page = self._page([])
+        heads = page.count("<th", page.find("<h2>Combats</h2>"),
+                           page.find("</table>", page.find("<h2>Combats</h2>")))
+        self.assertIn("colspan=%d" % heads, page)
+
+    def test_the_report_says_when_damage_belongs_to_nobody(self):
+        pet = 'Pet-0-1-1-1-00099,"Cendre",0x1114,0x0'
+        mob = 'Creature-0-1-1-1-70000-0000000001,"Sbire",0xa48,0x0'
+        block = ",".join(advanced_block(19, info="Creature-0-1-1-1-70000-0000000001"))
+        page = self._page([
+            'ENCOUNTER_START,1,"Sbire",16,5,2000',
+            'SPELL_DAMAGE,%s,%s,777,"Morsure",0x1,%s,700,700,-1,1,0,0,0,nil,nil,nil,ST'
+            % (pet, mob, block),
+            'ENCOUNTER_END,1,"Sbire",16,5,1,1000',
+        ])
+        self.assertIn("ne sont comptes pour personne", page)
+        self.assertIn("Cendre", page)
+
+    # -- the invariant checker itself --------------------------------------
+
+    def test_the_invariant_checker_reports_instead_of_crashing(self):
+        """It raised outside its own guard, so a log with one stray line
+        came out as a traceback and no invariant was ever checked."""
+        import subprocess
+
+        result = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools", "check-invariants.py"), FIXTURE],
+            cwd=ROOT, capture_output=True, text=True, timeout=120,
+        )
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertIn("All invariants hold", result.stdout)
+        # ...and the unreadable lines are still reported, as their own
+        # verdict rather than as a reason to check nothing.
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("could not be read", result.stdout)
+
+    # -- helpers -----------------------------------------------------------
+
+    def _analyse(self, payloads):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, payload in enumerate(payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(index * 1000, fields, index + 1))
+        return splitter.finish()
+
+    def _page(self, payloads):
+        import tempfile
+
+        segments = self._analyse(payloads) if payloads else []
+        log, _segments = run_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "rapport.html")
+            ReportWriter(log, segments, target).write()
+            with open(target, encoding="utf-8") as handle:
+                return handle.read()
+
+
 class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
     def test_the_fixtures_deliberate_bad_lines_are_reported(self):
         log, _segments = run_fixture()

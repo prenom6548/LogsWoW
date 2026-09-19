@@ -242,6 +242,83 @@ output directory does not exist, and `errors="replace"` on the console
 so a Windows cp1252 terminal does not die on the first accented boss
 name. The owner runs Linux Mint; the tool is meant for others too.
 
+### The 2026-09-19 audit, and the oracle that found what invariants could not
+
+A second full pass, asked for in the owner's words: check everything,
+even what does not look worth checking. No real log was available in that
+session, so two oracles replaced it -- a generated 17,000-line stress log
+covering absorbs, stagger, environmental damage, misses, pets, deaths and
+twenty-four pulls, and an **independent recount of that file written from
+scratch** with a naive parser, to compare against the package's own
+numbers. Three of the findings below were caught by that comparison and
+by nothing else, which is the lesson worth keeping: *invariants prove the
+ledgers agree with each other, not that either is right.* Only a second,
+separately written count can say that.
+
+What was wrong:
+
+- **One unreadable line counted as two problems.** `ParseProblems`
+  incremented `unsplittable` (or `bad_timestamp`) *beside* `by_reason`,
+  and `total` added both. The example log's two bad lines were reported
+  as three -- in `diagnose`, in the report's footer, in the "lignes
+  incomprises" tile and in the CLI's own line. `by_reason` is now the
+  only ledger and the two counters are views of it.
+- **Absorbs were counted twice.** The client writes the same absorption
+  in the hit's `absorbed` field *and* as its own `SPELL_ABSORBED` line,
+  and `Player.absorbed_taken` added both: 504,000 absorbed came out as
+  1,008,000. `SPELL_ABSORBED` is now the single source, because it is
+  also written for a hit absorbed *entirely*, which the client records
+  as a MISSED with no damage event to carry an absorbed field. The number
+  had never been displayed, which is why nothing had caught it; it is now
+  a tile on the player's panel, so it is under the reader's eye.
+- **A pet nobody owns lost its damage in silence.** Routing a pet's
+  damage home needs either a `SPELL_SUMMON` inside the segment or an
+  `ownerGUID` in the advanced block. With neither, the damage went into
+  no ledger at all -- 12% of the stress log's total simply vanished. It
+  still is not attributed to anybody (the file does not say whom), but
+  it is counted in `orphan_damage`, and the report carries a note naming
+  the units and the amount whenever it passes `ORPHAN_NOTE_SHARE`
+  (0.5%). **A total that is quietly short is the failure this project
+  exists to avoid.**
+- **An impossible timestamp killed the whole read.** `TimestampReader`
+  promised never to raise and did: 2/30, hour 99, a -99 timezone, and --
+  with no corruption at all -- **29 February in a year-less log read
+  during a non-leap year**, since that shape takes its year from the
+  machine's clock. One line now costs one line.
+- **`as_int("inf")` raised OverflowError**, not the ValueError the code
+  caught. `int(float("1e400"))` does the same.
+- **Every command tracebacked on a directory**, an unreadable file, or a
+  disk error: `read_log()` in `cli.py` now answers in French with an
+  exit code. An empty file was reported as `Aucun combat ne correspond a
+  --only None`, blaming an option the reader never typed.
+- **`tools/check-invariants.py` could not report.** Three of its checks
+  ran *outside* its own `try`, so the first one to fail came out as a
+  traceback -- and the first one was "zero read problems", which meant a
+  log with one stray line had no invariant checked at all. Arithmetic
+  runs first now, and unreadable lines are their own verdict at the end
+  (exit 1, but after everything has been checked).
+- **A truncated pull was given zero length** (`end_ts = start_ts`), so a
+  log cut mid-fight listed the fight as 0:00. It ends on the last event
+  the file actually contains.
+- **Corridor lines were analysed for nothing.** Once a file is known to
+  carry markers, the fallback "session" segment is discarded by
+  `finish()` -- but every event between two pulls was still being fed to
+  it. On a 200,000-line file that is mostly outside any pull: 10.7 s and
+  67 MB before, 8.4 s and 25 MB after.
+
+Smaller: the overview table's empty row spanned eight columns of seven;
+a byte order mark cost the first line (`utf-8-sig` now); `diagnose`
+printed `ligne None` because two call sites never passed the line number;
+the reasons a line could not be placed were in English in an otherwise
+French interface; and `near()` in the invariant checker was dead code.
+
+Two things were *checked and found right*, which is worth recording so
+the next pass does not re-open them: the melee double-count fix holds
+exactly (the independent recount agrees to the unit on a log containing
+2,880 `SWING_DAMAGE`/`SWING_DAMAGE_LANDED` pairs), and the generated
+HTML parses with no unclosed or mis-nested tag and references no URL
+outside wowhead.com.
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -313,11 +390,21 @@ it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 110 tests, no network, fast.
+1. `python3 tests/run-tests.py` -- 124 tests, no network, fast.
+   Every bug either audit found keeps a test there
+   (`TestAuditFindings`, `TestSecondAuditFindings`), and each one was
+   regression-checked the same way: stash the fix, watch the test fail,
+   restore it.
 2. `python3 -m logswow diagnose <a real log>` -- the number that matters
    is `PROBLEMES DE LECTURE : 0`.
 2b. `python3 tools/check-invariants.py <a real log>` -- must end on
-   "All invariants hold".
+   "All invariants hold". It reports unreadable lines too, after the
+   arithmetic rather than instead of it.
+2c. If the change touches the arithmetic, **count something twice**: a
+   short script that re-derives one total from the raw file, written
+   without looking at `analysis.py`, is the only check that can catch a
+   ledger which is self-consistent and wrong. That is how the absorb
+   double-count and the orphaned pet were found.
 3. If you touched anything about field positions, check a real file's
    totals before and after. A wrong offset does not raise; it prints a
    confident wrong number, which is the failure mode this whole file is

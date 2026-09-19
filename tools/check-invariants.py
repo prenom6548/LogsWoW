@@ -12,6 +12,11 @@ property of the fight.
 
 Exits non-zero on the first failing invariant. No network, no
 dependencies, and it never prints a player's realm.
+
+Read problems are reported too, but *after* the arithmetic and as their
+own verdict: a file with one stray line is still a file whose ledgers
+must add up, and stopping before the first invariant ran told the reader
+nothing about the thing this tool exists to check.
 """
 
 import os
@@ -34,15 +39,6 @@ def check(condition, label, detail=""):
         print("  ok   %s" % label)
         return
     raise Failure("%s%s" % (label, (" -- " + detail) if detail else ""))
-
-
-def near(a, b, tolerance=0.0):
-    """Equal, or within a fraction when the two sides round differently."""
-    if a == b:
-        return True
-    if tolerance and max(abs(a), abs(b)) > 0:
-        return abs(a - b) / max(abs(a), abs(b)) <= tolerance
-    return False
 
 
 def audit_segment(segment):
@@ -164,24 +160,45 @@ def main(argv):
         print(__doc__)
         return 2
     path = argv[1]
-    log = LogFile(path)
-    splitter = Splitter(analysis_factory=SegmentAnalysis)
-    for event in log.events():
-        splitter.feed(event)
-    segments = splitter.finish()
+    if not os.path.isfile(path):
+        print("Not a readable file: %s" % path)
+        return 2
+    try:
+        log = LogFile(path)
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for event in log.events():
+            splitter.feed(event)
+        segments = splitter.finish()
+    except OSError as error:
+        print("Could not read %s: %s" % (path, error.strerror or error))
+        return 2
     print("%s : %d segments, %d problemes de lecture" % (
         os.path.basename(path), len(segments), log.problems.total))
-    check(log.problems.total == 0, "zero read problems")
-    check(len(segments) > 0, "at least one segment")
-    for earlier, later in zip(segments, segments[1:]):
-        check(later.start_ts >= earlier.start_ts, "segments are in file order")
+
+    # Every check runs inside the guard: one raised outside it used to
+    # come out as a traceback, which is the opposite of what a tool that
+    # exists to report cleanly should do.
     try:
+        check(len(segments) > 0, "at least one segment")
+        for earlier, later in zip(segments, segments[1:]):
+            check(later.start_ts >= earlier.start_ts, "segments are in file order")
         for segment in segments:
             audit_segment(segment)
     except Failure as failure:
         print("\nINVARIANT VIOLATED: %s" % failure)
         return 1
-    print("\nAll invariants hold on %s." % os.path.basename(path))
+
+    name = os.path.basename(path)
+    if log.problems.total:
+        print("\nAll invariants hold on %s, but %d line(s) could not be read:"
+              % (name, log.problems.total))
+        for reason, count in sorted(
+            log.problems.by_reason.items(), key=lambda item: -item[1]
+        )[:5]:
+            print("  %6d  %s" % (count, reason))
+        print("Run `python3 -m logswow diagnose %s` to see them." % name)
+        return 1
+    print("\nAll invariants hold on %s." % name)
     return 0
 
 

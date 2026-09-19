@@ -59,6 +59,41 @@ def _build(path, year=None, verbose=True, pull_gap_ms=None):
     return log, segments, time.time() - started
 
 
+def read_log(args, verbose=True):
+    """Read the log, or say in French why it could not be read.
+
+    Returns (log, segments, elapsed) or None. Every failure a path can
+    produce ends up here: a name that does not exist, a directory, a file
+    the account cannot open, a disk error halfway through. They used to
+    arrive as a Python traceback, which tells the reader nothing they can
+    act on.
+    """
+    if not os.path.exists(args.log):
+        sys.stderr.write("Fichier introuvable : %s\n" % args.log)
+        return None
+    if os.path.isdir(args.log):
+        sys.stderr.write(
+            "%s est un dossier, pas un fichier de journal. "
+            "Cherchez-y WoWCombatLog.txt.\n" % args.log
+        )
+        return None
+    try:
+        return _build(args.log, args.year, verbose, _pull_gap_ms(args))
+    except OSError as error:
+        sys.stderr.write(
+            "Impossible de lire %s : %s\n" % (args.log, error.strerror or error)
+        )
+        return None
+
+
+def no_fight_message(path):
+    return (
+        "Aucun combat n'a ete trouve dans %s. Le fichier est peut-etre vide, "
+        "ou ecrit par une version du client que ce lecteur ne comprend pas : "
+        "`diagnose` dit ce qui a ete lu.\n" % path
+    )
+
+
 def select_segments(segments, only):
     """Narrow a report to one fight, by number or by name.
 
@@ -82,12 +117,15 @@ def _pull_gap_ms(args):
 
 
 def command_report(args):
-    if not os.path.exists(args.log):
-        sys.stderr.write("Fichier introuvable : %s\n" % args.log)
+    read = read_log(args, not args.quiet)
+    if read is None:
         return 2
-    log, segments, elapsed = _build(
-        args.log, args.year, not args.quiet, _pull_gap_ms(args)
-    )
+    log, segments, elapsed = read
+    if not segments:
+        # Not the same thing as "--only matched nothing", and saying so
+        # mattered: an empty file used to be reported as `--only None`.
+        sys.stderr.write(no_fight_message(args.log))
+        return 2
     chosen = select_segments(segments, args.only)
     if not chosen:
         sys.stderr.write(
@@ -113,12 +151,13 @@ def command_report(args):
 
 
 def command_list(args):
-    if not os.path.exists(args.log):
-        sys.stderr.write("Fichier introuvable : %s\n" % args.log)
+    read = read_log(args, not args.quiet)
+    if read is None:
         return 2
-    log, segments, _elapsed = _build(
-        args.log, args.year, not args.quiet, _pull_gap_ms(args)
-    )
+    _log, segments, _elapsed = read
+    if not segments:
+        sys.stderr.write(no_fight_message(args.log))
+        return 2
     print("%-4s %-46s %9s %10s %7s" % ("#", "Combat", "Duree", "Degats", "Morts"))
     for segment in segments:
         analysis = segment.analysis
@@ -137,7 +176,19 @@ def command_diagnose(args):
     if not os.path.exists(args.log):
         sys.stderr.write("Fichier introuvable : %s\n" % args.log)
         return 2
-    print(run_diagnose(args.log, default_year=args.year, limit=args.limit))
+    if os.path.isdir(args.log):
+        sys.stderr.write(
+            "%s est un dossier, pas un fichier de journal. "
+            "Cherchez-y WoWCombatLog.txt.\n" % args.log
+        )
+        return 2
+    try:
+        print(run_diagnose(args.log, default_year=args.year, limit=args.limit))
+    except OSError as error:
+        sys.stderr.write(
+            "Impossible de lire %s : %s\n" % (args.log, error.strerror or error)
+        )
+        return 2
     return 0
 
 

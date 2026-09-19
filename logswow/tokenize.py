@@ -140,8 +140,11 @@ def as_int(value, default=0):
     except ValueError:
         pass
     try:
+        # OverflowError as well as ValueError: int(float("inf")) and
+        # int(float("1e400")) both raise it, and a line damaged by a
+        # crash mid-write is exactly where such a string comes from.
         return int(float(value))
-    except ValueError:
+    except (ValueError, OverflowError):
         return default
 
 

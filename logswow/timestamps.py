@@ -84,12 +84,22 @@ class TimestampReader:
         self.unparsed = 0
 
     def read(self, text):
-        """Return milliseconds, or None when the shape is not recognised."""
+        """Return milliseconds, or None when the text is not a timestamp.
+
+        Never raises. A line can match one of the shapes above and still
+        be impossible -- 2/30, hour 99, a -99 timezone, or 2/29 in a
+        year-less log read during a non-leap year, which is the one that
+        happens without any corruption at all. datetime says so with a
+        ValueError, and one bad line must cost that line, not the file.
+        """
         text = text.strip()
         for pattern in _PATTERNS:
             match = pattern.match(text)
             if match:
-                return self._build(match)
+                try:
+                    return self._build(match)
+                except (ValueError, OverflowError, OSError):
+                    break
         self.unparsed += 1
         return None
 

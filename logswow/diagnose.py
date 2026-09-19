@@ -91,11 +91,10 @@ def run(path, default_year=None, limit=None):
         add("LIGNES NON RESOLUES : aucune")
     add("")
     problems = log.problems
+    # One line, one reason: the breakdown below is the whole ledger. The
+    # two commonest reasons used to be printed again above it, which read
+    # as two separate problems for one bad line.
     add("PROBLEMES DE LECTURE : %d" % problems.total)
-    if problems.unsplittable:
-        add("  lignes sans separateur : %d" % problems.unsplittable)
-    if problems.bad_timestamp:
-        add("  horodatages illisibles : %d" % problems.bad_timestamp)
     for reason, count in sorted(problems.by_reason.items(), key=lambda item: -item[1])[:10]:
         add("  %-50s %d" % (reason, count))
     for line_number, reason, text in problems.samples[:8]:

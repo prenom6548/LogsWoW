@@ -104,6 +104,10 @@ def percent(value):
 # The narrow no-break space French puts before ; : ! ? and inside numbers.
 NBSP = "\u202f"
 
+# Below this share of the damage dealt, unattributable damage is a stray
+# tick rather than a missing pet, and the note about it would be noise.
+ORPHAN_NOTE_SHARE = 0.005
+
 
 def plural(count, singular, many=None):
     """French agreement: 1 joueur, 2 joueurs, 0 joueur."""
@@ -168,7 +172,7 @@ class ReportWriter:
             )
         if not rows:
             rows.append(
-                "<tr><td colspan=8 class=dim>Aucun combat delimite dans ce fichier.</td></tr>"
+                "<tr><td colspan=7 class=dim>Aucun combat delimite dans ce fichier.</td></tr>"
             )
 
         generated = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -237,6 +241,7 @@ class ReportWriter:
         )
         body = [
             head,
+            self._orphans(analysis),
             self._composition(analysis),
             self._timeline(analysis),
             self._pulls(analysis),
@@ -251,6 +256,32 @@ class ReportWriter:
             self._enemies(analysis, seconds),
         ]
         return "".join(body)
+
+    def _orphans(self, analysis):
+        """Damage the file gives to nobody, when there is enough to matter.
+
+        A pet summoned before the pull began, on lines whose advanced
+        block carries no ownerGUID, cannot be routed to its owner -- so
+        its damage is in no player's row and in no total. That is the
+        honest choice; saying nothing about it is not, because the
+        group's total would be quietly short.
+        """
+        dropped = analysis.orphan_damage
+        if not dropped:
+            return ""
+        whole = analysis.total_damage + dropped
+        if whole and dropped / whole < ORPHAN_NOTE_SHARE:
+            return ""
+        ranked = sorted(analysis.orphan_sources.items(), key=lambda item: -item[1])
+        names = ", ".join("%s (%s)" % (esc(name), compact(value))
+                          for name, value in ranked[:4])
+        return (
+            "<div class=note><b>%s de degats ne sont comptes pour personne.</b> "
+            "Ils viennent d'unites alliees dont le journal ne nomme jamais le "
+            "maitre%s: %s. Le fichier ne dit pas a qui les attribuer, donc ils "
+            "ne sont ni dans le total ci-dessus ni dans la ligne d'un joueur.</div>"
+            % (compact(dropped), NBSP, names)
+        )
 
     def _timeline(self, analysis):
         """Damage taken per interval, with a real scale on both sides.
@@ -703,6 +734,7 @@ class ReportWriter:
                           percent(player.damage_to_bosses / player.damage_done)))
         tiles += [
             ("Degats subis", compact(player.damage_taken)),
+            ("Absorbes", compact(player.absorbed_taken)),
             ("Sorts par minute", "%.1f" % (player.casts / max(1.0, seconds / 60.0))),
             ("Temps sans action", format_duration(player.downtime_ms)),
             ("Interruptions", str(player.interrupts)),

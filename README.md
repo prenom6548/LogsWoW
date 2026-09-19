@@ -73,7 +73,13 @@ lu serait pire que pas de rapport du tout.
   six secondes sans dégâts de part ni d'autre ; `--pull-gap` change ce
   seuil si votre groupe enchaîne les packs.
 - **Dégâts et soins** par joueur, avec le DPS, le HPS et la part de soin
-  perdue en surguérison.
+  perdue en surguérison. Le panneau de chaque joueur indique aussi ce que
+  ses boucliers ont **absorbé**.
+- **Les dégâts que le fichier n'attribue à personne**, quand il y en a :
+  une créature alliée dont le journal ne nomme jamais le maître ne peut
+  être rattachée à aucun joueur. Ils sont laissés hors du total, et un
+  encadré le dit, avec leur nom et leur montant — un total silencieusement
+  incomplet serait pire.
 - **Ce qui a fait mal au groupe** : chaque capacité ennemie, combien elle
   a coûté, combien de joueurs elle a touchés.
 - **Les morts**, chacune avec la chaîne des derniers coups et soins reçus
@@ -132,8 +138,11 @@ Ces trois limites sont structurelles, pas des fonctions manquantes.
 Sur votre disque, et nulle part ailleurs. Le programme ouvre un fichier,
 écrit un fichier, et se termine. Il n'ouvre aucune connexion réseau, ne
 lit aucune configuration, n'écrit aucun cache et ne connaît aucun compte.
-La page produite ne référence aucune URL : le test `test_writes_a_self_contained_page`
-échoue si jamais un `http` s'y glisse.
+La page produite ne charge rien à l'ouverture : le test
+`test_writes_a_self_contained_page` échoue si un `<script>`, une feuille
+de style, un `src=`, un `@import` ou un `url(` s'y glisse, et si une
+adresse autre que Wowhead y apparaît. Les liens Wowhead, eux, ne sont
+suivis que si vous cliquez dessus.
 
 Rappel utile : un journal de combat contient le nom et les performances
 de **tout le groupe**, pas seulement les vôtres.
@@ -145,7 +154,7 @@ python3 tests/run-tests.py
 python3 tools/check-invariants.py WoWCombatLog.txt
 ```
 
-Les tests, 110, tournent sans dépendance ni réseau sur
+Les tests, 124, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 

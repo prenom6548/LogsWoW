@@ -13,6 +13,7 @@ import os
 from .events import (
     DEFAULT_ADVANCED_WIDTH,
     SPECIAL_EVENTS,
+    UNKNOWN_SUBEVENT,
     Layout,
     build_event,
     decompose,
@@ -129,16 +130,28 @@ def detect_layout(samples):
     )
 
 
+# The two reasons that stop a line before it is even an event. Named
+# because `diagnose` breaks them out, and because counting them twice is
+# exactly the bug this class used to have.
+NO_SEPARATOR = "ligne sans le separateur de deux espaces"
+BAD_TIMESTAMP = "horodatage illisible"
+
+
 class ParseProblems:
     """What the reader did not understand, kept for `diagnose`.
 
     Counted rather than raised. One malformed line in ten million must
     not stop a report from being produced, but it must not vanish either.
+
+    **One line is one problem.** `by_reason` is the only ledger; the two
+    counters below are views of it. They used to be incremented
+    *alongside* it, so every unsplittable line and every unreadable
+    timestamp was reported twice -- the example log's two bad lines came
+    out as three problems in `diagnose`, in the report's footer and in
+    the "lignes incomprises" tile.
     """
 
     def __init__(self):
-        self.unsplittable = 0
-        self.bad_timestamp = 0
         self.by_reason = {}
         self.unknown_subevents = {}
         self.samples = []
@@ -152,8 +165,16 @@ class ParseProblems:
         self.unknown_subevents[subevent] = self.unknown_subevents.get(subevent, 0) + 1
 
     @property
+    def unsplittable(self):
+        return self.by_reason.get(NO_SEPARATOR, 0)
+
+    @property
+    def bad_timestamp(self):
+        return self.by_reason.get(BAD_TIMESTAMP, 0)
+
+    @property
     def total(self):
-        return self.unsplittable + self.bad_timestamp + sum(self.by_reason.values())
+        return sum(self.by_reason.values())
 
 
 class LogFile:
@@ -173,7 +194,11 @@ class LogFile:
     def _open(self):
         # errors="replace" rather than "strict": a single byte damaged by a
         # crash mid-write should cost one character, not the whole night.
-        return io.open(self.path, "r", encoding="utf-8", errors="replace", newline="")
+        # utf-8-sig rather than utf-8: the client writes no byte order
+        # mark, but a file that has been through a Windows editor can
+        # carry one, and it would otherwise make line 1 unreadable.
+        return io.open(self.path, "r", encoding="utf-8-sig", errors="replace",
+                       newline="")
 
     def events(self):
         """Yield Event objects in file order.
@@ -194,13 +219,13 @@ class LogFile:
                     continue
                 timestamp_text, fields = split_line(line)
                 if fields is None:
-                    self.problems.unsplittable += 1
-                    self.problems.note("line without the two-space separator", text=line)
+                    self.problems.note(NO_SEPARATOR, line_number=self.line_count,
+                                       text=line)
                     continue
                 ts = clock.read(timestamp_text)
                 if ts is None:
-                    self.problems.bad_timestamp += 1
-                    self.problems.note("unreadable timestamp", text=timestamp_text)
+                    self.problems.note(BAD_TIMESTAMP, line_number=self.line_count,
+                                       text=timestamp_text)
                     continue
                 if self.first_ts is None:
                     self.first_ts = ts
@@ -228,7 +253,7 @@ class LogFile:
         event = build_event(ts, fields, line_number, self.layout)
         self.event_count += 1
         if event.mismatch:
-            if event.mismatch == "unknown subevent":
+            if event.mismatch == UNKNOWN_SUBEVENT:
                 self.problems.note_unknown(event.subevent)
             else:
                 self.problems.note(event.mismatch, line_number=line_number, text=event.subevent)

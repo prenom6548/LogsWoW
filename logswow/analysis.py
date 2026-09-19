@@ -358,6 +358,15 @@ class SegmentAnalysis:
         self._bucket_ms = 1000
         self.events_seen = 0
         self.landed_seen = 0
+        # Damage dealt by a friendly non-player unit whose owner the file
+        # never names -- a pet summoned before the segment began, on a
+        # line whose advanced block carries no ownerGUID. It belongs to
+        # nobody's ledger and is deliberately left out of the group's
+        # total, but leaving it out *silently* is how a total goes quietly
+        # wrong: `diagnose` prints this, so the reader can see the size of
+        # what was dropped instead of trusting that it was nothing.
+        self.orphan_damage = 0
+        self.orphan_sources = {}
 
     # -- helpers ----------------------------------------------------------
 
@@ -527,9 +536,22 @@ class SegmentAnalysis:
 
     def _feed_damage(self, event):
         amount = event.amount
-        absorbed = event.absorbed
         source_ours = self._is_ours(event.source)
         dest_ours = self._is_ours(event.dest)
+
+        if (
+            not source_ours
+            and not dest_ours
+            and amount
+            and event.source.is_friendly
+            and not event.source.is_hostile
+            and not event.source.is_player
+            and event.source.guid
+        ):
+            self.orphan_damage += amount
+            name = event.source.short_name or event.source.guid
+            if name in self.orphan_sources or len(self.orphan_sources) < 30:
+                self.orphan_sources[name] = self.orphan_sources.get(name, 0) + amount
 
         if source_ours and not dest_ours:
             player = self._player(event.source)
@@ -563,7 +585,14 @@ class SegmentAnalysis:
         if dest_ours:
             player = self._player(event.dest)
             player.damage_taken += amount
-            player.absorbed_taken += max(0, absorbed)
+            # The absorbed part is NOT banked here. The client writes the
+            # same absorption twice -- once in this hit's `absorbed`
+            # field, once as its own SPELL_ABSORBED line -- and adding
+            # both doubled every shield in the ledger (proved on a
+            # synthetic log: 504,000 absorbed, 1,008,000 counted).
+            # SPELL_ABSORBED is the one kept, because it is also written
+            # for a hit absorbed *entirely*, which the client records as
+            # a MISSED with no damage event to carry an absorbed field.
             ability = _bucket(player.taken_by_ability, event.spell_id, event.spell_name)
             ability.add(amount, False, event.source.name)
             raid_ability = _bucket(self.enemy_damage_by_ability, event.spell_id, event.spell_name)

@@ -29,6 +29,13 @@ from .tokenize import as_bool, as_int, looks_like_guid
 # What the documentation describes, used only until the file says better.
 DEFAULT_ADVANCED_WIDTH = 19
 
+# Why a line could not be placed. These are shown to the reader by
+# `diagnose`, so they are in French like the rest of the interface;
+# UNKNOWN_SUBEVENT is also a sentinel the reader compares against, so it
+# is a constant rather than a repeated literal.
+UNKNOWN_SUBEVENT = "evenement inconnu"
+MISSING_BASE_FIELDS = "champs de base manquants"
+
 _PREFIXES = (
     ("SPELL_PERIODIC", 3),
     ("SPELL_BUILDING", 3),
@@ -416,7 +423,8 @@ def resolve_layout(remainder, prefix_n, suffix_counts, advanced_width):
             remainder,
             None,
             [],
-            "short line: %d fields for a %d-field prefix" % (len(remainder), prefix_n),
+            "ligne trop courte : %d champs pour un prefixe de %d"
+            % (len(remainder), prefix_n),
         )
     prefix = remainder[:prefix_n]
     rest = remainder[prefix_n:]
@@ -428,7 +436,8 @@ def resolve_layout(remainder, prefix_n, suffix_counts, advanced_width):
         if available == count:
             return prefix, None, rest, None
 
-    note = "unexpected field count: %d after the prefix, expected %s, or that +%d" % (
+    note = ("nombre de champs inattendu : %d apres le prefixe, attendu %s, "
+            "ou cela +%d") % (
         available,
         " / ".join(str(count) for count in suffix_counts) or "0",
         advanced_width,
@@ -452,7 +461,7 @@ def build_event(ts, fields, line_number, layout=DEFAULT_LAYOUT):
     offset = 2 if layout.hide_caster else 1
     base = fields[offset : offset + 8]
     if len(base) < 8:
-        event.mismatch = "missing base fields"
+        event.mismatch = MISSING_BASE_FIELDS
         return event
     event.source = Actor(base[0], base[1], _hex(base[2]), _hex(base[3]))
     event.dest = Actor(base[4], base[5], _hex(base[6]), _hex(base[7]))
@@ -464,7 +473,7 @@ def build_event(ts, fields, line_number, layout=DEFAULT_LAYOUT):
 
     scheme = decompose(subevent)
     if scheme is None:
-        event.mismatch = "unknown subevent"
+        event.mismatch = UNKNOWN_SUBEVENT
         event.suffix = remainder
         return event
 
