@@ -389,6 +389,22 @@ class Event:
         return value if isinstance(value, str) else ""
 
     @property
+    def absorb_caster(self):
+        """SPELL_ABSORBED: (guid, name) of whoever's shield ate the hit.
+
+        Measured on a real 12.1.0 log, in both widths the event comes in:
+        the caster sits ten and nine fields from the end, whether or not
+        the attacker's own spell is named. That is the same tail anchor
+        `absorbed_amount` uses, for the same reason.
+        """
+        if self.subevent != "SPELL_ABSORBED":
+            return "", ""
+        guid = self._at(len(self.suffix) - 10)
+        name = self._at(len(self.suffix) - 9)
+        return (guid if isinstance(guid, str) else "",
+                name if isinstance(name, str) else "")
+
+    @property
     def absorbed_amount(self):
         """SPELL_ABSORBED: how much a shield ate. Tail-anchored.
 

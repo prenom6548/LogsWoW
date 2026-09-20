@@ -485,6 +485,69 @@ keeps the session header, so a one-key file can span ten hours of
 timestamps. "Duree couverte" is the file's span, not the fight's, and
 that is correct.
 
+### 2026-09-20, later: the same key read by Warcraft Logs
+
+The owner exported the Nalorakk +15 from Warcraft Logs -- damage, healing,
+damage taken, casts, deaths, debuffs -- and asked the only question that
+matters: does it match? **This is the first outside reference this
+project has ever had**, and it found three real gaps that five internal
+oracles had not, because every one of them was a thing the reader never
+counted at all.
+
+**Exact, with nothing to explain:** the fight's duration (1,640.7 s on
+both sides, to the tenth), the nine deaths (same players, same order),
+and the ranking of every table.
+
+**Three gaps, all now closed:**
+
+1. **A shield was credited to nobody.** `SPELL_ABSORBED` was banked only
+   against the *victim*; the player whose shield ate the hit got
+   nothing. The export showed 53.8M of healing on a tank this reader
+   credited with none. `Player.absorb_done` fixes it, and the caster
+   sits ten fields from the end of the line in **both** widths of the
+   event -- measured on the owner's file, the same tail anchor
+   `absorbed_amount` already used. With absorbs added, healing matches
+   Warcraft Logs **to the unit for three of five players** and within
+   1.3% for the other two.
+2. **The null GUID opened a ledger.** The client writes
+   `0000000000000000` with *player flags* on a few lines per log (an
+   "Anti-Magic Zone" tick), and the report grew a player row called
+   "nil" with six casts. It is nobody now, and the little damage it
+   carries (123k here, 1.4M in one older log) goes to `orphan_damage`
+   rather than vanishing.
+3. **A pet's casts were the player's casts.** The export counts 880
+   where this reader counted 3,668. Two causes, and only one is fixable
+   here: pets (now counted apart, `Player.pet_casts`) and **proc-
+   generated casts** -- "Fragment d'ame" x2,788, "Apparition tenebreuse"
+   x788, "Traitement de douleur" x429. Subtracting exactly those
+   reproduces Warcraft Logs' number to the unit for three players, which
+   proves what their filter is: a maintained list of which spell ids are
+   really cast by a person. That is the fourth structural limit, and it
+   is the same one as the rotation verdict.
+
+**Definitional differences, left as they are and now documented:**
+
+- **Healing.** Warcraft Logs' "healing" is effective healing **plus
+  absorbs**. This report keeps them in separate columns and shows the
+  sum, with a note saying which one the sites mean.
+- **Damage done.** Ours is 1.9% below theirs across the key, and 1.0 to
+  2.5% below per player. The largest identified component is damage
+  dealt **onto our own summons** (20.5M of 26.2M here), which this
+  reader excludes from "damage done to the enemy" and they appear to
+  count. The remaining 0.4% is not explained, and saying so is better
+  than inventing a reason.
+- **Damage taken.** Theirs is ours plus the absorbed part, roughly; they
+  also list an allied NPC ("Zul'jarra") as a row, which is the same unit
+  this reader reports in its unattributed-damage note.
+
+**What was checked and found sound:** player-side melee. In this key
+`SWING_DAMAGE` and `SWING_DAMAGE_LANDED` total **13,137,117 each, to the
+unit**, so skipping `_LANDED` loses nothing at all on the damage-done
+side. On the monsters' side `_LANDED` runs 2.4% above `SWING_DAMAGE`
+(105.8M vs 103.3M), so damage *taken* is that much under-counted -- a
+measured property of the file, not a bug, and too small to justify
+pairing machinery.
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -563,7 +626,7 @@ it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 141 tests, no network, fast.
+1. `python3 tests/run-tests.py` -- 144 tests, no network, fast.
    Every bug either audit found keeps a test there
    (`TestAuditFindings`, `TestSecondAuditFindings`), and each one was
    regression-checked the same way: stash the fix, watch the test fail,

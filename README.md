@@ -73,8 +73,17 @@ lu serait pire que pas de rapport du tout.
   six secondes sans dégâts de part ni d'autre ; `--pull-gap` change ce
   seuil si votre groupe enchaîne les packs.
 - **Dégâts et soins** par joueur, avec le DPS, le HPS et la part de soin
-  perdue en surguérison. Le panneau de chaque joueur indique aussi ce que
-  ses boucliers ont **absorbé**.
+  perdue en surguérison. Les **boucliers** ont leur propre colonne : ce
+  qu'ils ont absorbé n'est pas un soin dans le journal, puisqu'ils
+  empêchent des dégâts au lieu d'en rendre. La colonne « Somme »
+  additionne les deux — c'est ce total-là que les sites en ligne
+  appellent « soins ».
+- **Les sorts lancés** comptent aussi ceux des invocations, indiqués à
+  part. Un sort déclenché tout seul (une procédure passive) est écrit
+  dans le journal exactement comme un sort lancé à la main : les
+  distinguer demanderait une liste de sorts à maintenir, donc ils sont
+  tous comptés. C'est pourquoi ce nombre est plus élevé que celui d'un
+  site en ligne.
 - **Les dégâts que le fichier n'attribue à personne**, quand il y en a :
   une créature alliée dont le journal ne nomme jamais le maître ne peut
   être rattachée à aucun joueur. Ils sont laissés hors du total, et un
@@ -159,7 +168,7 @@ python3 tests/run-tests.py
 python3 tools/check-invariants.py WoWCombatLog.txt
 ```
 
-Les tests, 141, tournent sans dépendance ni réseau sur
+Les tests, 144, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 

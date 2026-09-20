@@ -1527,6 +1527,78 @@ class TestWhatTheRealLogsFound(unittest.TestCase):
             self.assertLessEqual(milliseconds, analysis.duration_ms)
 
 
+class TestAgainstWarcraftLogs(unittest.TestCase):
+    """The owner exported the same Mythic+ key from Warcraft Logs and
+    asked whether the numbers matched. Three gaps were real gaps, and
+    each one keeps a test here."""
+
+    TANK = 'Player-9-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+    HEALER = 'Player-9-00000002,"Tisane-Dalaran-EU",0x512,0x0'
+    MOB = 'Creature-0-9-2-1-70000-0000000001,"Golem",0xa48,0x0'
+    PET = 'Pet-0-9-2-1-00099,"Cendre",0x1114,0x0'
+
+    def _analyse(self, payloads):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, payload in enumerate(payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(index * 1000, fields, index + 1))
+        return splitter.finish()[0].analysis
+
+    def test_a_shield_is_credited_to_whoever_cast_it(self):
+        """A discipline priest's whole output is absorbs, and they were
+        in no ledger at all: the export showed 53.8M on one player where
+        this reader showed nothing."""
+        analysis = self._analyse([
+            'ENCOUNTER_START,1,"Golem",16,5,2000',
+            # the wide form, with the attacker's own spell named
+            'SPELL_ABSORBED,%s,%s,444,"Balayage",0x4,%s,1002,"Bouclier",0x2,900,1500,nil'
+            % (self.MOB, self.TANK, self.HEALER),
+            # ...and the narrow form, without it
+            'SPELL_ABSORBED,%s,%s,%s,1002,"Bouclier",0x2,100,1500,nil'
+            % (self.MOB, self.TANK, self.HEALER),
+            'ENCOUNTER_END,1,"Golem",16,5,1,3000',
+        ])
+        healer = analysis.players["Player-9-00000002"]
+        tank = analysis.players["Player-9-00000001"]
+        self.assertEqual(healer.absorb_done, 1000)
+        self.assertEqual(tank.absorbed_taken, 1000)
+        self.assertEqual(sum(x.total for x in healer.absorb_by_ability.values()), 1000)
+
+    def test_the_null_guid_never_becomes_a_player(self):
+        """The client writes 0000000000000000 with player flags on a few
+        lines per log -- an "Anti-Magic Zone" tick, for instance. It used
+        to open a ledger of its own, and the report grew a player called
+        "nil"."""
+        nobody = '0000000000000000,nil,0x511,0x0'
+        analysis = self._analyse([
+            'ENCOUNTER_START,1,"Golem",16,5,2000',
+            'SPELL_CAST_SUCCESS,%s,%s,145629,"Zone anti-magie",0x20' % (nobody, self.MOB),
+            'SPELL_DAMAGE,%s,%s,145629,"Zone anti-magie",0x20,500,500,-1,1,0,0,0,nil,nil,nil,ST'
+            % (nobody, self.MOB),
+            'ENCOUNTER_END,1,"Golem",16,5,1,3000',
+        ])
+        self.assertEqual([p.short_name for p in analysis.players.values()], [])
+        # ...and its damage is unattributed rather than silently gone.
+        self.assertEqual(analysis.orphan_damage, 500)
+        self.assertIn("source non nommee par le journal", analysis.orphan_sources)
+
+    def test_a_pets_casts_are_counted_apart(self):
+        """The export counts 880 casts where this reader counted 3,668:
+        pets, plus proc-generated casts the file cannot tell from real
+        ones. The pets' share is knowable, so it is shown."""
+        analysis = self._analyse([
+            'ENCOUNTER_START,1,"Golem",16,5,2000',
+            'SPELL_SUMMON,%s,%s,777,"Invocation",0x1' % (self.TANK, self.PET),
+            'SPELL_CAST_SUCCESS,%s,%s,222,"Frappe",0x1' % (self.TANK, self.MOB),
+            'SPELL_CAST_SUCCESS,%s,%s,333,"Morsure",0x1' % (self.PET, self.MOB),
+            'SPELL_CAST_SUCCESS,%s,%s,333,"Morsure",0x1' % (self.PET, self.MOB),
+            'ENCOUNTER_END,1,"Golem",16,5,1,5000',
+        ])
+        tank = analysis.players["Player-9-00000001"]
+        self.assertEqual(tank.casts, 3)
+        self.assertEqual(tank.pet_casts, 2)
+
+
 class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
     def test_the_fixtures_deliberate_bad_lines_are_reported(self):
         log, _segments = run_fixture()

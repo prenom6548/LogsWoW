@@ -501,28 +501,50 @@ class ReportWriter:
         rows = analysis.ranked_players(key)
         if not rows:
             return ""
+        # A shield that ate a hit never becomes healing in the file, so it
+        # is shown beside it rather than inside it. Warcraft Logs adds the
+        # two together, which is why a discipline priest reads so
+        # differently there; the note under the table says so.
+        healing = key == "healing_done"
+        absorbs = healing and any(player.absorb_done for player, _v, _r in rows)
         peak = rows[0][1]
         lines = []
         for player, value, rate in rows[:20]:
             extra = ""
-            if key == "healing_done" and player.overheal_rate:
+            if healing and player.overheal_rate:
                 extra = (" <span class=dim>(%s de surguerison)</span>"
                          % percent(player.overheal_rate))
-            lines.append(
-                "<tr>%s<td class=n>%s</td><td class=n>%s</td></tr>"
-                % (
-                    _bar_row(
-                        "<span class=name>%s</span>%s" % (esc(player.short_name), extra),
-                        value / peak if peak else 0,
-                    ),
-                    compact(value),
-                    compact(rate),
-                )
-            )
+            cells = [
+                _bar_row(
+                    "<span class=name>%s</span>%s" % (esc(player.short_name), extra),
+                    value / peak if peak else 0,
+                ),
+                "<td class=n>%s</td>" % compact(value),
+            ]
+            if absorbs:
+                cells.append("<td class=n>%s</td>" % (
+                    compact(player.absorb_done) if player.absorb_done
+                    else "<span class=dim>-</span>"))
+                cells.append("<td class=n>%s</td>"
+                             % compact(value + player.absorb_done))
+            cells.append("<td class=n>%s</td>" % compact(rate))
+            lines.append("<tr>%s</tr>" % "".join(cells))
+        heads = "<th>Joueur</th><th class=n>Total</th>"
+        if absorbs:
+            heads += "<th class=n>Absorbe</th><th class=n>Somme</th>"
+        heads += "<th class=n>%s</th>" % esc(rate_label)
+        note = ""
+        if absorbs:
+            note = ("<p class=dim style='margin:10px 0 0;font-size:12px'>"
+                    "Un bouclier n'est pas un soin dans le journal%s: il "
+                    "empeche des degats au lieu d'en rendre. Les deux sont "
+                    "donc comptes a part, et additionnes dans la colonne "
+                    "<b>Somme</b> — c'est ce total-la que les sites en ligne "
+                    "appellent \u00ab soins \u00bb.</p>" % NBSP)
         return (
             "<div><h3>%s</h3><div class=card><table>"
-            "<tr><th>Joueur</th><th class=n>Total</th><th class=n>%s</th></tr>%s"
-            "</table></div></div>" % (esc(title), esc(rate_label), "".join(lines))
+            "<tr>%s</tr>%s</table>%s</div></div>"
+            % (esc(title), heads, "".join(lines), note)
         )
 
     def _taken(self, analysis):
@@ -743,7 +765,8 @@ class ReportWriter:
                           percent(player.damage_to_bosses / player.damage_done)))
         tiles += [
             ("Degats subis", compact(player.damage_taken)),
-            ("Absorbes", compact(player.absorbed_taken)),
+            ("Absorbe sur lui", compact(player.absorbed_taken)),
+            ("Absorbe par ses boucliers", compact(player.absorb_done)),
             ("Sorts par minute", "%.1f" % (player.casts / max(1.0, seconds / 60.0))),
             ("Temps sans action", format_duration(player.downtime_ms)),
             ("Interruptions", str(player.interrupts)),
@@ -757,6 +780,12 @@ class ReportWriter:
             for label, value in tiles
         )
 
+        if player.absorb_by_ability:
+            sections_absorb = [("Ce que ses boucliers ont absorbe", self._ability_table(
+                analysis.top_abilities(player.absorb_by_ability, 12),
+                None, seconds, "taken", player.absorb_done))]
+        else:
+            sections_absorb = []
         sections = [
             ("Ses degats", self._ability_table(
                 analysis.top_abilities(player.damage_by_ability, 16),
@@ -770,6 +799,7 @@ class ReportWriter:
         sections.append(("Ce qu'il a pris", self._ability_table(
             analysis.top_abilities(player.taken_by_ability, 16),
             None, seconds, "taken", player.damage_taken)))
+        sections.extend(sections_absorb)
         sections.append(("Gains recus", self._aura_table(
             analysis.player_uptimes(player.guid, 18, kind="BUFF"), duration, "De qui")))
         sections.append(("Affaiblissements subis", self._aura_table(
@@ -808,6 +838,9 @@ class ReportWriter:
             ("<h3>%s</h3>%s" % (esc(title), content)) if title else content
             for title, content in sections
         )
+        summary_casts = plural(player.casts, "sort")
+        if player.pet_casts:
+            summary_casts += " (dont %d de ses invocations)" % player.pet_casts
         return (
             "<details><summary>%s <span class=dim>&middot; %s &middot; %s degats "
             "&middot; %s soins &middot; %s</span></summary><div class=body>"
@@ -817,7 +850,7 @@ class ReportWriter:
                 esc(label_of(player.spec_id) or "role inconnu"),
                 compact(player.damage_done),
                 compact(player.healing_done),
-                plural(player.casts, "sort"),
+                summary_casts,
                 tiles_html,
                 body,
                 "".join(notes),

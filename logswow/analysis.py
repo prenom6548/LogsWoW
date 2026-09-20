@@ -20,8 +20,16 @@ What this can and cannot answer is worth being plain about:
 
 from collections import deque
 
+from .events import Actor
 from .specs import SPEC_ID_INDEX
 from .tokenize import as_int
+
+# The client writes this GUID when it has no unit to name. It carries
+# player flags on a few lines per log -- "Zone anti-magie" ticks, for
+# instance -- and it used to open a ledger of its own: a player row
+# called "nil". It belongs to nobody, and what it does is counted as
+# unattributed rather than dropped.
+NULL_GUID = "0000000000000000"
 
 DOWNTIME_THRESHOLD_MS = 2000
 DEATH_CHAIN_LENGTH = 12
@@ -237,7 +245,8 @@ class Player:
         "casts", "damage_by_ability", "healing_by_ability", "taken_by_ability",
         "casts_by_ability", "healing_to", "interrupted_spells", "dispelled_spells",
         "spec_id", "auras_gained", "auras_applied", "casts_by_spell",
-        "_gained_until", "_applied_until",
+        "_gained_until", "_applied_until", "absorb_done", "pet_casts",
+        "absorb_by_ability",
         "damage_to_bosses",
         "first_cast_ts", "last_cast_ts", "downtime_ms",
         "longest_gaps", "recent", "hp_fraction", "min_hp_fraction", "max_hp",
@@ -256,6 +265,14 @@ class Player:
         self.interrupts = 0
         self.dispels = 0
         self.casts = 0
+        # Casts by this player's own summons, included in `casts` above.
+        self.pet_casts = 0
+        # Damage this player's shields prevented on somebody. Warcraft
+        # Logs adds this into "healing"; it is kept apart here, because
+        # the file reports them as two different things and a shield that
+        # ate 90M is worth seeing as itself.
+        self.absorb_done = 0
+        self.absorb_by_ability = {}
         self.damage_by_ability = {}
         self.healing_by_ability = {}
         self.taken_by_ability = {}
@@ -426,7 +443,13 @@ class SegmentAnalysis:
         return enemy
 
     def _is_ours(self, actor):
-        """A player, or something a player owns."""
+        """A player, or something a player owns.
+
+        The null GUID is never ours however it is flagged: it names no
+        unit, so it can hold no ledger.
+        """
+        if not actor.guid or actor.guid == NULL_GUID:
+            return False
         if actor.is_player:
             return True
         if actor.guid in self.pet_owner:
@@ -551,8 +574,23 @@ class SegmentAnalysis:
                     self.enemy_casts["cible morte"] += 1
             self._feed_death(event)
         elif subevent == "SPELL_ABSORBED":
-            if event.dest.is_player:
-                self._player(event.dest).absorbed_taken += event.absorbed_amount
+            amount = event.absorbed_amount
+            if event.dest.is_player and self._is_ours(event.dest):
+                self._player(event.dest).absorbed_taken += amount
+            # ...and credit whoever's shield ate it. For a discipline
+            # priest or a blood death knight this is most of their
+            # output, and it was in no ledger at all until a Warcraft
+            # Logs export of the same key showed 53.8M of it on one
+            # player and this reader showed none.
+            caster_guid, caster_name = event.absorb_caster
+            if amount and caster_guid:
+                shield = Actor(caster_guid, caster_name, 0, 0)
+                if self._is_ours(shield) or caster_guid in self.pet_owner:
+                    player = self._player(shield)
+                    player.absorb_done += amount
+                    _bucket(player.absorb_by_ability, event.spell_id,
+                            event.spell_name).add(amount, False,
+                                                  event.dest.display_name)
 
         # The health curve of whatever the group actually spent the fight
         # killing. Picking the unit with the biggest health pool was a
@@ -580,11 +618,11 @@ class SegmentAnalysis:
             and amount
             and event.source.is_friendly
             and not event.source.is_hostile
-            and not event.source.is_player
-            and event.source.guid
         ):
             self.orphan_damage += amount
             name = event.source.short_name or event.source.guid
+            if not name or name == "nil":
+                name = "source non nommee par le journal"
             if name in self.orphan_sources or len(self.orphan_sources) < 30:
                 self.orphan_sources[name] = self.orphan_sources.get(name, 0) + amount
 
@@ -886,6 +924,8 @@ class SegmentAnalysis:
             return
         player = self._player(event.source)
         player.casts += 1
+        if not event.source.is_player:
+            player.pet_casts += 1
         _bucket(player.casts_by_ability, event.spell_id, event.spell_name).add(0)
         # Keyed by spell id so a damage or healing row can find its own
         # cast count without a second pass.
@@ -904,7 +944,7 @@ class SegmentAnalysis:
         player.last_cast_ts = event.ts
 
     def _feed_death(self, event):
-        if not event.dest.is_player:
+        if not event.dest.is_player or not self._is_ours(event.dest):
             return
         player = self._player(event.dest)
         player.deaths += 1

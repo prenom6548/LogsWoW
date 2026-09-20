@@ -145,6 +145,15 @@ def audit_segment(segment):
           + casts["cible morte"] + casts["autre"],
           "enemy casts: outcomes sum to starts", str(casts))
 
+    # 9b. Shields: what each one ate sums to the player's total.
+    for p in players:
+        if not p.absorb_by_ability:
+            continue
+        by_ability = sum(x.total for x in p.absorb_by_ability.values())
+        check(p.absorb_done == by_ability,
+              "%s: absorbed == sum of shields" % p.short_name,
+              "%d vs %d" % (p.absorb_done, by_ability))
+
     # 10. Interrupts: the player counters and the segment's list agree.
     check(sum(p.interrupts for p in players) == sum(a.interrupted_spells.values()),
           "interrupts: player counters == segment list")
