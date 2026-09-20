@@ -763,6 +763,9 @@ class ReportWriter:
         if analysis.boss_names and analysis.has_several_pulls and player.damage_done:
             tiles.append(("Part sur les boss",
                           percent(player.damage_to_bosses / player.damage_done)))
+        if player.pet_damage_taken:
+            tiles.append(("Subis par ses invocations",
+                          compact(player.pet_damage_taken)))
         tiles += [
             ("Degats subis", compact(player.damage_taken)),
             ("Absorbe sur lui", compact(player.absorbed_taken)),

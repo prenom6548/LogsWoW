@@ -90,13 +90,16 @@ def audit_segment(segment):
         check(p.damage_taken == by_ability,
               "%s: taken == sum of abilities" % p.short_name)
     timeline_taken = sum(row[1] for row in a.timeline_series()[0])
-    check(taken == timeline_taken, "taken == timeline total",
-          "%d vs %d" % (taken, timeline_taken))
+    # The timeline is what the *group* took, summons included; a player's
+    # own row is not.
+    pets = sum(p.pet_damage_taken for p in players)
+    check(taken + pets == timeline_taken, "taken (+ pets) == timeline total",
+          "%d + %d vs %d" % (taken, pets, timeline_taken))
 
     # 6. Enemies: what they dealt to us is what we took from non-friends.
     dealt = sum(e.damage_done for e in a.enemies.values())
-    check(dealt <= taken, "enemy damage dealt <= group damage taken",
-          "%d vs %d" % (dealt, taken))
+    check(dealt <= taken + pets, "enemy damage dealt <= group damage taken",
+          "%d vs %d" % (dealt, taken + pets))
     # ...and what they took from us is what we dealt (both capped at 150
     # enemy names, so compare only when nothing was dropped).
     if len(a.enemies) < 150:

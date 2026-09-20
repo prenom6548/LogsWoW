@@ -135,6 +135,15 @@ python3 -m logswow report WoWCombatLog.txt --only "Allée du meurtre"
   s'arrête sans interruption et sans mort du lanceur est donc rangé sous
   « cause non dite par le journal ». Distinguer un contrôle d'un simple
   affaiblissement demanderait une liste de sorts à maintenir.
+- **Il ne calcule pas de pourcentage de mitigation.** Le journal
+  n'écrit nulle part ce qu'un coup aurait fait *avant* l'armure et les
+  réductions de dégâts. Le second nombre de chaque coup ressemble à ça
+  et n'en est pas un : mesuré sur une vraie clé, il vaut 1,03 fois le
+  coup encaissé sur un coup normal et 2,59 fois sur un critique — c'est
+  le montant avant le multiplicateur de critique. En diviser l'un par
+  l'autre donne un pourcentage crédible et faux. Ce qui est réellement
+  dans le fichier, et qui est affiché, ce sont les **dégâts absorbés**
+  par les boucliers.
 - **Il ne juge pas votre rotation.** Il montre vos pauses, vos capacités
   et vos effets actifs. Dire « il fallait appuyer sur ceci » demande les
   règles de votre spécialisation, écrites et maintenues par quelqu'un qui
@@ -168,7 +177,7 @@ python3 tests/run-tests.py
 python3 tools/check-invariants.py WoWCombatLog.txt
 ```
 
-Les tests, 144, tournent sans dépendance ni réseau sur
+Les tests, 146, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 

@@ -319,8 +319,23 @@ class Event:
         return as_int(self._at(0), 0)
 
     @property
-    def unmitigated(self):
-        """What the hit would have been before mitigation, when logged."""
+    def base_amount(self):
+        """The second number on a damage or heal, when the client writes one.
+
+        **It is not "the hit before mitigation", whatever it gets called.**
+        Measured across a real key: on non-critical hits `amount` is 1.03
+        times this field, and on critical ones 2.59 times it -- so it is
+        the amount before the critical multiplier and before some
+        damage bonuses, and a hit that *landed* is routinely larger than
+        it. Dividing one by the other gives a number that looks like a
+        mitigation percentage and is not one: on the same key it said a
+        tank mitigated 71.6% where an outside reference said 68.3%, and
+        the agreement is a coincidence of two unrelated quantities.
+
+        Nothing in this package computes with it. It is read because its
+        *position* is what tells `detect_layout` where the overkill
+        marker sits.
+        """
         return as_int(self._at(1), 0) if self.shift else 0
 
     @property
@@ -402,6 +417,22 @@ class Event:
         guid = self._at(len(self.suffix) - 10)
         name = self._at(len(self.suffix) - 9)
         return (guid if isinstance(guid, str) else "",
+                name if isinstance(name, str) else "")
+
+    @property
+    def absorb_spell(self):
+        """SPELL_ABSORBED: (id, name) of the shield, not of the hit.
+
+        The event carries two spells -- the attacker's, when the wide
+        form names it, and the shield's -- and the ordinary `spell_id`
+        is neither: SPELL_ABSORBED has no prefix at all, so it reads 0.
+        Banking a shield under that id put every shield in one row
+        called "Attaque". Tail-anchored like the rest of this event.
+        """
+        if self.subevent != "SPELL_ABSORBED":
+            return 0, ""
+        name = self._at(len(self.suffix) - 5)
+        return (as_int(self._at(len(self.suffix) - 6), 0),
                 name if isinstance(name, str) else "")
 
     @property

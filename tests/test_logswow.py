@@ -142,7 +142,7 @@ class TestDamageLayouts(unittest.TestCase):
     def test_modern_layout(self):
         event = self._spell_damage(MODERN, "5000,7000,-1,1,0,0,300,1,nil,nil,ST")
         self.assertEqual(event.amount, 5000)
-        self.assertEqual(event.unmitigated, 7000)
+        self.assertEqual(event.base_amount, 7000)
         self.assertEqual(event.overkill, -1)
         self.assertEqual(event.absorbed, 300)
         self.assertTrue(event.is_critical)
@@ -1563,6 +1563,52 @@ class TestAgainstWarcraftLogs(unittest.TestCase):
         self.assertEqual(healer.absorb_done, 1000)
         self.assertEqual(tank.absorbed_taken, 1000)
         self.assertEqual(sum(x.total for x in healer.absorb_by_ability.values()), 1000)
+
+    def test_a_shield_is_named_in_its_own_table(self):
+        """SPELL_ABSORBED has no prefix, so `event.spell_id` reads 0 and
+        `spell_name` reads empty: banking a shield under those put every
+        shield of every player in one row called "Attaque". The shield's
+        own id and name sit six and five fields from the end."""
+        analysis = self._analyse([
+            'ENCOUNTER_START,1,"Golem",16,5,2000',
+            'SPELL_ABSORBED,%s,%s,444,"Balayage",0x4,%s,17,"Mot de pouvoir",0x2,900,1500,nil'
+            % (self.MOB, self.TANK, self.HEALER),
+            'SPELL_ABSORBED,%s,%s,%s,77535,"Bouclier de sang",0x20,100,1500,nil'
+            % (self.MOB, self.TANK, self.HEALER),
+            'ENCOUNTER_END,1,"Golem",16,5,1,3000',
+        ])
+        healer = analysis.players["Player-9-00000002"]
+        rows = {ability.name: ability.total
+                for ability in healer.absorb_by_ability.values()}
+        self.assertEqual(rows, {"Mot de pouvoir": 900, "Bouclier de sang": 100})
+
+    def test_a_summons_damage_taken_is_not_its_owners(self):
+        """A mage whose elemental is being chewed on has not taken that
+        damage: nobody healed them for it and their health never moved.
+        On a real key it was 12% of what one player was shown as having
+        survived -- and the pet's health became the owner's, so every
+        player read "lowest health 0%" for a pet that had died."""
+        pet = 'Pet-0-9-2-1-00099,"Cendre",0x1114,0x0'
+        block_pet = ",".join(advanced_block(19, info="Pet-0-9-2-1-00099", hp=0, maxhp=1000))
+        block_owner = ",".join(advanced_block(19, info="Player-9-00000001",
+                                              hp=900, maxhp=1000))
+        analysis = self._analyse([
+            'ENCOUNTER_START,1,"Golem",16,5,2000',
+            'SPELL_SUMMON,%s,%s,777,"Invocation",0x1' % (self.TANK, pet),
+            'SPELL_DAMAGE,%s,%s,444,"Balayage",0x4,%s,300,300,-1,4,0,0,0,nil,nil,nil,ST'
+            % (self.MOB, self.TANK, block_owner),
+            'SPELL_DAMAGE,%s,%s,444,"Balayage",0x4,%s,1000,1000,-1,4,0,0,0,nil,nil,nil,ST'
+            % (self.MOB, pet, block_pet),
+            'ENCOUNTER_END,1,"Golem",16,5,1,5000',
+        ])
+        tank = analysis.players["Player-9-00000001"]
+        self.assertEqual(tank.damage_taken, 300)
+        self.assertEqual(tank.pet_damage_taken, 1000)
+        # the pet hit the floor; the player was at 90%
+        self.assertEqual(tank.min_hp_fraction, 0.9)
+        # ...and the group's graph still shows everything it took
+        drawn = sum(row[1] for row in analysis.timeline_series()[0])
+        self.assertEqual(drawn, 1300)
 
     def test_the_null_guid_never_becomes_a_player(self):
         """The client writes 0000000000000000 with player flags on a few

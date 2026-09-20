@@ -246,7 +246,7 @@ class Player:
         "casts_by_ability", "healing_to", "interrupted_spells", "dispelled_spells",
         "spec_id", "auras_gained", "auras_applied", "casts_by_spell",
         "_gained_until", "_applied_until", "absorb_done", "pet_casts",
-        "absorb_by_ability",
+        "absorb_by_ability", "pet_damage_taken",
         "damage_to_bosses",
         "first_cast_ts", "last_cast_ts", "downtime_ms",
         "longest_gaps", "recent", "hp_fraction", "min_hp_fraction", "max_hp",
@@ -273,6 +273,12 @@ class Player:
         # ate 90M is worth seeing as itself.
         self.absorb_done = 0
         self.absorb_by_ability = {}
+        # What this player's summons took, kept out of `damage_taken`.
+        # A mage whose elemental is being chewed on has not taken that
+        # damage: nobody healed them for it, their health never moved,
+        # and on one real key it was 12% of what the report showed them
+        # as having survived.
+        self.pet_damage_taken = 0
         self.damage_by_ability = {}
         self.healing_by_ability = {}
         self.taken_by_ability = {}
@@ -585,12 +591,12 @@ class SegmentAnalysis:
             caster_guid, caster_name = event.absorb_caster
             if amount and caster_guid:
                 shield = Actor(caster_guid, caster_name, 0, 0)
-                if self._is_ours(shield) or caster_guid in self.pet_owner:
+                if self._is_ours(shield):
+                    spell_id, spell_name = event.absorb_spell
                     player = self._player(shield)
                     player.absorb_done += amount
-                    _bucket(player.absorb_by_ability, event.spell_id,
-                            event.spell_name).add(amount, False,
-                                                  event.dest.display_name)
+                    _bucket(player.absorb_by_ability, spell_id, spell_name).add(
+                        amount, False, event.dest.display_name)
 
         # The health curve of whatever the group actually spent the fight
         # killing. Picking the unit with the biggest health pool was a
@@ -658,7 +664,22 @@ class SegmentAnalysis:
                     amount, event.is_critical, player.short_name
                 )
 
-        if dest_ours:
+        if dest_ours and not event.dest.is_player:
+            # A summon's damage is the group's, not the owner's. It stays
+            # in the timeline and in the pull, because the graph is about
+            # what the group took, and out of the player's own row.
+            owner = self._player(event.dest)
+            owner.pet_damage_taken += amount
+            self._timeline_add(event.ts, "damage_taken", amount)
+            block = self._touch_block(event)
+            block.damage_taken += amount
+            if canon(event.source.name) in self.boss_names:
+                block.taken_from_boss += amount
+            if not source_ours:
+                enemy = self._enemy(event.source)
+                if enemy is not None:
+                    enemy.damage_done += amount
+        elif dest_ours:
             player = self._player(event.dest)
             player.damage_taken += amount
             # The absorbed part is NOT banked here. The client writes the
@@ -862,7 +883,7 @@ class SegmentAnalysis:
     def _feed_landed(self, event):
         """A resolved melee hit: health and position only, never a total."""
         self.landed_seen += 1
-        if self._is_ours(event.dest):
+        if event.dest.is_player and self._is_ours(event.dest):
             self._track_hp(event, self._player(event.dest))
 
     def _feed_heal(self, event):
@@ -888,7 +909,9 @@ class SegmentAnalysis:
                     target = "autres"
                     current = player.healing_to.get(target)
                 player.healing_to[target] = (current or 0) + effective
-        if self._is_ours(event.dest):
+        if event.dest.is_player and self._is_ours(event.dest):
+            # A player's own health and death chain only: a heal landing
+            # on their summon is not a heal on them.
             target = self._player(event.dest)
             if effective:
                 target.recent.append(
@@ -910,6 +933,15 @@ class SegmentAnalysis:
         return None
 
     def _track_hp(self, event, player):
+        """The player's own health, never a summon's.
+
+        `_hp_of` reads the advanced block when it describes the event's
+        destination -- and that destination can be somebody's pet, whose
+        health then became the owner's. Every player in a real key showed
+        "lowest health 0%" for pets that had died while they had not.
+        """
+        if not event.dest.is_player:
+            return
         fraction = self._hp_of(event)
         if fraction is None:
             return

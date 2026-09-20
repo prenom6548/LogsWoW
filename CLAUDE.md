@@ -548,6 +548,71 @@ side. On the monsters' side `_LANDED` runs 2.4% above `SWING_DAMAGE`
 measured property of the file, not a bug, and too small to justify
 pairing machinery.
 
+### 2026-09-20, third round: auditing the audit
+
+The owner read the Warcraft Logs comparison and said to look closer.
+That was right: **the first thing this pass found was a bug in the fix
+from the pass before it.**
+
+- **Every shield was filed under "Attaque".** `SPELL_ABSORBED` has no
+  prefix, so `event.spell_id` is 0 and `spell_name` is empty, and the
+  new per-shield table banked all of them under that one key. The
+  totals were right and the breakdown was worthless. The shield's own
+  id and name are six and five fields from the end (`Event.absorb_spell`),
+  and the table now reads "Bouclier de sang 46.9M, Umbilicus Eternus
+  18.8M". **It had been checked only by grepping the HTML for a column
+  heading** -- which is not checking.
+
+**`baseAmount` is not "the hit before mitigation", and the mitigation
+percentage cannot be computed from this file.** This is the important
+one. `Event.unmitigated` claimed it was, and a first attempt at a
+mitigation column looked entirely plausible: 71.6% for the tank against
+Warcraft Logs' 68.3%. Then the same ratio was measured on damage
+*dealt*, where it came out at **141%** -- a number no mitigation can
+produce. Per spell, on one real key:
+
+| | median `amount` / `baseAmount` |
+|---|---|
+| ordinary hit | **1.03** |
+| critical hit | **2.59** |
+
+So `baseAmount` is the amount before the critical multiplier and before
+some damage bonuses. Dividing by it gives a number that *looks* like
+mitigation, agrees with an outside reference to within a few points for
+two players out of five, and means nothing. The property is renamed
+`base_amount`, its docstring says all of this, and **nothing computes
+with it**: it is read because its position is what tells `detect_layout`
+where the overkill marker sits. A hit that was absorbed entirely is
+written as a MISSED carrying `missType, isOffHand, amount, baseAmount,
+critical[, tag]`, and those amounts are in `SPELL_ABSORBED` too, which
+is where this reader gets them.
+
+**A summon's damage taken was its owner's, and so was its health.**
+Both are now the player's own:
+
+- `damage_taken` was inflated by 0.4% to 12.1% per player on a real key.
+  With the split, **damage taken plus absorbed matches Warcraft Logs
+  exactly for three of five players** (it was +4.9% to +5.9% before).
+  The summons' share is kept in `Player.pet_damage_taken`, shown as its
+  own tile, and stays in the timeline and the pull table, because the
+  graph is about what the *group* took.
+- `_track_hp` recorded whatever the advanced block described, so a pet
+  dying set its owner's lowest health to 0%. Every player in the key
+  read "lowest health 0%".
+
+**`absorb_done` exceeds `absorbed_taken` on two keys**, by 1.0M to 3.2M,
+and that is right: a shield put on a *summon* is absorption the player
+provided and damage no player received.
+
+**Aura uptime, confirmed from outside.** The export's debuff table is
+the only external check this project has ever had on the uptime code,
+which had just been rewritten twice. It matches: Deplacement temporel
+88.0% against their 88.00%, Gave 76.1% against 76.12%, Instinct
+infaillible 36.3% against 36.26%, Rempart angelique 23.2% against
+23.16%, Perdition 14.6% against 14.63%. The ones that differ are raid
+mechanics that hit different players (their number is raid-wide, this
+one is per player).
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -620,13 +685,17 @@ own language. Do not quietly try to add them:
   arithmetic. "You should have pressed this" needs a maintained ruleset
   per specialization, which is a different project with a different
   maintenance cost.
+- **No mitigation percentage.** The owner asked for one on 2026-09-20
+  and the answer is that the file does not contain it: see the
+  `baseAmount` section below. What *is* in the file, and is shown, is
+  the damage shields absorbed.
 
 If the owner asks for one of these, say which of the three it is and what
 it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 144 tests, no network, fast.
+1. `python3 tests/run-tests.py` -- 146 tests, no network, fast.
    Every bug either audit found keeps a test there
    (`TestAuditFindings`, `TestSecondAuditFindings`), and each one was
    regression-checked the same way: stash the fix, watch the test fail,

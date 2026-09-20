@@ -57,7 +57,7 @@ def run(path, default_year=None, limit=None):
     if evidence.get("advanced_width_tiebreak"):
         add("    votes a egalite, departage par : %s"
             % evidence["advanced_width_tiebreak"])
-    add("  degats bruts        : %s  (position du -1: %s)" % (
+    add("  champ baseAmount    : %s  (position du -1: %s)" % (
         "present" if layout.has_base_amount else "absent",
         evidence.get("overkill_position", {})))
     add("  champ hideCaster    : %s  (%s)" % (
