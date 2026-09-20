@@ -412,6 +412,79 @@ shapes (mutated lines, truncated files, random bytes) with no exception
 and no truncated page; the generated HTML parses with no mis-nested tag;
 and no module imports anything outside the standard library.
 
+### 2026-09-20: five real logs, and the two things only they could say
+
+The owner supplied five real files the day after the three audit passes:
+three Mythic+ keys (83, 76 and 61 MB) and the two 12.1.0 logs from
+before (31 and 231 MB). **Every claim in the sections above that said
+"not confirmed on a real log" is now settled, and two of them were
+wrong.**
+
+**What the invariant checker refused.** Two of the five violated
+bounded aura uptime, and both refusals were the same mistake seen from
+two sides: `aura_open` was keyed by `(unit, spell)`, so one target could
+hold only one copy of a spell at a time. Real logs break that constantly.
+
+1. **Two casters, one spell, one target.** Two players cast
+   "Clairvoyance de tisse-arcane" on the same person; the second
+   application found the slot taken and was dropped, and its removal
+   closed the *first* one's interval. A silent under-count since the
+   first commit -- silent until an unmatched removal started being read
+   as "up since the pull began" (the pass-two change), which then
+   credited 122 seconds of a 154-second fight.
+2. **Several units sharing a name.** Six creatures called "Ombre
+   etherienne" each stack their own debuff on one player, so the caster
+   has to be told apart **by GUID**; their shared name cannot do it. The
+   report still groups by the name, which is what a reader wants: one
+   row, not six.
+
+Keying by caster then exposed the real question underneath: **uptime is
+the union of the intervals, not the sum of them.** Six "Tortionnaire
+infidele" holding their own Fixation on one player at the same moment
+summed to 249 seconds of a 181-second fight. `_merge_uptime` counts the
+overlap once, using the fact that banks arrive in order of when each
+aura *ended*, so no interval ever has to be stored. All five logs hold
+after that.
+
+**What an independent recount confirmed, to the unit.** A second counter
+was written for the real files, anchored on the *end* of each line (the
+package anchors on the front and a measured width), and run over the
+three keys. It agrees exactly on damage dealt, effective healing, damage
+absorbed, player deaths, and the number of `SWING_DAMAGE_LANDED` lines
+skipped. Getting there took two refinements, and both are worth knowing
+because they are behaviours, not bugs:
+
+- **A pet's owner is known only once the file has said so.** Damage a
+  summon deals before its `SPELL_SUMMON` line -- or before any advanced
+  block names its `ownerGUID` -- belongs to nobody yet. Counting the
+  whole file first and then attributing overstates a key by about 0.9%.
+- **Damage onto our own summons is not group damage.** 20.5M of one key
+  was players hitting their own units.
+
+Also confirmed on real data: **absorbs were genuinely being double
+counted** (the fix matches the recount exactly), most summons in these
+logs carry `Creature-` GUIDs rather than `Pet-` ones and are attributed
+through `SPELL_SUMMON` (206M of one key), and the orphan note earns its
+place -- the Nalorakk key has 2M of damage from "Zul'jarra", an allied
+NPC that belongs to no player at all.
+
+**Measured on the real files** (read + analysis, one process):
+
+| file | lines | time | peak |
+|---|---|---|---|
+| 31 MB | 102,239 | 4.8 s | ~30 MB |
+| 61-83 MB keys | 198k-273k | 11.5-15.9 s | ~32 MB |
+| 231 MB | 784,435 | 43.5 s | 29.6 MB |
+
+Writing the report costs more than reading it at the top end: the 231 MB
+night peaks near 48 MB while its 3.3 MB page is assembled. The three
+keys come out at 660-776 KB each.
+
+One property of these files worth knowing: the owner's splitter tool
+keeps the session header, so a one-key file can span ten hours of
+timestamps. "Duree couverte" is the file's span, not the fight's, and
+that is correct.
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -490,7 +563,7 @@ it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 138 tests, no network, fast.
+1. `python3 tests/run-tests.py` -- 141 tests, no network, fast.
    Every bug either audit found keeps a test there
    (`TestAuditFindings`, `TestSecondAuditFindings`), and each one was
    regression-checked the same way: stash the fix, watch the test fail,

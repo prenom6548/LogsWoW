@@ -1428,6 +1428,105 @@ class TestFourthAuditFindings(unittest.TestCase):
         self.assertGreater(checked, 0)
 
 
+class TestWhatTheRealLogsFound(unittest.TestCase):
+    """Five real logs, read on 2026-09-20. The invariant checker refused
+    two of them, and both refusals were about the same thing: an aura is
+    identified by its caster as well as by its spell, and uptime is a
+    union of intervals rather than a sum of them."""
+
+    MOB_A = 'Creature-0-9-2-1-70000-0000000001,"Ombre",0xa48,0x0'
+    MOB_B = 'Creature-0-9-2-1-70000-0000000002,"Ombre",0xa48,0x0'
+    HEALER = 'Player-9-00000002,"Tisane-Dalaran-EU",0x512,0x0'
+    MAGE = 'Player-9-00000003,"Braise-Dalaran-EU",0x512,0x0'
+    VICTIM = 'Player-9-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+    VICTIM_GUID = "Player-9-00000001"
+
+    def _analyse(self, payloads):
+        """A player exists in the analysis once they have done or taken
+        something, so the victim takes one hit before anything else --
+        an aura alone never creates a row, by design."""
+        block = ",".join(advanced_block(19, info=self.VICTIM_GUID))
+        opening = (500, 'SPELL_DAMAGE,%s,%s,999,"Coup",0x1,%s,'
+                        '100,100,-1,1,0,0,0,nil,nil,nil,ST'
+                        % (self.MOB_A, self.VICTIM, block))
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for ts, payload in [payloads[0], opening] + payloads[1:]:
+            _stamp, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ts, fields, 1))
+        return splitter.finish()[0].analysis
+
+    def test_two_casters_of_one_spell_are_two_auras(self):
+        """Keyed by target and spell alone, the second application found
+        the slot taken and was dropped, and its removal closed the first
+        one's interval. Two players casting the same buff on one target
+        is not rare -- the owner's logs do it constantly."""
+        segments = self._analyse([
+            (0, 'ENCOUNTER_START,1,"Golem",16,5,2000'),
+            (1000, 'SPELL_AURA_APPLIED,%s,%s,111,"Clairvoyance",0x1,BUFF'
+                   % (self.HEALER, self.VICTIM)),
+            (2000, 'SPELL_AURA_APPLIED,%s,%s,111,"Clairvoyance",0x1,BUFF'
+                   % (self.MAGE, self.VICTIM)),
+            (5000, 'SPELL_AURA_REMOVED,%s,%s,111,"Clairvoyance",0x1,BUFF'
+                   % (self.HEALER, self.VICTIM)),
+            (9000, 'SPELL_AURA_REMOVED,%s,%s,111,"Clairvoyance",0x1,BUFF'
+                   % (self.MAGE, self.VICTIM)),
+            (20000, 'ENCOUNTER_END,1,"Golem",16,5,1,20000'),
+        ])
+        rows = {(name, source): ms for name, source, ms, _id
+                in segments.player_uptimes(self.VICTIM_GUID, kind="BUFF")}
+        self.assertEqual(rows, {("Clairvoyance", "Tisane"): 4000,
+                                ("Clairvoyance", "Braise"): 7000})
+
+    def test_two_units_sharing_a_name_are_two_auras(self):
+        """The caster is told apart by GUID, not by name: several
+        creatures called "Ombre etherienne" stack their own copy of one
+        debuff on the same player, and the name cannot separate them."""
+        segments = self._analyse([
+            (0, 'ENCOUNTER_START,1,"Golem",16,5,2000'),
+            (1000, 'SPELL_AURA_APPLIED,%s,%s,222,"Celerite",0x20,DEBUFF'
+                   % (self.MOB_A, self.VICTIM)),
+            (2000, 'SPELL_AURA_APPLIED,%s,%s,222,"Celerite",0x20,DEBUFF'
+                   % (self.MOB_B, self.VICTIM)),
+            (4000, 'SPELL_AURA_REMOVED,%s,%s,222,"Celerite",0x20,DEBUFF'
+                   % (self.MOB_A, self.VICTIM)),
+            (6000, 'SPELL_AURA_REMOVED,%s,%s,222,"Celerite",0x20,DEBUFF'
+                   % (self.MOB_B, self.VICTIM)),
+            (20000, 'ENCOUNTER_END,1,"Golem",16,5,1,20000'),
+        ])
+        # One row, because the report groups by the caster's *name* -- and
+        # 1000..6000 held by one or the other, counted once.
+        rows = segments.player_uptimes(self.VICTIM_GUID, kind="DEBUFF")
+        self.assertEqual([(name, source, ms) for name, source, ms, _id in rows],
+                         [("Celerite", "Ombre", 5000)])
+
+    def test_overlapping_copies_of_one_aura_count_once(self):
+        """Six "Tortionnaire infidele" each held their own Fixation on one
+        player at the same moment. Summing the six gave 249 seconds of a
+        181-second fight; what a reader means by a percentage of the
+        fight is the union of the intervals."""
+        payloads = [(0, 'ENCOUNTER_START,1,"Golem",16,5,2000')]
+        for index in range(6):
+            mob = ('Creature-0-9-2-1-70000-000000000%d,"Tortionnaire",0xa48,0x0'
+                   % (index + 1))
+            payloads.append((1000 + index * 100,
+                             'SPELL_AURA_APPLIED,%s,%s,333,"Fixation",0x20,DEBUFF'
+                             % (mob, self.VICTIM)))
+        for index in range(6):
+            mob = ('Creature-0-9-2-1-70000-000000000%d,"Tortionnaire",0xa48,0x0'
+                   % (index + 1))
+            payloads.append((8000 + index * 100,
+                             'SPELL_AURA_REMOVED,%s,%s,333,"Fixation",0x20,DEBUFF'
+                             % (mob, self.VICTIM)))
+        payloads.append((20000, 'ENCOUNTER_END,1,"Golem",16,5,1,20000'))
+        analysis = self._analyse(payloads)
+        rows = analysis.player_uptimes(self.VICTIM_GUID, kind="DEBUFF")
+        self.assertEqual(len(rows), 1)
+        # 1000 to 8500, counted once, not six times over.
+        self.assertEqual(rows[0][2], 7500)
+        for milliseconds in analysis.players[self.VICTIM_GUID].auras_gained.values():
+            self.assertLessEqual(milliseconds, analysis.duration_ms)
+
+
 class TestProblemsAreCountedNotSwallowed(unittest.TestCase):
     def test_the_fixtures_deliberate_bad_lines_are_reported(self):
         log, _segments = run_fixture()

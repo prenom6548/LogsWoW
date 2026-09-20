@@ -237,6 +237,7 @@ class Player:
         "casts", "damage_by_ability", "healing_by_ability", "taken_by_ability",
         "casts_by_ability", "healing_to", "interrupted_spells", "dispelled_spells",
         "spec_id", "auras_gained", "auras_applied", "casts_by_spell",
+        "_gained_until", "_applied_until",
         "damage_to_bosses",
         "first_cast_ts", "last_cast_ts", "downtime_ms",
         "longest_gaps", "recent", "hp_fraction", "min_hp_fraction", "max_hp",
@@ -268,6 +269,10 @@ class Player:
         self.auras_gained = {}
         # (spell, on whom) -> milliseconds
         self.auras_applied = {}
+        # The far end of what each of those has already counted, so two
+        # instances of one aura running at the same time are counted once.
+        self._gained_until = {}
+        self._applied_until = {}
         self.casts_by_spell = {}
         self.first_cast_ts = None
         self.last_cast_ts = None
@@ -935,6 +940,27 @@ class SegmentAnalysis:
 
     # -- auras ------------------------------------------------------------
 
+    def _aura_key(self, event):
+        """What identifies one aura: the unit, the spell, **and the caster**.
+
+        Two casters can hold the same spell on the same target at the
+        same time, and real logs do it constantly: two players casting
+        "Clairvoyance de tisse-arcane" on one of them, and -- the case
+        that needs the GUID rather than the name -- **several creatures
+        sharing a name**, each stacking its own "Celerite du Neant" on
+        the same player. Keyed by unit and spell alone, the second
+        application found the slot taken and was dropped, then its
+        removal closed the *first* one's interval: a silent under-count
+        present since the first commit. It stopped being silent when an
+        unmatched removal started being read as "up since the pull
+        began" -- one such removal credited 122 seconds of a 154-second
+        fight -- and the bounded-uptime invariant said so on two of the
+        owner's five real logs. The caster's *name* is still what the
+        report groups by; only the slot is per unit.
+        """
+        return (event.dest.guid, event.spell_id,
+                event.source.guid or event.source.short_name or "?")
+
     def _aura_open(self, event):
         """Remember when an aura landed, and who put it there.
 
@@ -942,7 +968,7 @@ class SegmentAnalysis:
         which of their buffs came from whom, and which of their debuffs
         they kept up on what.
         """
-        key = (event.dest.guid, event.spell_id)
+        key = self._aura_key(event)
         if key not in self.aura_open:
             if len(self.aura_open) >= 4000:
                 # Remember that one was dropped: `_aura_close` must not
@@ -981,7 +1007,7 @@ class SegmentAnalysis:
         the length of the fight, which is what the bounded-uptime
         invariant is there to catch.
         """
-        key = (event.dest.guid, event.spell_id)
+        key = self._aura_key(event)
         opened = self.aura_open.pop(key, None)
         if opened is None:
             if self._aura_overflowed or self.first_ts is None:
@@ -1002,10 +1028,35 @@ class SegmentAnalysis:
             self.auras_before_the_pull += 1
         self._bank_aura(event.dest.guid, event.spell_id, opened, event.ts)
 
+    @staticmethod
+    def _merge_uptime(totals, horizons, key, start, ended, room):
+        """Add [start, ended] to a row's uptime, counting overlap once.
+
+        **Uptime is the time the aura was up, not the sum of the times it
+        was applied**, and on a real fight those differ by a lot: six
+        "Tortionnaire infidele" each held their own Fixation on one
+        player at the same moment, and adding the six durations gave 249
+        seconds of a 181-second fight. What a reader means by "68% of the
+        fight" is the union of the intervals.
+
+        Banks arrive in order of when each aura *ended*, so the union can
+        be kept without storing any interval: everything up to `horizon`
+        is already counted, and only what lies beyond it is new.
+        """
+        if key not in totals and len(totals) >= room:
+            return
+        horizon = horizons.get(key)
+        if horizon is not None and start < horizon:
+            start = horizon
+        if ended <= start:
+            return
+        totals[key] = totals.get(key, 0) + (ended - start)
+        if horizon is None or ended > horizon:
+            horizons[key] = ended
+
     def _bank_aura(self, guid, spell_id, opened, ended):
         start, source_name, spell_name, aura_type, dest_name, dest_is_player = opened
-        duration = max(0, ended - start)
-        if not duration:
+        if ended <= start:
             return
         # Only a player's *own* buffs count as that player's uptime. Routing
         # a pet's auras to its owner, the way damage is routed, pushed one
@@ -1014,18 +1065,17 @@ class SegmentAnalysis:
         if dest_is_player:
             player = self.players.get(guid)
             if player is not None:
-                gained = (spell_id, spell_name, source_name, aura_type)
-                if gained in player.auras_gained or len(player.auras_gained) < 400:
-                    player.auras_gained[gained] = (
-                        player.auras_gained.get(gained, 0) + duration
-                    )
+                self._merge_uptime(
+                    player.auras_gained, player._gained_until,
+                    (spell_id, spell_name, source_name, aura_type),
+                    start, ended, 400,
+                )
         caster = self._by_short_name.get(source_name)
         if caster is not None:
-            applied = (spell_id, spell_name, dest_name)
-            if applied in caster.auras_applied or len(caster.auras_applied) < 400:
-                caster.auras_applied[applied] = (
-                    caster.auras_applied.get(applied, 0) + duration
-                )
+            self._merge_uptime(
+                caster.auras_applied, caster._applied_until,
+                (spell_id, spell_name, dest_name), start, ended, 400,
+            )
 
     # -- closing ----------------------------------------------------------
 
@@ -1068,7 +1118,7 @@ class SegmentAnalysis:
                 self.blocks = kept
         # An aura still up when the pull ended counts to the end of it,
         # not to the last event that happened to mention it.
-        for (guid, spell_id), opened in list(self.aura_open.items()):
+        for (guid, spell_id, _source), opened in list(self.aura_open.items()):
             self._bank_aura(guid, spell_id, opened, end)
         self.aura_open = {}
 
