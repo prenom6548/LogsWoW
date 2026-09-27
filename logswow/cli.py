@@ -21,16 +21,36 @@ from .segment import Splitter
 from .timestamps import format_duration
 
 
-def default_log_locations():
+# Where another disk is mounted: Linux (/mnt by hand, /media and
+# /run/media by the desktop) and macOS (/Volumes). A game library on a
+# second disk is common -- the owner's is /mnt/<disk>/World of Warcraft,
+# which `where` missed on the first try.
+MOUNT_ROOTS = ("/mnt/*", "/media/*", "/media/*/*", "/run/media/*/*", "/Volumes/*")
+
+
+def _on_other_disks(retail, mount_roots):
+    """Logs folders at the top of a mounted disk, or one or two folders down."""
+    logs = os.path.join("World of Warcraft", "_retail_", "Logs")
+    found = []
+    for root in mount_roots:
+        for pattern in (logs, os.path.join("*", logs),       # <disk>/[Jeux/]World of Warcraft
+                        os.path.join("*", retail),           # <disk>/<prefix>/drive_c/...
+                        os.path.join("*", "*", retail)):     # <disk>/Games/battlenet/drive_c/...
+            found += sorted(glob.glob(os.path.join(root, pattern)))
+    return found
+
+
+def default_log_locations(mount_roots=MOUNT_ROOTS):
     """Where the client usually writes, on each system it runs on.
 
     On Windows, Battle.net installs on whichever drive was chosen, so the
     usual folders are tried on C: to H:. On macOS the game is native and
-    lives in /Applications. On Linux the game runs through a Windows compatibility layer, and each
-    launcher keeps its own copy of drive C: Lutris under ~/Games, Steam
-    (Battle.net added as a non-Steam game) under a numbered compatdata
-    prefix, Bottles under its own data folder. The numbered ones are
-    found by pattern rather than guessed.
+    lives in /Applications. On Linux the game runs through a Windows
+    compatibility layer, and each launcher keeps its own copy of drive C:
+    Lutris under ~/Games, Steam (Battle.net added as a non-Steam game)
+    under a numbered compatdata prefix, Bottles under its own data
+    folder. The numbered ones are found by pattern rather than guessed.
+    Outside Windows, other mounted disks are looked at too.
     """
     retail = os.path.join("drive_c", "Program Files (x86)", "World of Warcraft",
                           "_retail_", "Logs")
@@ -62,6 +82,8 @@ def default_log_locations():
     candidates += sorted(glob.glob(os.path.join(
         glob.escape(home), ".var", "app", "com.usebottles.bottles", "data", "bottles",
         "bottles", "*", retail)))
+    if os.name != "nt":
+        candidates += _on_other_disks(retail, mount_roots)
     found = []
     for path in candidates:
         real = os.path.realpath(path)
@@ -276,7 +298,9 @@ def command_where(_args):
     found = default_log_locations()
     if not found:
         print("Aucun dossier Logs trouve aux emplacements habituels.")
-        print("Cherchez WoWCombatLog.txt sous _retail_/Logs dans votre installation.")
+        print("Cherchez WoWCombatLog.txt sous _retail_/Logs dans votre installation,")
+        print("puis donnez son chemin complet, entre guillemets s'il contient des espaces :")
+        print('  report "/chemin/vers/World of Warcraft/_retail_/Logs/WoWCombatLog-....txt"')
         return 1
     for directory in found:
         print(directory)

@@ -2616,5 +2616,25 @@ class TestTriggeredAcrossAllClasses(unittest.TestCase):
         self.assertEqual(self._classify(log), frozenset({1308188}))
 
 
+class TestWhereOnAnotherDisk(unittest.TestCase):
+    """The owner's game is on a second disk: /mnt/<disk>/World of Warcraft."""
+
+    def test_a_game_on_a_mounted_disk_is_found(self):
+        import tempfile
+        from logswow.cli import default_log_locations
+
+        if os.name == "nt":
+            self.skipTest("mount points are a Linux and macOS matter")
+        with tempfile.TemporaryDirectory() as mnt:
+            direct = os.path.join(mnt, "Jeux_SSD", "World of Warcraft", "_retail_", "Logs")
+            wine = os.path.join(mnt, "Autre", "Games", "battlenet", "drive_c",
+                                "Program Files (x86)", "World of Warcraft", "_retail_", "Logs")
+            for path in (direct, wine):
+                os.makedirs(path)
+            found = default_log_locations(mount_roots=(os.path.join(mnt, "*"),))
+        self.assertIn(direct, found)
+        self.assertIn(wine, found)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

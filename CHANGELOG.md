@@ -3,6 +3,18 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.3.2 — 2026-09-27
+
+- **`where` trouve aussi le jeu installé sur un second disque** : sous
+  Linux dans `/mnt`, `/media` et `/run/media`, sous macOS dans `/Volumes`,
+  à la racine du disque ou un à deux dossiers plus bas. Jusqu'ici, un jeu
+  installé par exemple dans `/mnt/Jeux/World of Warcraft` n'était pas
+  trouvé.
+- Quand `where` ne trouve rien, il explique comment donner soi-même le
+  chemin du journal, entre guillemets.
+- La licence est désormais explicite : GPL version 3 **ou toute version
+  ultérieure**, dans le README, le code et le pied de chaque rapport.
+
 ## 0.3.1 — 2026-09-27
 
 **Mesuré sur seize vrais journaux** — 32,7 millions de lignes, les 40
