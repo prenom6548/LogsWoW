@@ -961,7 +961,9 @@ class TestSecondAuditFindings(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             for command in ("report", "list", "diagnose"):
-                self.assertEqual(main([command, directory, "-q"]), 2, command)
+                # diagnose prints nothing else, so it takes no -q.
+                quiet = [] if command == "diagnose" else ["-q"]
+                self.assertEqual(main([command, directory] + quiet), 2, command)
 
     # -- numbers ---------------------------------------------------------
 
@@ -2046,6 +2048,170 @@ class TestFifthAuditFindings(unittest.TestCase):
             self.assertIn("journal lui-meme", said.getvalue())
             with open(log, encoding="utf-8") as handle:
                 self.assertTrue(handle.read().startswith("9/18/2026"))
+
+
+class TestWhatTheAuditLeftUntested(unittest.TestCase):
+    """Paths the 2026-09-27 audit measured at 7% (diagnose), 59% (cli)
+    or never executed at all (the timeline's collapse, which runs for
+    every fight longer than 6 min 40 -- every Mythic+ key)."""
+
+    PLAYER = 'Player-9-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+    MOB = 'Creature-0-9-2-1-70000-0000000001,"Golem",0xa48,0x0'
+
+    def _run(self, timed_payloads):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, (ms, payload) in enumerate(timed_payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ms, fields, index + 1))
+        return splitter.finish()
+
+    def test_a_long_fight_is_collapsed_without_losing_anything(self):
+        """Thirty minutes of hits, one every ten seconds, and deaths: the
+        drawn series stays bounded and evenly spaced, and every hit and
+        every death is still in it."""
+        from logswow.timeline import MAX_TIMELINE_BUCKETS
+
+        payloads = [(0, 'ENCOUNTER_START,1,"Golem",16,5,2000')]
+        hits = 0
+        for second in range(0, 1800, 10):
+            payloads.append((second * 1000 + 500,
+                             'SPELL_DAMAGE,%s,%s,444,"Balayage",0x4,700,700,-1,4,0,0,0,'
+                             'nil,nil,nil,ST' % (self.MOB, self.PLAYER)))
+            hits += 700
+        for second in (400, 1200):
+            payloads.append((second * 1000 + 600,
+                             "UNIT_DIED,0000000000000000,nil,0x80000000,0x80000000,%s,0"
+                             % self.PLAYER))
+        payloads.append((1800000, 'ENCOUNTER_END,1,"Golem",16,5,0,1800000'))
+        payloads.sort(key=lambda item: item[0])
+        analysis = self._run(payloads)[0].analysis
+        series, bucket_ms = analysis.timeline_series()
+        self.assertLessEqual(len(series), MAX_TIMELINE_BUCKETS)
+        self.assertGreater(bucket_ms, 1000)
+        steps = {round(b[0] - a[0], 6) for a, b in zip(series, series[1:])}
+        self.assertEqual(steps, {bucket_ms / 1000.0})
+        self.assertEqual(sum(row[1] for row in series), hits)
+        self.assertEqual(sum(row[3] for row in series), 2)
+
+    def test_an_encounter_nobody_fought_is_not_a_wipe(self):
+        """The owner's raid opened on an encounter 8 ms long, with not
+        one hit in it, and the page counted it as a wipe."""
+        segments = self._run([
+            (0, 'ENCOUNTER_START,1,"Golem",16,5,2000'),
+            (8, 'ENCOUNTER_END,1,"Golem",16,5,0,8'),
+            (60000, 'ENCOUNTER_START,1,"Golem",16,5,2000'),
+            (61000, 'SPELL_DAMAGE,%s,%s,1,"Frappe",0x1,500,500,-1,1,0,0,0,nil,nil,nil,ST'
+             % (self.PLAYER, self.MOB)),
+            (90000, 'ENCOUNTER_END,1,"Golem",16,5,0,30000'),
+        ])
+        self.assertEqual([s.outcome for s in segments], ["sans combat", "echec"])
+        self.assertEqual([s.is_wipe for s in segments], [False, True])
+
+    def test_the_fast_split_gives_exactly_what_the_scanner_gives(self):
+        """The csv path must never disagree with the character loop: on
+        every line of the fixture, and on lines built to trip it."""
+        from logswow.tokenize import _scan_fields
+
+        with open(FIXTURE, encoding="utf-8") as handle:
+            payloads = [line.rstrip("\n").split("  ", 1)[1].strip()
+                        for line in handle if "  " in line]
+        payloads += [
+            'a,"b,c",d', 'a,"b""c",d', 'a,ab"c,d"e,f', 'a, "b",c', 'a,"b" ,c',
+            'a,"unterminated', 'a,,b,', '"",x', 'a,"x\\"y",z', ' a , b ', 'a,"b"c,d',
+            '"', ',', 'a,"b,"', 'x,[1,2],(3)', 'SPELL_DAMAGE,"Eclat d\'essai",0x1',
+        ]
+        for payload in payloads:
+            self.assertEqual(split_fields(payload), _scan_fields(payload), payload)
+
+    def test_the_language_is_read_without_the_call_python_removes(self):
+        """locale.getdefaultlocale() is gone in Python 3.15; on Windows,
+        where no LANG is set, the links would have silently gone English."""
+        import warnings
+        from unittest import mock
+
+        from logswow import wowhead
+
+        with mock.patch.dict(os.environ, {"LC_ALL": "", "LC_MESSAGES": "", "LANG": "",
+                                          "LANGUAGE": ""}):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", DeprecationWarning)
+                language = wowhead.system_language()
+        self.assertNotIn(language, ("c", "posix"))
+        self.assertIn(wowhead.resolve("auto"), wowhead.PREFIXES.values())
+
+    # -- the command line ----------------------------------------------------
+
+    def _main(self, argv):
+        import contextlib
+        import io
+
+        from logswow.cli import main
+
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            try:
+                code = main(argv)
+            except SystemExit as leaving:  # argparse refusing an option
+                code = leaving.code
+        return code, out.getvalue(), err.getvalue()
+
+    def test_diagnose_shows_its_work(self):
+        code, out, _err = self._main(["diagnose", FIXTURE])
+        self.assertEqual(code, 0)
+        for section in ("DISPOSITION MESUREE DANS CE FICHIER", "bloc avance         : 19",
+                        "champ baseAmount    : present", "points de vie incoherents   : 0",
+                        "COMBATS DELIMITES : 3", "EVENEMENTS (",
+                        "[SCHEMA INCONNU] ", "PROBLEMES DE LECTURE : 2"):
+            self.assertIn(section, out)
+        code, out, _err = self._main(["diagnose", FIXTURE, "--limit", "5"])
+        self.assertEqual(code, 0)
+        self.assertIn("EVENEMENTS (", out)
+
+    def test_list_prints_one_line_per_fight(self):
+        code, out, _err = self._main(["list", FIXTURE, "-q"])
+        self.assertEqual(code, 0)
+        lines = out.strip().splitlines()
+        self.assertEqual(len(lines), 4)
+        self.assertIn("reussite", lines[1])
+        self.assertIn("echec", lines[2])
+        self.assertIn("dans les temps", lines[3])
+
+    def test_numbers_that_make_no_sense_are_refused_in_french(self):
+        for argv in (["report", FIXTURE, "--pull-gap", "nan"],
+                     ["report", FIXTURE, "--pull-gap", "inf"],
+                     ["report", FIXTURE, "--pull-gap", "-5"],
+                     ["list", FIXTURE, "--pull-gap", "abc"],
+                     ["diagnose", FIXTURE, "--limit", "-1"]):
+            code, _out, err = self._main(argv)
+            self.assertEqual(code, 2, argv)
+            self.assertNotIn("Traceback", err)
+            self.assertTrue("secondes" in err or "superieur a zero" in err
+                            or "entier" in err, err)
+
+    def test_where_finds_a_log_folder_under_steam_and_lutris(self):
+        """The owner runs Linux Mint: the game lives in a launcher's own
+        copy of drive C, which `where` did not look in."""
+        import tempfile
+        from unittest import mock
+
+        from logswow.cli import default_log_locations
+
+        retail = os.path.join("drive_c", "Program Files (x86)", "World of Warcraft",
+                              "_retail_", "Logs")
+        with tempfile.TemporaryDirectory() as home:
+            steam = os.path.join(home, ".steam", "steam", "steamapps", "compatdata",
+                                 "3141592", "pfx", retail)
+            lutris = os.path.join(home, "Games", "battlenet", retail)
+            for folder in (steam, lutris):
+                os.makedirs(folder)
+            with open(os.path.join(steam, "WoWCombatLog.txt"), "w") as handle:
+                handle.write("x")
+            with mock.patch.dict(os.environ, {"HOME": home}):
+                found = default_log_locations()
+                code, out, _err = self._main(["where"])
+        self.assertEqual(sorted(found), sorted([lutris, steam]))
+        self.assertEqual(code, 0)
+        self.assertIn("WoWCombatLog.txt", out)
 
 
 if __name__ == "__main__":

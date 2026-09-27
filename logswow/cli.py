@@ -6,6 +6,8 @@ and no account. Point it at a log, get an HTML page next to it.
 """
 
 import argparse
+import glob
+import math
 import os
 import sys
 import time
@@ -20,17 +22,40 @@ from .timestamps import format_duration
 
 
 def default_log_locations():
-    """Where the client usually writes, on each system it runs on."""
+    """Where the client usually writes, on each system it runs on.
+
+    On Linux the game runs through a Windows compatibility layer, and each
+    launcher keeps its own copy of drive C: Lutris under ~/Games, Steam
+    (Battle.net added as a non-Steam game) under a numbered compatdata
+    prefix, Bottles under its own data folder. The numbered ones are
+    found by pattern rather than guessed.
+    """
+    retail = os.path.join("drive_c", "Program Files (x86)", "World of Warcraft",
+                          "_retail_", "Logs")
+    home = os.path.expanduser("~")
     candidates = [
         r"C:\Program Files (x86)\World of Warcraft\_retail_\Logs",
         r"C:\Program Files\World of Warcraft\_retail_\Logs",
-        os.path.expanduser("~/Games/world-of-warcraft/drive_c/Program Files (x86)"
-                           "/World of Warcraft/_retail_/Logs"),
-        os.path.expanduser("~/.wine/drive_c/Program Files (x86)/World of Warcraft"
-                           "/_retail_/Logs"),
-        os.path.expanduser("~/Applications/World of Warcraft/_retail_/Logs"),
+        os.path.join(home, "Games", "world-of-warcraft", retail),
+        os.path.join(home, "Games", "battlenet", retail),
+        os.path.join(home, ".wine", retail),
+        os.path.join(home, "Applications", "World of Warcraft", "_retail_", "Logs"),
     ]
-    return [path for path in candidates if os.path.isdir(path)]
+    for steam in (os.path.join(home, ".steam", "steam"),
+                  os.path.join(home, ".local", "share", "Steam"),
+                  os.path.join(home, ".var", "app", "com.valvesoftware.Steam",
+                               ".local", "share", "Steam")):
+        candidates += sorted(glob.glob(os.path.join(
+            glob.escape(steam), "steamapps", "compatdata", "*", "pfx", retail)))
+    candidates += sorted(glob.glob(os.path.join(
+        glob.escape(home), ".var", "app", "com.usebottles.bottles", "data", "bottles",
+        "bottles", "*", retail)))
+    found = []
+    for path in candidates:
+        real = os.path.realpath(path)
+        if os.path.isdir(path) and real not in (os.path.realpath(p) for p in found):
+            found.append(path)
+    return found
 
 
 def _build(path, year=None, verbose=True, pull_gap_ms=None):
@@ -254,6 +279,33 @@ def command_where(_args):
     return 0
 
 
+def _seconds(text):
+    """--pull-gap: a finite, non-negative number of seconds.
+
+    `nan`, `inf` or `1e308` used to reach int() and come out as a Python
+    traceback; argparse now says what is wrong, in French.
+    """
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError("%r n'est pas un nombre de secondes" % text)
+    if not math.isfinite(value) or value < 0 or value > 86400:
+        raise argparse.ArgumentTypeError(
+            "%r : il faut un nombre de secondes entre 0 et 86400" % text)
+    return value
+
+
+def _positive(text):
+    """--limit: a whole number above zero (-1 used to stop after one event)."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError("%r n'est pas un nombre entier" % text)
+    if value < 1:
+        raise argparse.ArgumentTypeError("%r : il faut un nombre superieur a zero" % text)
+    return value
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="logswow",
@@ -263,14 +315,21 @@ def build_parser():
     parser.add_argument("--version", action="version", version="LogsWoW " + __version__)
     subparsers = parser.add_subparsers(dest="command")
 
-    def common(subparser):
+    def common(subparser, analyses=True):
+        """The options every command that reads a log shares.
+
+        `diagnose` runs no analysis and prints nothing else, so it takes
+        neither --pull-gap nor -q: it used to accept both and ignore them.
+        """
         subparser.add_argument("log", help="chemin du fichier WoWCombatLog.txt")
         subparser.add_argument("--year", type=int, default=None,
                                help="annee, pour les journaux dont l'horodatage n'en porte pas")
+        if not analyses:
+            return subparser
         subparser.add_argument("-q", "--quiet", action="store_true")
         subparser.add_argument(
             "--pull-gap",
-            type=float,
+            type=_seconds,
             default=None,
             metavar="SECONDES",
             help="silence necessaire pour separer deux pulls (defaut 6 s) ; "
@@ -304,8 +363,8 @@ def build_parser():
     listing.set_defaults(func=command_list)
 
     diagnose = common(subparsers.add_parser(
-        "diagnose", help="montre ce que le lecteur a compris du fichier"))
-    diagnose.add_argument("--limit", type=int, default=None,
+        "diagnose", help="montre ce que le lecteur a compris du fichier"), analyses=False)
+    diagnose.add_argument("--limit", type=_positive, default=None,
                           help="s'arreter apres N evenements")
     diagnose.set_defaults(func=command_diagnose)
 

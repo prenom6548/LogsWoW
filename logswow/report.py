@@ -154,7 +154,7 @@ class ReportWriter(TimelineMixin, PanelsMixin):
         for segment in self.segments:
             analysis = segment.analysis
             outcome = segment.outcome
-            css = "ok" if segment.success else ("ko" if segment.success is False else "")
+            css = "ok" if segment.success else ("ko" if segment.is_wipe else "")
             rows.append(
                 "<tr><td><a href='#s%d' class=name>%s</a>%s</td>"
                 "<td class=n>%s</td><td class=n>%s</td><td class=n>%s</td>"
@@ -204,7 +204,7 @@ class ReportWriter(TimelineMixin, PanelsMixin):
     def _stats(self, layout):
         pulls = sum(1 for segment in self.segments if segment.kind == "encounter")
         keys = sum(1 for segment in self.segments if segment.kind == "keystone")
-        wipes = sum(1 for segment in self.segments if segment.success is False)
+        wipes = sum(1 for segment in self.segments if segment.is_wipe)
         cells = [
             ("Taille du fichier", "%s Mo" % round(self.log.size_bytes / 1048576.0, 1)),
             ("Duree couverte", format_duration(self.log.duration_ms)),
@@ -224,7 +224,7 @@ class ReportWriter(TimelineMixin, PanelsMixin):
         analysis = segment.analysis
         seconds = max(1.0, analysis.duration_ms / 1000.0)
         outcome = segment.outcome
-        css = "ok" if segment.success else ("ko" if segment.success is False else "")
+        css = "ok" if segment.success else ("ko" if segment.is_wipe else "")
         head = (
             "<h2 id='s%d'>%s%s</h2><p class=sub>%s &middot; %s &middot; "
             "%s de degats, %s de soins &middot; %s%s</p>"

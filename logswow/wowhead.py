@@ -52,13 +52,31 @@ def system_language():
             language = normalise(value.split(":", 1)[0])
             if language and language != "c":
                 return language
+    language = normalise(_platform_language())
+    return "" if language in ("c", "posix") else language
+
+
+def _platform_language():
+    """The machine's language when no environment variable says it.
+
+    `locale.getdefaultlocale()` answered this until Python 3.15 removes
+    it; on Windows, where the variables above are usually unset, the
+    links would then have fallen back to English without a word. Windows
+    is asked directly for its interface language instead, and every other
+    system for the locale Python itself started with.
+    """
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            code = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+            return locale.windows_locale.get(code, "")
+        except (AttributeError, OSError, ValueError):
+            return ""
     try:
-        # Deprecated in 3.11 but still the only thing that answers on
-        # Windows, where the environment variables above are usually unset.
-        tag = locale.getdefaultlocale()[0]
-    except (ValueError, AttributeError):
-        tag = None
-    return normalise(tag)
+        return locale.getlocale()[0] or ""
+    except (TypeError, ValueError):
+        return ""
 
 
 def resolve(choice=None):

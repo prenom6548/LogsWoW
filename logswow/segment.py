@@ -15,6 +15,12 @@ within it.
 
 from .tokenize import as_int
 
+# Lines that mean somebody fought: a hit, or a swing that missed. An
+# encounter with none of them was never fought -- a real raid opened on
+# one that lasted 8 ms, 18 lines and not one of these, and it was counted
+# as a wipe. The shortest real encounter in two logs had 7,867.
+FIGHT_KINDS = frozenset({"_DAMAGE", "_DAMAGE_LANDED", "_MISSED", "_SHIELD", "_SPLIT"})
+
 # Difficulty ids, as the client writes them. Anything unlisted is shown
 # by number rather than guessed at.
 DIFFICULTY_NAMES = {
@@ -65,6 +71,7 @@ class Segment:
         self.affixes = []
         self.reported_duration_ms = None
         self.truncated = False
+        self.fought = False
         self.analysis = None
 
     @property
@@ -78,9 +85,21 @@ class Segment:
         return difficulty_name(self.difficulty_id)
 
     @property
+    def never_fought(self):
+        """An encounter the client opened and closed with no fighting in it."""
+        return self.kind == "encounter" and not self.fought
+
+    @property
+    def is_wipe(self):
+        """A lost fight -- not one that never took place."""
+        return self.success is False and not self.never_fought
+
+    @property
     def outcome(self):
         if self.kind == "session":
             return ""
+        if self.never_fought and not self.truncated:
+            return "sans combat"
         if self.success is None:
             return "interrompu"
         if self.kind == "keystone":
@@ -137,7 +156,10 @@ class Splitter:
             self._open_keystone(event)
 
         if self._active:
+            fought = event.suffix_kind in FIGHT_KINDS
             for segment in self._active:
+                if fought:
+                    segment.fought = True
                 if segment.analysis is not None:
                     segment.analysis.feed(event)
         elif not self._saw_marker:
