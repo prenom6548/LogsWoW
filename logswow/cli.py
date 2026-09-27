@@ -92,7 +92,17 @@ def default_log_locations(mount_roots=MOUNT_ROOTS):
     return found
 
 
-def _build(path, year=None, verbose=True, pull_gap_ms=None):
+class Cancelled(Exception):
+    """The reader asked to stop reading (the window's "Annuler")."""
+
+
+def _build(path, year=None, verbose=True, pull_gap_ms=None, progress=None, cancelled=None):
+    """Read and analyse a whole log: (log, segments, seconds).
+
+    `progress(lines_read)` is called about four times a second and
+    `cancelled()` as often; when it answers True the read stops with
+    `Cancelled`. The terminal passes neither, the window both.
+    """
     log = LogFile(path, default_year=year)
     if pull_gap_ms is None:
         factory = SegmentAnalysis
@@ -102,11 +112,20 @@ def _build(path, year=None, verbose=True, pull_gap_ms=None):
 
     splitter = Splitter(analysis_factory=factory)
     started = time.time()
-    last_report = started
-    for event in log.events():
+    last_report = last_tick = started
+    for count, event in enumerate(log.events()):
         splitter.feed(event)
-        if verbose and time.time() - last_report > 3.0:
-            last_report = time.time()
+        if count % 4096:
+            continue
+        now = time.time()
+        if now - last_tick > 0.25:
+            last_tick = now
+            if cancelled is not None and cancelled():
+                raise Cancelled()
+            if progress is not None:
+                progress(log.line_count)
+        if verbose and now - last_report > 3.0:
+            last_report = now
             sys.stderr.write(
                 "\r  %s lignes lues..." % "{:,}".format(log.line_count).replace(",", " ")
             )
@@ -321,6 +340,18 @@ def command_where(_args):
     return 0
 
 
+def command_window(_args):
+    """`fenetre`: the same three steps, in a window."""
+    from . import gui
+
+    code = gui.run()
+    if code is None:
+        sys.stderr.write("Pas d'ecran disponible pour ouvrir la fenetre : "
+                         "utilisez les commandes (voir --help).\n")
+        return 2
+    return code
+
+
 def _seconds(text):
     """--pull-gap: a finite, non-negative number of seconds.
 
@@ -417,6 +448,10 @@ def build_parser():
 
     where = subparsers.add_parser("where", help="cherche le dossier Logs du jeu")
     where.set_defaults(func=command_where)
+
+    window = subparsers.add_parser(
+        "fenetre", help="ouvre la fenetre (c'est aussi ce que fait la commande sans rien)")
+    window.set_defaults(func=command_window)
     return parser
 
 
@@ -443,7 +478,14 @@ def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
     if not getattr(args, "command", None):
-        parser.print_help()
+        # Nothing typed -- which is also what a double-click on the .pyz
+        # does. Open the window when there is a screen; otherwise, or when
+        # the toolkit is missing, the help, as before.
+        from . import gui
+
+        code = gui.run() if argv is None else None
+        if (code is None or code == 3) and sys.stdout is not None:
+            parser.print_help()
         return 0
     try:
         return args.func(args)

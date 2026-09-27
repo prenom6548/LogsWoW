@@ -7,6 +7,12 @@ Le jeu écrit lui-même un fichier, `WoWCombatLog.txt`, qui contient tout
 ce qui s'est passé pendant un combat. Les sites d'analyse en ligne lisent
 ce fichier après l'avoir reçu. LogsWoW le lit là où il est.
 
+Lancé sans rien d'autre — un double-clic sur le fichier, ou
+`python3 logswow-<version>.pyz` — il ouvre **une fenêtre** : on choisit un
+journal dans la liste de ceux qu'il a trouvés, on coche les combats, et le
+rapport s'ouvre dans le navigateur. Les mêmes étapes existent en commandes,
+pour qui préfère le terminal :
+
 ```
 python3 -m logswow report "/chemin/vers/WoWCombatLog.txt"
 ```
@@ -14,12 +20,18 @@ python3 -m logswow report "/chemin/vers/WoWCombatLog.txt"
 Une page HTML apparaît à côté du fichier. Elle s'ouvre hors ligne, elle
 ne charge rien depuis nulle part, et elle ne contient aucun script.
 
+La fenêtre utilise Tkinter, la boîte à outils graphique fournie avec
+Python. Sous Windows et avec l'installateur macOS de python.org, elle est
+déjà là ; sous Linux Mint, Ubuntu et Debian, elle s'installe une fois avec
+`sudo apt install python3-tk` (la fenêtre le dit elle-même si elle
+manque). Les commandes n'en ont pas besoin.
+
 ## Ce qu'il faut avant
 
 **La marche à suivre pas à pas, pour Windows, Linux (dont Linux Mint) et
 macOS, est dans [`INSTALL.md`](INSTALL.md).** Chaque version publiée
 fournit un fichier unique, `logswow-<version>.pyz`, qui se lance tel quel :
-`python3 logswow-0.2.0.pyz report WoWCombatLog.txt`.
+`python3 logswow-0.4.0.pyz report WoWCombatLog.txt`.
 
 Rien à installer. Python 3.8 ou plus récent, et c'est tout : pas de
 `pip install`, aucune dépendance, aucun réseau. Le paquet se copie ou se
@@ -45,10 +57,11 @@ Bottles, Wine). Pour le retrouver :
 python3 -m logswow where
 ```
 
-## Les quatre commandes
+## Les commandes
 
 | Commande | Ce qu'elle fait |
 |---|---|
+| *(aucune)* ou `fenetre` | ouvre la fenêtre |
 | `report FICHIER` | écrit la page HTML complète |
 | | `-o` le nom du fichier, `--only` un seul combat, `--pull-gap` le découpage des pulls, `--wowhead` la langue des liens, `--sans-sequence` sans l'ordre des sorts, `--force` pour écraser un fichier qui n'est pas un rapport |
 | `list FICHIER` | liste les combats du fichier, une ligne chacun |

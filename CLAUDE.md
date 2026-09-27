@@ -806,6 +806,47 @@ Left as they are, because the file cannot say: Shadowy Apparition (a
 proc alone at a button's pace) and Windstrike (always beside a *paid*
 Lightning Bolt; which of the two set the other off is not in the line).
 
+### The window (2026-09-27)
+
+The owner's first try of a release was in a terminal, and ended with
+"une interface graphique plutot que des lignes dans un terminal serait
+plus user friendly". `gui.py` is that window. It adds no step the
+command line lacks: pick a log, pick the fights, write the page and
+open it. Four decisions, each forced by a rule above:
+
+- **Tkinter**, because it is the only toolkit in the standard library.
+  Linux Mint, Ubuntu and Debian ship it as `python3-tk`, so a missing
+  toolkit is a French message naming the command for each distribution,
+  followed by the help; the commands never need it.
+- **No local web server**, though a browser page would have been the
+  easier interface: the package never opens a socket. `webbrowser` hands
+  the *file* to the system's browser; a test runs an import of `gui` and
+  `cli` in a fresh interpreter and checks no network module is loaded.
+- **One thread for the long work, the window's loop for every widget**,
+  talking through a queue: Tkinter is not thread-safe. `cli._build` gained
+  `progress` and `cancelled` callbacks rather than a copy of itself.
+  The bar turns lines into a share of the file at **310 bytes a line**,
+  measured on the sixteen logs (305 to 322); on a real 951,575-line log
+  it read 31.4% where the truth was 31.0%, and it never reaches 100%
+  before the read ends.
+- **Nothing typed means the window**, because that is what a double-click
+  on the `.pyz` does -- but only when `main()` is given no argv at all:
+  the tests call `main([])` and still get the help. Without a display
+  (`TclError`), the help too, as before. Launched by `pythonw` (a
+  `.pyzw`, which hides the console on Windows), `sys.stdout` and
+  `sys.stderr` are None, and neither is written to then.
+
+The logic is functions at the top of `gui.py` (`recent_logs`,
+`fight_rows`, `default_report_path`, `write_report`, `page_address`),
+tested with no screen; the widgets are tested when a display exists and
+skipped otherwise -- the release runner has none. It was driven for real
+under Xvfb on the owner's 951,575-line dungeon log: cancel, read, one
+fight chosen out of twenty-one, report written and handed to the
+browser, the page a LogsWoW report. The address given to the browser
+goes through `pathlib.Path.as_uri()`: the owner's folder is ".../World
+of Warcraft/...", and a hand-built "file://" + path would carry the
+spaces raw.
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -869,7 +910,8 @@ logswow/report_casts.py     the cast order by pull: chips, CSS-only filter
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
 logswow/fmt.py          formatters (compact, percent, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
-logswow/cli.py          report / list / diagnose / where
+logswow/cli.py          report / list / diagnose / where / fenetre
+logswow/gui.py          the window (Tkinter): pick a log, the fights, write and open the page
 logswow/specs.py        specialization ids -> class, spec, role
 logswow/wowhead.py      spell links in the machine's language
 tools/check-invariants.py   cross-checks a real log's numbers against themselves
@@ -934,7 +976,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 186 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 195 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestFifthAuditFindings`), and each one was regression-checked the

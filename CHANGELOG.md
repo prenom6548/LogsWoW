@@ -3,6 +3,30 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.4.0 — 2026-09-27
+
+**Une fenêtre, pour ne plus passer par le terminal.**
+
+- Lancé sans rien d'autre — double-clic sur le fichier sous Windows,
+  `python3 logswow-0.4.0.pyz` ou une entrée de menu sous Linux — LogsWoW
+  ouvre une fenêtre en trois étapes : **le journal** (la liste de ceux
+  qu'il a trouvés, du plus récent au plus ancien, ou « Choisir un autre
+  fichier… »), **les combats** (tous cochés, ou seulement ceux qu'on
+  choisit), **le rapport** (« Créer le rapport et l'ouvrir » l'affiche
+  dans le navigateur).
+- La lecture d'un gros journal se suit sur une barre de progression, et
+  peut s'annuler. La fenêtre reste utilisable pendant ce temps.
+- Si le dossier du journal refuse l'écriture, ou si un fichier du même
+  nom qui n'est pas un rapport existe déjà, la fenêtre demande où écrire
+  la page plutôt que d'écraser quoi que ce soit.
+- Un rapport d'un seul combat porte son numéro dans son nom
+  (`…-combat-3.html`), pour ne pas remplacer celui de toute la soirée.
+- Sous Linux Mint, Ubuntu et Debian, la fenêtre demande une fois
+  `sudo apt install python3-tk` ; elle le dit elle-même s'il manque.
+  `INSTALL.md` explique comment l'ajouter au menu des applications.
+- Les commandes du terminal ne changent pas ; `fenetre` ouvre la fenêtre
+  depuis le terminal.
+
 ## 0.3.2 — 2026-09-27
 
 - **`where` trouve aussi le jeu installé sur un second disque** : sous

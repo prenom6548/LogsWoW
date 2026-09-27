@@ -14,9 +14,12 @@ on which functions did what, not only on the numbers that came out --
 a filter can be entirely absent and still produce a plausible total.
 """
 
+import contextlib
+import io
 import os
 import re
 import sys
+import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +27,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
 from logswow.analysis import SegmentAnalysis  # noqa: E402
+from logswow.cli import main as cli_main  # noqa: E402
 from logswow.events import Advanced, Layout, build_event, decompose  # noqa: E402
 from logswow.parse import LogFile, detect_layout  # noqa: E402
 from logswow.fmt import plural  # noqa: E402
@@ -2634,6 +2638,148 @@ class TestWhereOnAnotherDisk(unittest.TestCase):
             found = default_log_locations(mount_roots=(os.path.join(mnt, "*"),))
         self.assertIn(direct, found)
         self.assertIn(wine, found)
+
+
+class TestWindow(unittest.TestCase):
+    """The window (2026-09-27): its logic without a screen, the widgets with one."""
+
+    def test_logs_are_listed_newest_first_and_nothing_else(self):
+        import tempfile
+        from logswow import gui
+
+        with tempfile.TemporaryDirectory() as folder:
+            for name, age in (("WoWCombatLog-091826_203000.txt", 300),
+                              ("WoWCombatLog-092026_203000.txt", 100),
+                              ("notes.txt", 0), ("WoWCombatLog-092026_203000.html", 0)):
+                path = os.path.join(folder, name)
+                with open(path, "w") as handle:
+                    handle.write("x" * 10)
+                os.utime(path, (time.time() - age, time.time() - age))
+            names = [os.path.basename(path) for path, _size, _mtime
+                     in gui.recent_logs([folder, os.path.join(folder, "absent")])]
+        self.assertEqual(names, ["WoWCombatLog-092026_203000.txt",
+                                 "WoWCombatLog-091826_203000.txt"])
+
+    def test_the_small_things_the_window_prints(self):
+        from logswow import gui
+
+        self.assertEqual(gui.file_size(709329406), "709,3 Mo")
+        self.assertEqual(gui.file_size(9532819484), "9,5 Go")
+        self.assertEqual(gui.file_size(12), "12 o")
+        self.assertEqual(gui.read_share(0, 1000), 0.0)
+        self.assertEqual(gui.read_share(10 ** 9, 1000), 0.99)   # never "done" early
+        self.assertEqual(gui.read_share(5, 0), 0.0)
+
+    def test_a_path_with_spaces_becomes_a_valid_address(self):
+        """The owner's logs are under ".../World of Warcraft/_retail_/Logs"."""
+        from logswow import gui
+
+        path = os.path.join(os.sep, "mnt", "Jeux SSD", "World of Warcraft", "rapport é.html")
+        address = gui.page_address(path)
+        self.assertTrue(address.startswith("file:///"))
+        self.assertNotIn(" ", address)
+        self.assertIn("World%20of%20Warcraft", address)
+
+    def test_the_fights_are_listed_with_their_outcome_in_french(self):
+        from logswow import gui
+
+        _log, segments = run_fixture()
+        rows = gui.fight_rows(segments)
+        self.assertEqual([row[0] for row in rows], [segment.index for segment in segments])
+        self.assertTrue(all("reussite" != row[5] and "echec" != row[5] for row in rows))
+
+    def test_the_report_goes_next_to_the_log_and_never_over_it(self):
+        import tempfile
+        from logswow import gui
+
+        log, segments = run_fixture()
+        with tempfile.TemporaryDirectory() as folder:
+            log_path = os.path.join(folder, "WoWCombatLog-x.txt")
+            with open(FIXTURE, "rb") as source, open(log_path, "wb") as copy:
+                copy.write(source.read())
+            self.assertEqual(gui.default_report_path(log_path, segments, segments),
+                             os.path.join(folder, "WoWCombatLog-x.html"))
+            if len(segments) > 1:
+                self.assertTrue(gui.default_report_path(log_path, segments[1:2], segments)
+                                .endswith("-combat-%d.html" % segments[1].index))
+            out = os.path.join(folder, "WoWCombatLog-x.html")
+            self.assertIsNone(gui.write_report(log, segments, out, log_path))
+            self.assertIsNone(gui.write_report(log, segments, out, log_path))  # ours: redone
+            self.assertIn("journal", gui.write_report(log, segments, log_path, log_path))
+            other = os.path.join(folder, "autre.txt")
+            with open(other, "w") as handle:
+                handle.write("pas un rapport")
+            self.assertIsNotNone(gui.write_report(log, segments, other, log_path))
+            with open(other) as handle:
+                self.assertEqual(handle.read(), "pas un rapport")
+
+    def test_without_the_toolkit_the_window_says_what_to_install(self):
+        from logswow import gui
+
+        saved = sys.modules.get("tkinter")
+        sys.modules["tkinter"] = None                    # makes `import tkinter` fail
+        try:
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                code = gui.run()
+        finally:
+            if saved is None:
+                del sys.modules["tkinter"]
+            else:
+                sys.modules["tkinter"] = saved
+        self.assertEqual(code, 3)
+        self.assertIn("sudo apt install python3-tk", err.getvalue())
+
+    def test_the_commands_still_print_the_help_when_called_with_nothing(self):
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(cli_main([]), 0)
+        self.assertIn("fenetre", out.getvalue())
+
+    def test_the_window_opens_no_connection(self):
+        import subprocess
+
+        code = ("import sys, logswow.gui, logswow.cli; "
+                "print(sorted(m for m in ('socket', 'ssl', 'http.client', 'urllib.request')"
+                " if m in sys.modules))")
+        result = subprocess.run([sys.executable, "-c", code], cwd=ROOT,
+                                stdout=subprocess.PIPE, universal_newlines=True)
+        self.assertEqual(result.stdout.strip(), "[]")
+
+    def test_the_window_reads_a_log_and_writes_its_report(self):
+        """Needs Tkinter and a display; skipped wherever either is missing."""
+        import tempfile
+        from logswow import gui
+
+        try:
+            import tkinter
+            root = tkinter.Tk()
+        except (ImportError, Exception) as error:        # noqa: BLE001 -- no screen here
+            self.skipTest("pas de fenetre possible ici : %s" % str(error).splitlines()[0])
+        opened = []
+        saved = gui.open_in_browser
+        gui.open_in_browser = opened.append
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                log_path = os.path.join(folder, "WoWCombatLog-092726_200000.txt")
+                with open(FIXTURE, "rb") as source, open(log_path, "wb") as copy:
+                    copy.write(source.read())
+                app = gui.App(root, locations=[folder])
+                self.assertEqual(app.logs.get_children(), (log_path,))
+                app.read_selected()
+                deadline = time.time() + 30
+                while app.segments is None and time.time() < deadline:
+                    root.update()
+                    time.sleep(0.02)
+                self.assertTrue(app.segments)
+                self.assertEqual(len(app.fights.selection()), len(app.segments))
+                app.write_selected()
+                while app.busy and time.time() < deadline:
+                    root.update()
+                    time.sleep(0.02)
+                self.assertEqual(opened, [os.path.join(folder, "WoWCombatLog-092726_200000.html")])
+                self.assertTrue(os.path.getsize(opened[0]) > 1000)
+        finally:
+            gui.open_in_browser = saved
+            root.destroy()
 
 
 if __name__ == "__main__":
