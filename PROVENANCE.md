@@ -56,6 +56,23 @@ files disagreed, the files won and the difference is recorded in
 `CLAUDE.md`. A file format is a fact about a program's output, not a
 creative work, and no text from any documentation source was reproduced.
 
+## A second research document
+
+`PULL-DETECTION-RESEARCH.md` is original text, written in French for the
+owner on 2026-09-26/27, after they asked whether wowumbra.gg's published
+methodology could refine this package's pull segmentation. It quotes two
+short, clearly-attributed sentences from wowumbra.gg's own public pages
+(fair use of a factual claim about their own data source). It also
+quotes two short code excerpts from WoWAnalyzer's `src/parser/core/Fight.ts`
+and `FilterButton.tsx` (github.com/WoWAnalyzer/WoWAnalyzer, AGPL-3.0):
+the repository was cloned read-only into a session's temporary directory
+to answer one factual question -- how does Warcraft Logs' API describe a
+Mythic+ dungeon's pulls -- and deleted immediately after. Nothing from it
+was adapted or reused as logic; the quotes exist only to show, verbatim,
+what a public API's data shape is, which is a fact rather than an
+expression of one. No file in `logswow/` was changed as a result of this
+research, and the document says so.
+
 ## The owner's own logs are not in this repository, and must not be
 
 The two files used to develop this package were read in a session

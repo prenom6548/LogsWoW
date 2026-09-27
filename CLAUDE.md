@@ -3,7 +3,10 @@
 Everything a session needs to work on this repository is in this
 repository: this file for how it is built and what was learned building
 it, `README.md` for what it does, `PROVENANCE.md` for where it comes
-from, and `LOGS-SITES-RESEARCH.md` for why it exists.
+from, `LOGS-SITES-RESEARCH.md` for why it exists, and
+`PULL-DETECTION-RESEARCH.md` for what looking at Warcraft Logs' own pull
+segmentation (via WoWAnalyzer's open-source client) turned up, and what
+is still open about ours -- read before an audit of `segment.py`.
 
 ## What this is, and why it exists
 
