@@ -21,6 +21,7 @@ from .specs import label_of
 from .timestamps import format_duration
 from .report_casts import CastOrderMixin, chip_rules
 from .report_panels import PanelsMixin
+from .report_schools import SCHOOL_CSS, SchoolsMixin
 from .report_timeline import TimelineMixin
 from .wowhead import resolve
 
@@ -111,7 +112,7 @@ def _council_note(names):
             "comptes sur le boss." % (", ".join(fmt.esc(name) for name in names), NBSP))
 
 
-class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin):
+class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin):
     """Writes the whole page for a list of segments."""
 
     def __init__(self, log, segments, out_path, wowhead="auto", cast_order=True):
@@ -157,7 +158,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin):
             "<!doctype html><html lang=fr><head><meta charset=utf-8>"
             '<meta name=viewport content="width=device-width,initial-scale=1">'
             "<title>LogsWoW — %s</title><style>%s%s</style></head><body><div class=wrap>"
-            % (fmt.esc(os.path.basename(self.log.path)), CSS,
+            % (fmt.esc(os.path.basename(self.log.path)), CSS + SCHOOL_CSS,
                chip_rules(self._spell_ids) if self._spell_ids else "")
         )
 
@@ -259,6 +260,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin):
             self._composition(analysis),
             self._timeline(analysis),
             self._pulls(analysis),
+            self._schools(analysis),
             "<div class=cols>",
             self._ranking(analysis, "damage_done", "Degats infliges", "DPS", seconds),
             self._ranking(analysis, "healing_done", "Soins effectifs", "HPS", seconds),

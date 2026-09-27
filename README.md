@@ -31,7 +31,7 @@ manque). Les commandes n'en ont pas besoin.
 **La marche à suivre pas à pas, pour Windows, Linux (dont Linux Mint) et
 macOS, est dans [`INSTALL.md`](INSTALL.md).** Chaque version publiée
 fournit un fichier unique, `logswow-<version>.pyz`, qui se lance tel quel :
-`python3 logswow-0.4.0.pyz report WoWCombatLog.txt`.
+`python3 logswow-0.5.0.pyz report WoWCombatLog.txt`.
 
 Rien à installer. Python 3.8 ou plus récent, et c'est tout : pas de
 `pip install`, aucune dépendance, aucun réseau. Le paquet se copie ou se
@@ -127,6 +127,9 @@ lu serait pire que pas de rapport du tout.
   montrés à part sur le panneau de l'Évocateur, jamais ajoutés une
   seconde fois. Warcraft Logs, lui, les déplace vers l'Évocateur, d'où un
   écart entre les deux pour les joueurs renforcés.
+- **Physique ou magique** : la part des dégâts subis et infligés qui
+  était physique, magique ou les deux, en pourcentage, sur tout le combat
+  puis pull par pull, avec le détail par école (Ombre, Feu, Nature…).
 - **Ce qui a fait mal au groupe** : chaque capacité ennemie, combien elle
   a coûté, combien de joueurs elle a touchés.
 - **Les morts**, chacune avec la chaîne des derniers coups et soins reçus

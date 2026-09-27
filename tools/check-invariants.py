@@ -119,7 +119,17 @@ def _pulls(a, players):
     check(pulls <= a.total_damage and pulls >= a.total_damage * 0.99,
           "pulls sum to the run (within the dropped crumbs)",
           "%d vs %d" % (pulls, a.total_damage))
+    # 7b. Physical / magic: each pull's schools add up to its own totals,
+    # and the run's to the group's (crumbs included on both sides).
+    check(sum(a.done_by_school.values()) == a.total_damage,
+          "damage done by school == group damage done")
+    taken = sum(p.damage_taken + p.pet_damage_taken for p in players)
+    check(sum(a.taken_by_school.values()) == taken,
+          "damage taken by school == players' and summons' damage taken",
+          "%d vs %d" % (sum(a.taken_by_school.values()), taken))
     for b in a.blocks:
+        check(sum(b.done_by_school.values()) == b.damage_done, "pull schools == pull damage")
+        check(sum(b.taken_by_school.values()) == b.damage_taken, "pull schools == pull taken")
         check(0 <= b.damage_boss <= b.damage_done, "pull boss share within total")
         check(b.end_ts >= b.start_ts, "pull ends after it starts")
     for earlier, later in zip(a.blocks, a.blocks[1:]):

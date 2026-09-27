@@ -806,6 +806,38 @@ Left as they are, because the file cannot say: Shadowy Apparition (a
 proc alone at a button's pace) and Windstrike (always beside a *paid*
 Lightning Bolt; which of the two set the other off is not in the line).
 
+### Physical or magic, and the fall that carried a GUID (2026-09-27)
+
+Asked for by the owner: the physical/magic split of damage taken over a
+whole dungeon and per pull, "et pourquoi pas infligés", in percentages.
+The school is on every damage line, third field of the suffix after the
+measured `baseAmount` (`Event.damage_school`), as the client's bit mask.
+Measured before use, on the owner's two logs: every melee hit is 1
+(33,335 of 33,335), and the line agrees with the spell's own school on
+343,013 of 343,016 dungeon lines; where they differ (a Frost spell
+dealing Frost + Shadow) the line is what was dealt, so the line is
+read. A mask with the physical bit and another is "mixte", never forced
+into either side (`schools.py`). Ledgers: `CombatBlock` and
+`SegmentAnalysis` keep `taken_by_school` / `done_by_school`, banked where
+`damage_taken` and `damage_done` already are, and four invariants tie
+them to those totals. An independent recount of the shares per
+encounter agreed to 0.00003 point wherever the two counts covered the
+same damage; the one 0.8-point gap sat on an encounter whose total
+differs by 1.16%, the known pet-ownership difference. Percentages on
+the page are rounded by largest remainder, so a row adds up to 100.
+Fuzzing caught the first version of that rounding: a damaged line with
+a negative amount left a ledger summing to nothing, and the page died
+on a KeyError; a negative part now counts as zero.
+
+**The same measurement found a bug nobody had looked for.**
+`ENVIRONMENTAL_DAMAGE` writes its advanced block *before* the
+environmental type, unlike every other prefixed event (65 lines of 65).
+Read in the usual order, the type was the victim's GUID: the amount,
+anchored on the tail, was right, but "what hit them" was a player's
+identifier -- in the damage-taken table and in two death recaps of a
+real key. `build_event` now puts the type back in front when a GUID sits
+where the type should be, and the snapshot changed exactly those rows.
+
 ### The window (2026-09-27)
 
 The owner's first try of a release was in a terminal, and ended with
@@ -907,12 +939,14 @@ logswow/report.py       one self-contained HTML file: page, fights, pulls, ranki
 logswow/report_timeline.py  the SVG timeline
 logswow/report_panels.py    per-player and per-enemy panels
 logswow/report_casts.py     the cast order by pull: chips, CSS-only filter
+logswow/report_schools.py   physical / magic / mixed shares, per run and per pull
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
 logswow/fmt.py          formatters (compact, percent, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
 logswow/cli.py          report / list / diagnose / where / fenetre
 logswow/gui.py          the window (Tkinter): pick a log, the fights, write and open the page
 logswow/specs.py        specialization ids -> class, spec, role
+logswow/schools.py      damage schools: bit mask -> physical, magic, mixed; French names
 logswow/wowhead.py      spell links in the machine's language
 tools/check-invariants.py   cross-checks a real log's numbers against themselves
 tools/pre-push          git hook: tests, invariants on the fixture, flake8 (no network)
@@ -976,7 +1010,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 195 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 201 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestFifthAuditFindings`), and each one was regression-checked the

@@ -134,6 +134,10 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self._bucket_ms = 1000
         self.events_seen = 0
         self.landed_seen = 0
+        # {school mask: amount} over the whole segment, crumbs included:
+        # what the group took (players and their summons) and dealt.
+        self.taken_by_school = {}
+        self.done_by_school = {}
         # *_SUPPORT lines read and kept out of every total (see _feed_support).
         self.support_seen = 0
         # Damage dealt by a friendly unit that belongs to no player the
@@ -467,6 +471,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             self._enemy_names[event.dest.guid] = event.dest.display_name
         block = self._touch_block(event)
         block.damage_done += amount
+        _bank_school(event, amount, block.done_by_school, self.done_by_school)
         dest_name = canon(event.dest.name)
         if dest_name in self.boss_names:
             block.damage_boss += amount
@@ -493,6 +498,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self._timeline_add(event.ts, "damage_taken", amount)
         block = self._touch_block(event)
         block.damage_taken += amount
+        _bank_school(event, amount, block.taken_by_school, self.taken_by_school)
         if not source_ours:
             enemy = self._enemy(event.source)
             if enemy is not None:
@@ -529,6 +535,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self._timeline_add(event.ts, "damage_taken", amount)
         block = self._touch_block(event)
         block.damage_taken += amount
+        _bank_school(event, amount, block.taken_by_school, self.taken_by_school)
         if event.source.is_hostile and not event.source.is_pet:
             block.note_enemy(event.source.guid, event.source.display_name)
         if not source_ours:
@@ -875,3 +882,12 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         "_AURA_REFRESH": AuraLedger._aura_open,
         "_AURA_REMOVED": AuraLedger._aura_close,
     }
+
+
+def _bank_school(event, amount, *ledgers):
+    """Add one hit to each {school mask: amount} ledger."""
+    school = event.damage_school
+    if not 0 < school <= 127:       # a damaged line: one "unknown" key, not one per value
+        school = 0
+    for ledger in ledgers:
+        ledger[school] = ledger.get(school, 0) + amount

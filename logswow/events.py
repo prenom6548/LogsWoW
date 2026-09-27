@@ -361,6 +361,13 @@ class Event:
         return as_int(self._at(1 + self.shift), 0)
 
     @property
+    def damage_school(self):
+        """The school of what this hit dealt, as the client's bit mask (see schools.py)."""
+        if self.suffix_kind not in self.DAMAGE_KINDS:
+            return 0
+        return as_int(self._at(2 + self.shift), 0)
+
+    @property
     def absorbed(self):
         if self.suffix_kind not in self.DAMAGE_KINDS:
             return 0
@@ -564,7 +571,16 @@ def build_event(ts, fields, line_number, layout=DEFAULT_LAYOUT):
         event.suffix = remainder
         return event
 
-    _, prefix_n, suffix_name, suffix_counts = scheme
+    prefix_name, prefix_n, suffix_name, suffix_counts = scheme
+    width = layout.advanced_width
+    if (prefix_name == "ENVIRONMENTAL" and len(remainder) > width
+            and looks_like_guid(remainder[0])):
+        # ENVIRONMENTAL_DAMAGE writes its advanced block *before* the
+        # environmental type ("Falling", "Lava"...), unlike every other
+        # prefixed event: 65 lines of 65 in two real logs. Read in the
+        # usual order, the type was the victim's GUID -- printed on the
+        # page as the name of what hit them. Put back in order here.
+        remainder = remainder[width:width + 1] + remainder[:width] + remainder[width + 1:]
     prefix, advanced, suffix, note = resolve_layout(
         remainder, prefix_n, suffix_counts, layout.advanced_width
     )

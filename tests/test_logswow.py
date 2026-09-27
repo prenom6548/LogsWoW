@@ -2782,5 +2782,91 @@ class TestWindow(unittest.TestCase):
             root.destroy()
 
 
+class TestPhysicalOrMagic(unittest.TestCase):
+    """Damage by school, taken and dealt, per run and per pull (2026-09-27)."""
+
+    TANK = 'Player-9999-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+    MOB = 'Creature-0-9999-2222-1111-70000-0000111111,"Golem d\'essai",0xa48,0x0'
+
+    def _adv(self, info):
+        return ",".join(advanced_block(19, info=info))
+
+    def test_the_school_is_read_from_the_line(self):
+        swing = event_from('SWING_DAMAGE,%s,%s,%s,900,900,-1,1,0,0,0,nil,nil,nil'
+                           % (self.MOB, self.TANK, self._adv("Creature-0-1")))
+        spell = event_from('SPELL_DAMAGE,%s,%s,444,"Balayage",0x20,%s,3000,2900,-1,48,0,0,0,'
+                           'nil,nil,nil,AOE' % (self.MOB, self.TANK, self._adv("Player-9999-1")))
+        self.assertEqual((swing.damage_school, spell.damage_school), (1, 48))
+        old = event_from('SPELL_DAMAGE,%s,%s,444,"Balayage",0x20,3000,-1,32,0,0,0,nil,nil,nil'
+                         % (self.MOB, self.TANK), DOCUMENTED)
+        self.assertEqual(old.damage_school, 32)
+
+    def test_schools_are_physical_magic_or_both(self):
+        from logswow import schools
+
+        self.assertEqual([schools.kind(m) for m in (1, 32, 106, 33, 127, 0, 999)],
+                         ["physique", "magique", "magique", "mixte", "mixte", "", ""])
+        self.assertEqual(schools.name(36), "Feu + Ombre")
+        self.assertEqual(schools.name(0), "école inconnue")
+
+    def test_the_shares_always_add_up_to_a_hundred(self):
+        from logswow.report_schools import shares
+
+        self.assertEqual(shares({"a": 1, "b": 1, "c": 1}), {"a": 34, "b": 33, "c": 33})
+        self.assertEqual(sum(shares({"a": 2, "b": 997, "c": 1}).values()), 100)
+        self.assertEqual(shares({"a": 0}), {"a": 0})
+        # Only a damaged line writes a negative amount; fuzzing found one.
+        self.assertEqual(shares({"a": -5, "b": 0}), {"a": 0, "b": 0})
+        self.assertEqual(shares({"a": -5, "b": 10}), {"a": 0, "b": 100})
+
+    def test_a_fall_is_named_a_fall_not_the_victims_guid(self):
+        """ENVIRONMENTAL_DAMAGE writes its advanced block before the type,
+        65 lines of 65 in two real logs. Read in the usual order, the page
+        named what hit a player after that player's own GUID."""
+        line = ('ENVIRONMENTAL_DAMAGE,0000000000000000,nil,0x80000000,0x80000000,%s,%s,'
+                'Falling,52487,52487,0,1,0,0,0,nil,nil,nil'
+                % (self.TANK, self._adv("Player-9999-00000001")))
+        event = event_from(line)
+        self.assertIsNone(event.mismatch)
+        self.assertEqual(event.spell_name, "Falling")
+        self.assertEqual((event.amount, event.damage_school), (52487, 1))
+        self.assertEqual(event.advanced.info_guid, "Player-9999-00000001")
+        bare = event_from('ENVIRONMENTAL_DAMAGE,0000000000000000,nil,0x80000000,0x80000000,%s,'
+                          'Lava,8000,-1,4,0,0,0,nil,nil,nil' % self.TANK, DOCUMENTED)
+        self.assertEqual((bare.spell_name, bare.amount, bare.damage_school), ("Lava", 8000, 4))
+
+    def test_a_run_and_its_pulls_are_split_by_school(self):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        lines = [
+            (0, 'SWING_DAMAGE,%s,%s,%s,1000,1000,-1,1,0,0,0,nil,nil,nil'
+             % (self.MOB, self.TANK, self._adv("Creature-0-1"))),
+            (500, 'SPELL_DAMAGE,%s,%s,444,"Balayage",0x20,%s,3000,3000,-1,32,0,0,0,nil,nil,nil,'
+             'AOE' % (self.MOB, self.TANK, self._adv("Player-9999-00000001"))),
+            (900, 'SPELL_DAMAGE,%s,%s,222,"Frappe",0x1,%s,4000,4000,-1,1,0,0,0,nil,nil,nil,ST'
+             % (self.TANK, self.MOB, self._adv("Creature-0-9999-2222-1111-70000-0000111111"))),
+        ]
+        for index, (ms, payload) in enumerate(lines):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ms, fields, index + 1))
+        analysis = splitter.finish()[0].analysis
+        self.assertEqual(analysis.taken_by_school, {1: 1000, 32: 3000})
+        self.assertEqual(analysis.done_by_school, {1: 4000})
+        block = analysis.blocks[0]
+        self.assertEqual(sum(block.taken_by_school.values()), block.damage_taken)
+
+    def test_the_page_says_it_in_percentages(self):
+        import tempfile
+
+        log, segments = run_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "rapport.html")
+            ReportWriter(log, segments, target).write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertIn("Physique ou magique", page)
+        self.assertIn("Subis par école", page)
+        self.assertRegex(page, r"\d+ %")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

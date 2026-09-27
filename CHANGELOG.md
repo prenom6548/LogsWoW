@@ -3,6 +3,31 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.5.0 — 2026-09-27
+
+**Physique ou magique, en pourcentage.**
+
+- Chaque combat a une nouvelle section, « Physique ou magique » : la part
+  des dégâts **subis** et **infligés** qui était physique, magique, ou les
+  deux à la fois (« mixte » : Ombre-frappe, Chaos…), sur tout le combat
+  puis **pull par pull**, en barres et en pourcentages qui font toujours
+  100 % pile.
+- Le détail par école suit : « Subis par école : Physique 36 %, Ombre
+  32 %, Nature 22 %… ».
+- L'école vient de chaque ligne du journal, qui dit ce que le coup a
+  réellement infligé. Vérifié sur vos journaux : tous les coups de mêlée
+  sont physiques, et un recompte écrit indépendamment trouve les mêmes
+  parts au cent-millième près.
+
+**Corrigé**
+
+- **Une chute s'affichait sous l'identifiant du joueur tombé.** Pour les
+  dégâts de l'environnement (chute, lave, noyade), le journal écrit les
+  champs dans un ordre différent des autres lignes ; le rapport prenait
+  l'identifiant du joueur pour le nom de ce qui l'avait blessé, dans « Ce
+  qu'il a pris » et dans le récit de sa mort. C'est « Falling » désormais.
+  Les montants, eux, étaient justes.
+
 ## 0.4.0 — 2026-09-27
 
 **Une fenêtre, pour ne plus passer par le terminal.**

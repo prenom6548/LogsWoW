@@ -118,7 +118,7 @@ class CombatBlock:
 
     __slots__ = (
         "start_ts", "end_ts", "damage_done", "damage_boss", "damage_taken",
-        "deaths", "enemies", "encounters",
+        "deaths", "enemies", "encounters", "taken_by_school", "done_by_school",
     )
 
     def __init__(self, start_ts):
@@ -127,6 +127,9 @@ class CombatBlock:
         self.damage_done = 0
         self.damage_boss = 0        # the part of damage_done that hit a boss
         self.damage_taken = 0
+        # {school mask: amount}, adding up to damage_taken and damage_done.
+        self.taken_by_school = {}
+        self.done_by_school = {}
         self.deaths = 0
         self.enemies = {}
         # (encounter name, success) for each boss encounter this pull
