@@ -19,6 +19,7 @@ What this can and cannot answer is worth being plain about:
 """
 
 from .auras import AuraLedger
+from .castorder import MAX_CAST_LOG, classify_triggered
 from .encounters import EncounterLedger
 from .events import Actor
 from .models import (
@@ -633,6 +634,14 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         player.casts_by_spell[event.spell_id] = (
             player.casts_by_spell.get(event.spell_id, 0) + 1
         )
+        if len(player.cast_log) < MAX_CAST_LOG:
+            advanced = event.advanced
+            paid = (advanced is not None and advanced.info_guid == event.source.guid
+                    and advanced.paid_power)
+            player.cast_log.append((event.ts, event.spell_id, event.spell_name or "?",
+                                    bool(paid), not event.source.is_player))
+        else:
+            player.cast_log_full = True
         if player.last_cast_ts is not None:
             gap = event.ts - player.last_cast_ts
             if gap > DOWNTIME_THRESHOLD_MS:
@@ -703,6 +712,8 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
 
         self._close_downtime(segment, end)
         self._collapse_timeline()
+        for player in self.players.values():
+            player.triggered = classify_triggered(player.cast_log)
 
     def _drop_crumbs(self):
         # Drop the stray ticks, but never drop the only pull there is.

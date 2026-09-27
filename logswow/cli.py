@@ -211,7 +211,8 @@ def command_report(args):
         sys.stderr.write(refusal)
         return 2
     try:
-        ReportWriter(log, chosen, out, wowhead=args.wowhead).write()
+        ReportWriter(log, chosen, out, wowhead=args.wowhead,
+                     cast_order=not args.no_cast_order).write()
     except OSError as error:
         sys.stderr.write("Impossible d'ecrire %s : %s\n" % (out, error.strerror or error))
         return 2
@@ -358,6 +359,10 @@ def build_parser():
 
     report = common(subparsers.add_parser("report", help="produit le rapport HTML"))
     report.add_argument("-o", "--out", default=None, help="fichier de sortie (.html)")
+    report.add_argument(
+        "--sans-sequence", dest="no_cast_order", action="store_true",
+        help="ne pas mettre l'ordre des sorts de chaque joueur : la page est "
+             "environ deux fois plus legere")
     report.add_argument(
         "--force", action="store_true",
         help="ecraser le fichier de sortie meme s'il n'est pas un rapport LogsWoW "

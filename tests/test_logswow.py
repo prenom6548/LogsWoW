@@ -2262,5 +2262,178 @@ class TestRelease(unittest.TestCase):
                               or n.endswith(".txt")])
 
 
+class TestCastOrder(unittest.TestCase):
+    """The order a player cast their spells in, pull by pull (2026-09-27)."""
+
+    PLAYER = 'Player-9-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+    GUID = "Player-9-00000001"
+    MOB = 'Creature-0-9-2-1-70000-0000000001,"Golem",0xa48,0x0'
+    PET = 'Pet-0-9-2-1-00099,"Cendre",0x1114,0x0'
+
+    def _cast(self, spell_id, name, cost="0", source=None):
+        block = advanced_block(19, info=self.GUID)
+        block[-6] = cost                      # powerCost, measured in both shapes
+        return ('SPELL_CAST_SUCCESS,%s,%s,%d,"%s",0x1,%s'
+                % (source or self.PLAYER, self.MOB, spell_id, name, ",".join(block)))
+
+    def _run(self, timed_payloads):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, (ms, payload) in enumerate(timed_payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ms, fields, index + 1))
+        return splitter.finish()
+
+    def test_a_triggered_spell_is_told_from_pressed_ones(self):
+        """Measured on two real logs: a triggered cast lands in the same
+        instant as another, costs nothing, and comes back quickly. A spell
+        a macro fires beside another is free and simultaneous too, but it
+        is a long cooldown -- that is what tells them apart."""
+        from logswow.castorder import classify_triggered
+
+        log = []
+        for i in range(12):
+            ts = i * 2500
+            log.append((ts, 100, "Frappe", True, False))          # pressed, paid
+            log.append((ts + 5, 200, "Eclat", False, False))       # rides on it
+        for i in range(10):                                       # a macro'd cooldown
+            ts = 1000 + i * 120000
+            log.append((ts, 300, "Pierre de soins", False, False))
+            log.append((ts, 301, "Bouclier", True, False))
+        for i in range(5):                                        # too few to judge
+            log.append((200 + i * 2500, 400, "Rare", False, False))
+        self.assertEqual(classify_triggered(log), frozenset({200}))
+        # A pet's casts are their own group, never "triggered".
+        pets = [(i * 2500 + 5, 500, "Morsure", False, True) for i in range(12)]
+        self.assertEqual(classify_triggered(log + pets), frozenset({200}))
+
+    def test_the_power_cost_is_read_in_every_shape_the_file_uses(self):
+        """"0", a whole number, and "3|1500" for a player with two resources."""
+        for cost, paid in (("0", False), ("2500", True), ("3|1500", True), ("0|0", False),
+                           ("nil", False)):
+            block = advanced_block(19)
+            block[-6] = cost
+            self.assertEqual(Advanced(block).paid_power, paid, cost)
+
+    def test_every_cast_is_kept_in_order_and_in_its_pull(self):
+        from logswow.castorder import split_by_pull
+
+        hit = ('SPELL_DAMAGE,%s,%s,1,"Frappe",0x1,500,500,-1,1,0,0,0,nil,nil,nil,ST'
+               % (self.PLAYER, self.MOB))
+        segments = self._run([
+            (0, 'CHALLENGE_MODE_START,"Donjon",2000,500,7,[9]'),
+            (500, 'SPELL_SUMMON,%s,%s,777,"Invocation",0x1' % (self.PLAYER, self.PET)),
+            (1000, self._cast(10, "Ouverture", "2500")),      # the opener, before any hit
+            (3000, hit),
+            (4000, self._cast(11, "Frappe", "2500")),
+            (4000, self._cast(12, "Morsure", source=self.PET)),
+            (20000, self._cast(13, "Buff du couloir")),       # between two pulls
+            (40000, hit),
+            (41000, self._cast(11, "Frappe", "2500")),
+            (60000, "CHALLENGE_MODE_END,2000,1,7,60000"),
+        ])
+        analysis = segments[0].analysis
+        player = analysis.players[self.GUID]
+        self.assertEqual(len(player.cast_log), player.casts)
+        self.assertEqual([entry[1] for entry in player.cast_log], [10, 11, 12, 13, 11])
+        self.assertEqual([entry[4] for entry in player.cast_log],
+                         [False, False, True, False, False])
+        groups = split_by_pull(player.cast_log, analysis.blocks, analysis.pull_gap_ms)
+        self.assertEqual([[entry[1] for entry in casts] for _block, casts in groups],
+                         [[10, 11, 12], [11], [13]])
+        self.assertIsNone(groups[-1][0])
+
+    def test_the_page_shows_the_order_and_filters_it_without_a_script(self):
+        import tempfile
+
+        payloads = [(0, 'ENCOUNTER_START,1,"Golem",16,5,2000')]
+        for i in range(10):
+            payloads.append((i * 2500, self._cast(100, "Frappe", "2500")))
+            payloads.append((i * 2500 + 5, self._cast(200, "Eclat")))
+        payloads.append((30000, 'ENCOUNTER_END,1,"Golem",16,5,1,30000'))
+        segments = self._run(payloads)
+        log, _fixture = run_fixture()
+        for links in ("fr", "off"):
+            with tempfile.TemporaryDirectory() as directory:
+                target = os.path.join(directory, "r.html")
+                ReportWriter(log, segments, target, wowhead=links).write()
+                with open(target, encoding="utf-8") as handle:
+                    page = handle.read()
+            self.assertIn("Ordre des sorts, pull par pull", page)
+            self.assertNotIn("<script", page)
+            self.assertIn(".h200:checked~.pulls .c200{display:none}", page)
+            # The triggered one is hidden when the page opens, the other not.
+            self.assertRegex(page, r"<input type=checkbox class='hf h200' id='o\d+-200' checked>")
+            self.assertRegex(page, r"<input type=checkbox class='hf h100' id='o\d+-100'>")
+            self.assertIn("Probablement déclenchés automatiquement", page)
+            if links == "fr":
+                self.assertIn("href='https://www.wowhead.com/fr/spell=100' title='0:00 Frappe'>Fr<",
+                              page)
+            else:
+                self.assertNotIn("wowhead.com", page)
+
+    def test_the_order_can_be_left_out_for_a_lighter_page(self):
+        import tempfile
+
+        from logswow.cli import main
+
+        with tempfile.TemporaryDirectory() as directory:
+            full, light = (os.path.join(directory, name) for name in ("a.html", "b.html"))
+            self.assertEqual(main(["report", FIXTURE, "-q", "-o", full]), 0)
+            self.assertEqual(main(["report", FIXTURE, "-q", "-o", light, "--sans-sequence"]), 0)
+            with open(full, encoding="utf-8") as a, open(light, encoding="utf-8") as b:
+                self.assertIn("Ordre des sorts", a.read())
+                self.assertNotIn("Ordre des sorts", b.read())
+
+    def test_a_damaged_encounter_name_does_not_stop_the_report(self):
+        """Found by fuzzing while this section was written: a bracket where
+        the encounter's name should be made the name a list, and every
+        command stopped on it. The fight is kept, under a plain name."""
+        import tempfile
+
+        segments = self._run([
+            (0, 'ENCOUNTER_START,1,[Golem,x],16,5,2000'),
+            (1000, self._cast(100, "Frappe", "2500")),
+            (2000, 'ENCOUNTER_END,1,[Golem,x],16,5,1,2000'),
+            (3000, 'CHALLENGE_MODE_START,[Donjon],2000,500,7,[9]'),
+            (4000, "CHALLENGE_MODE_END,2000,1,7,1000"),
+        ])
+        self.assertEqual([s.name for s in segments], ["Rencontre", "Donjon"])
+        log, _fixture = run_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "r.html")
+            ReportWriter(log, segments, target).write()
+            self.assertTrue(os.path.getsize(target) > 0)
+
+    def test_a_line_whose_event_name_is_not_a_name_is_one_problem(self):
+        """Also found by fuzzing: a damaged line starting with a bracket
+        gave an event "name" that was a list, and the layout vote stopped
+        the whole read on it."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "journal.txt")
+            with open(FIXTURE, encoding="utf-8") as source:
+                lines = source.read().splitlines()
+            lines.insert(3, "9/18/2026 23:59:00.500  [abime],1,2")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("\n".join(lines) + "\n")
+            log = LogFile(path)
+            segments = Splitter(analysis_factory=SegmentAnalysis)
+            for event in log.events():
+                segments.feed(event)
+            self.assertEqual(len(segments.finish()), 3)
+            self.assertEqual(log.problems.by_reason.get("nom d'evenement illisible"), 1)
+
+    def test_a_spell_name_becomes_two_letters(self):
+        from logswow.report_casts import abbreviate, spell_colour
+
+        self.assertEqual(abbreviate("Estropier"), "Es")
+        self.assertEqual(abbreviate("Lame du Vide"), "Lv")
+        self.assertEqual(abbreviate("Coup de pied du soleil levant"), "Cp")
+        self.assertEqual(abbreviate("Éclair de givre"), "Ég")
+        self.assertEqual(abbreviate(""), "?")
+        self.assertEqual(spell_colour(100), spell_colour(100))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -697,6 +697,49 @@ invariant holding; tests green on Python 3.8 to 3.13; flake8, pyflakes
 and bandit silent; no function above complexity C; coverage 84% -> 90%
 (`diagnose` 7% -> 96%, `cli.py` 59% -> 79%).
 
+### The cast order by pull, and the spells nobody pressed (2026-09-27)
+
+Asked for by the owner from a screenshot of an online site's "cast order
+by pull". Every cast of a player is kept in order (`Player.cast_log`,
+bounded by `castorder.MAX_CAST_LOG`, 20,000 per segment against about
+3,700 in a Mythic+ key) and drawn at the bottom of their panel, pull by
+pull, by `report_casts.py`. Three decisions, each for a reason already
+in this file:
+
+- **Chips, not icons.** Icons would have to be fetched when the page
+  opens. A chip is a fixed colour from the spell id (32% lightness keeps
+  white text at 4.58:1 or better on every hue) and two letters; hovering
+  gives the name and the moment, a click opens Wowhead.
+- **The filter is CSS.** A hidden checkbox per spell and one rule per
+  spell, `.h123:checked~.pulls .c123{display:none}`. Checked in Chromium:
+  the page has no script, triggered spells are hidden on load (0 of 61
+  visible), one click shows them, one click hides any other spell.
+- **"Probably triggered" is measured, stated on the page, and undone in
+  one click.** The file writes a proc exactly like a press. Timing alone
+  (another spell within 20 ms) misread pressed spells -- a macro fires a
+  healthstone or a trinket beside a cooldown. Adding "never paid any
+  power" and "median gap of 30 s at most", with 8 casts at least, leaves
+  exactly the five genuine ones in two real logs (medians 0.0-21.1 s)
+  and none of the macro'd ones (35.9-186.7 s). `castorder.py` holds the
+  numbers. The power cost comes in three shapes, "0", "2500" and
+  "3|1500" for two resources, all read by `Advanced.paid_power`.
+
+A cast belongs to a pull from one pull gap before its first hit to one
+pull gap after its last; the first version stopped at the last hit and
+57 casts of a real key fell "between the pulls", most a second after one
+ended. Now 99%+ of casts land in a pull, and the invariant checker
+proves every cast is placed exactly once. The section roughly doubles a
+page (a real raid night: 4.3 MB -> 8.4 MB, peak memory 58 -> 90 MB), so
+`--sans-sequence` leaves it out. Every existing number was unchanged by
+the feature, checked with the snapshot on four inputs.
+
+Writing it, **fuzzing found two crashes older than it**: a bracket where
+an encounter's or a key's name should be made the name a list, and a
+line whose event name started with a bracket stopped the layout vote.
+Names now fall back to "Rencontre"/"Donjon" (`segment._text`), and such
+a line is one read problem, "nom d'evenement illisible". 3,000 rounds
+over ten seeds after that, no exception.
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -756,6 +799,8 @@ logswow/timeline.py     timeline, pooled health, main target (TimelineLedger)
 logswow/report.py       one self-contained HTML file: page, fights, pulls, rankings
 logswow/report_timeline.py  the SVG timeline
 logswow/report_panels.py    per-player and per-enemy panels
+logswow/report_casts.py     the cast order by pull: chips, CSS-only filter
+logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
 logswow/fmt.py          formatters (compact, percent, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
 logswow/cli.py          report / list / diagnose / where
@@ -823,7 +868,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 165 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 173 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestFifthAuditFindings`), and each one was regression-checked the

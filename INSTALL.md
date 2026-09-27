@@ -250,4 +250,6 @@ publié, calculez la vôtre et comparez :
 - **Les courbes de vie sont vides** : la journalisation de combat avancée
   n'était pas cochée.
 - **Un rapport énorme** : une soirée entière fait plusieurs mégaoctets.
-  `list` numérote les combats, et `report … --only 5` n'en garde qu'un.
+  `list` numérote les combats, et `report … --only 5` n'en garde qu'un ;
+  `--sans-sequence` retire l'ordre des sorts et divise la page par deux
+  environ.

@@ -192,6 +192,7 @@ class PanelsMixin:
             "Plus longues pauses",
             "<ul class=chain>%s</ul>" % (gaps or "<li class=dim>Aucune pause notable.</li>"),
         ))
+        sections.append(("", self._cast_order(analysis, player)))
 
         notes = []
         if player.interrupted_spells:

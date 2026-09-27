@@ -50,7 +50,7 @@ python3 -m logswow where
 | Commande | Ce qu'elle fait |
 |---|---|
 | `report FICHIER` | écrit la page HTML complète |
-| | `-o` le nom du fichier, `--only` un seul combat, `--pull-gap` le découpage des pulls, `--wowhead` la langue des liens, `--force` pour écraser un fichier qui n'est pas un rapport |
+| | `-o` le nom du fichier, `--only` un seul combat, `--pull-gap` le découpage des pulls, `--wowhead` la langue des liens, `--sans-sequence` sans l'ordre des sorts, `--force` pour écraser un fichier qui n'est pas un rapport |
 | `list FICHIER` | liste les combats du fichier, une ligne chacun |
 | `diagnose FICHIER` | montre ce que le lecteur a compris, et ce qu'il n'a pas compris |
 | `where` | cherche le dossier `Logs` du jeu |
@@ -122,6 +122,18 @@ lu serait pire que pas de rapport du tout.
   subis, ce qu'il a lui-même appliqué et sur qui, ses interruptions et
   dissipations avec le nom de ce qui a été coupé, et ses plus longues
   pauses sans lancer de sort.
+- **L'ordre des sorts, pull par pull**, en bas du panneau de chaque
+  joueur : chaque sort lancé, dans l'ordre, sous forme de pastille de
+  couleur fixe portant ses deux premières lettres. Le survol donne son nom
+  et l'instant où il a été lancé, un clic ouvre Wowhead. La légende sert
+  de filtre : un clic sur un sort masque ou réaffiche toutes ses
+  pastilles, sans aucun script dans la page. Les sorts de ses invocations
+  sont à part, en pastilles rondes. Ceux que le jeu déclenche tout seul
+  sont écrits dans le journal exactement comme un sort appuyé ; ceux qui
+  en ont toutes les marques (lancés en même temps qu'un autre sort, sans
+  coût, très souvent) sont regroupés à part et masqués au départ, et un
+  clic les réaffiche. `--sans-sequence` retire cette section, pour une
+  page environ deux fois plus légère.
 - **Par ennemi**, de la même façon : les unités portant le même nom sont
   regroupées, avec ce qu'elles infligent et à qui, ce qu'elles ont subi
   et de qui, les sorts qu'elles ont lancés, et combien ont été tuées.
@@ -203,7 +215,7 @@ python3 tools/check-invariants.py WoWCombatLog.txt
 ln -s ../../tools/pre-push .git/hooks/pre-push     # une fois, pour les contributeurs
 ```
 
-Les tests, 165, tournent sans dépendance ni réseau sur
+Les tests, 173, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 

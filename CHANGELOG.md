@@ -3,6 +3,39 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.3.0 — 2026-09-27
+
+**L'ordre des sorts de chaque joueur, pull par pull.**
+
+- En bas du panneau de chaque joueur, chaque sort lancé dans l'ordre,
+  regroupé par pull comme sur les sites d'analyse : « Pull 01 — trash
+  (9 ennemis) », « Pull 06 — Mchimba l'Embaumeur, échec », avec l'heure
+  de début et de fin et le nombre de sorts.
+- Chaque sort est une pastille de couleur fixe portant ses deux premières
+  lettres. Le survol donne son nom et l'instant du lancer ; un clic ouvre
+  sa page Wowhead. Pas d'icônes : elles obligeraient la page à se
+  connecter à Internet en s'ouvrant, ce qu'elle ne fait jamais.
+- La légende est un filtre : un clic sur un sort masque ou réaffiche
+  toutes ses pastilles. La page ne contient toujours aucun script.
+- Les sorts des invocations sont à part, en pastilles rondes.
+- Les sorts que le jeu déclenche tout seul sont regroupés à part et
+  masqués au départ. Le journal les écrit comme un sort appuyé ; ceux qui
+  en ont toutes les marques (au moins 8 fois dans le combat, à 80 % en
+  même temps qu'un autre sort, sans jamais coûter de ressource, au plus
+  toutes les 30 secondes) sont lus comme déclenchés. Mesuré sur deux vrais
+  journaux : la règle retrouve exactement les cinq sorts automatiques
+  qu'ils contiennent, et aucun sort appuyé, même par une macro. Un clic
+  les réaffiche.
+- `--sans-sequence` retire cette section : la page d'une soirée de raid
+  passe de 8,4 Mo à 4,3 Mo.
+
+**Corrigé**
+
+- Un fichier abîmé dont une ligne de début de rencontre ou de clé, ou le
+  nom d'un événement, contenait un crochet arrêtait tout le rapport. La
+  ligne est désormais comptée comme incomprise, et le combat garde un nom
+  générique.
+
 ## 0.2.0 — 2026-09-27
 
 Version issue d'un audit complet, mené sur deux vrais journaux (une

@@ -19,6 +19,7 @@ from .fmt import NBSP
 from .fmt import bar_row as _bar_row
 from .specs import label_of
 from .timestamps import format_duration
+from .report_casts import CastOrderMixin, chip_rules
 from .report_panels import PanelsMixin
 from .report_timeline import TimelineMixin
 from .wowhead import resolve
@@ -110,22 +111,32 @@ def _council_note(names):
             "comptes sur le boss." % (", ".join(fmt.esc(name) for name in names), NBSP))
 
 
-class ReportWriter(TimelineMixin, PanelsMixin):
+class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin):
     """Writes the whole page for a list of segments."""
 
-    def __init__(self, log, segments, out_path, wowhead="auto"):
+    def __init__(self, log, segments, out_path, wowhead="auto", cast_order=True):
         self.log = log
         self.segments = segments
         self.out_path = out_path
         # None disables spell links entirely; "" is English, "fr" French...
         self.wowhead_prefix = resolve(wowhead)
+        # Filled while the page is built: every spell a cast-order chip
+        # shows, whose colour and filter rule the <head> then carries.
+        self._spell_ids = set()
+        self._cast_panels = 0
+        # The cast order about doubles a page (8.4 MB instead of 4.3 for a
+        # real raid night); --sans-sequence leaves it out.
+        self.cast_order = cast_order
 
     def write(self):
         """Assemble the page and put it in place in one step; returns its path."""
-        parts = [self._head(), self._overview()]
+        body = [self._overview()]
         for segment in self.segments:
-            parts.append(self._segment(segment))
-        parts.append(self._footer())
+            body.append(self._segment(segment))
+        body.append(self._footer())
+        # The head comes last: it carries one CSS rule per spell that a
+        # cast-order chip shows, and those are known only now.
+        parts = [self._head()] + body
         # Written beside the target and moved into place in one step: a
         # full disk or an interrupt halfway leaves the previous report
         # whole, never a truncated page in its place.
@@ -145,8 +156,9 @@ class ReportWriter(TimelineMixin, PanelsMixin):
         return (
             "<!doctype html><html lang=fr><head><meta charset=utf-8>"
             '<meta name=viewport content="width=device-width,initial-scale=1">'
-            "<title>LogsWoW — %s</title><style>%s</style></head><body><div class=wrap>"
-            % (fmt.esc(os.path.basename(self.log.path)), CSS)
+            "<title>LogsWoW — %s</title><style>%s%s</style></head><body><div class=wrap>"
+            % (fmt.esc(os.path.basename(self.log.path)), CSS,
+               chip_rules(self._spell_ids) if self._spell_ids else "")
         )
 
     def _overview(self):

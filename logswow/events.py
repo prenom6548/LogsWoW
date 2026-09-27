@@ -268,6 +268,16 @@ class Advanced:
         self.level = as_int(tail(-1), 0)
 
     @property
+    def paid_power(self):
+        """True when the cast this block describes spent any resource.
+
+        Measured on a real Mythic+ log, the field comes in three shapes:
+        "0", a whole number, and several numbers joined by "|" for a
+        player with two resources ("3|1500"). Any positive part is a cost.
+        """
+        return any(as_int(part, 0) > 0 for part in str(self.power_cost).split("|"))
+
+    @property
     def health_fraction(self):
         if self.max_hp > 0:
             return max(0.0, min(1.0, self.current_hp / self.max_hp))

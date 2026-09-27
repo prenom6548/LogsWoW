@@ -47,6 +47,17 @@ DIFFICULTY_NAMES = {
 }
 
 
+def _text(fields, index, default):
+    """A field that must be a name: text, or the default.
+
+    A damaged line can carry a bracket where a name should be, and the
+    field then arrives as a list. Found by fuzzing on 2026-09-27: the
+    encounter was named with a list, and the whole report stopped on it.
+    """
+    value = fields[index] if len(fields) > index else ""
+    return value if isinstance(value, str) and value else default
+
+
 def difficulty_name(difficulty_id):
     """A difficulty id as the reader says it, or its number when unknown."""
     if not difficulty_id:
@@ -189,7 +200,7 @@ class Splitter:
     def _open_encounter(self, event):
         # ENCOUNTER_START,encounterID,encounterName,difficultyID,groupSize,instanceID
         fields = event.fields
-        name = fields[2] if len(fields) > 2 else "Rencontre"
+        name = _text(fields, 2, "Rencontre")
         segment = self._new("encounter", name, event.ts)
         segment.encounter_id = as_int(fields[1] if len(fields) > 1 else 0)
         segment.difficulty_id = as_int(fields[3] if len(fields) > 3 else 0)
@@ -202,7 +213,7 @@ class Splitter:
     def _open_keystone(self, event):
         # CHALLENGE_MODE_START,zoneName,instanceID,challengeModeID,keystoneLevel,[affixes]
         fields = event.fields
-        name = fields[1] if len(fields) > 1 else "Donjon"
+        name = _text(fields, 1, "Donjon")
         segment = self._new("keystone", name, event.ts)
         segment.instance_id = as_int(fields[2] if len(fields) > 2 else 0)
         segment.key_level = as_int(fields[4] if len(fields) > 4 else 0)

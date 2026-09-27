@@ -206,6 +206,9 @@ def detect_layout(samples):
 # exactly the bug this class used to have.
 NO_SEPARATOR = "ligne sans le separateur de deux espaces"
 BAD_TIMESTAMP = "horodatage illisible"
+# A line whose first field is not a name: a damaged line starting with a
+# bracket, found by fuzzing on 2026-09-27 -- the layout vote stopped on it.
+NO_EVENT_NAME = "nom d'evenement illisible"
 
 
 class ParseProblems:
@@ -300,6 +303,10 @@ class LogFile:
                 timestamp_text, fields = split_line(line)
                 if fields is None:
                     self.problems.note(NO_SEPARATOR, line_number=self.line_count,
+                                       text=line)
+                    continue
+                if not fields or not isinstance(fields[0], str) or not fields[0]:
+                    self.problems.note(NO_EVENT_NAME, line_number=self.line_count,
                                        text=line)
                     continue
                 ts = clock.read(timestamp_text)

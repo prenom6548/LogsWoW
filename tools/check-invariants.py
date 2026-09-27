@@ -26,6 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 from logswow.analysis import SegmentAnalysis  # noqa: E402
+from logswow.castorder import split_by_pull  # noqa: E402
 from logswow.parse import LogFile  # noqa: E402
 from logswow.segment import Splitter  # noqa: E402
 
@@ -185,7 +186,22 @@ def _interrupts(a, players):
               "%s: dispelled spells == dispels" % p.short_name)
 
 
-FAMILIES = (_damage, _healing, _taken, _pulls, _deaths, _bounds, _shields, _interrupts)
+def _casts(a, players):
+    """The cast order: every cast exactly once, and triggered spells among them."""
+    for p in players:
+        if not p.cast_log_full:
+            check(len(p.cast_log) == p.casts, "%s: cast order == casts" % p.short_name,
+                  "%d vs %d" % (len(p.cast_log), p.casts))
+        logged = {entry[1] for entry in p.cast_log}
+        check(p.triggered <= logged, "%s: triggered spells were cast" % p.short_name)
+        placed = sum(len(casts) for _block, casts in
+                     split_by_pull(p.cast_log, a.blocks, a.pull_gap_ms))
+        check(placed == len(p.cast_log), "%s: every cast in one pull or between" % p.short_name,
+              "%d vs %d" % (placed, len(p.cast_log)))
+
+
+FAMILIES = (_damage, _healing, _taken, _pulls, _deaths, _bounds, _shields, _interrupts,
+            _casts)
 
 
 def audit_segment(segment):

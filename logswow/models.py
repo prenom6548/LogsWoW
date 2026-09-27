@@ -222,7 +222,7 @@ class Player:
         "damage_to_bosses",
         "first_cast_ts", "last_cast_ts", "downtime_ms",
         "longest_gaps", "recent", "hp_fraction", "min_hp_fraction", "max_hp",
-        "active_ms", "died_at", "label",
+        "active_ms", "died_at", "label", "cast_log", "cast_log_full", "triggered",
     )
 
     def __init__(self, guid, name):
@@ -282,6 +282,12 @@ class Player:
         # The name the page shows: the realm-less name, made unique
         # within the segment ("Tisane", "Tisane (2)") by SegmentAnalysis.
         self.label = ""
+        # Every cast in order: (ts, spell id, name, paid, from a summon).
+        # Bounded by castorder.MAX_CAST_LOG; `cast_log_full` says it was.
+        self.cast_log = []
+        self.cast_log_full = False
+        # Spell ids castorder.classify_triggered reads as not pressed.
+        self.triggered = frozenset()
 
     @property
     def short_name(self):
