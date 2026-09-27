@@ -148,17 +148,6 @@ def as_int(value, default=0):
         return default
 
 
-def as_float(value, default=0.0):
-    if isinstance(value, (int, float)):
-        return float(value)
-    if not isinstance(value, str) or not value or value == "nil":
-        return default
-    try:
-        return float(value)
-    except ValueError:
-        return default
-
-
 def as_bool(value):
     """The log writes 1/0, and sometimes nil/true/false."""
     if isinstance(value, str):

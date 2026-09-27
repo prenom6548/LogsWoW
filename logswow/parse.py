@@ -57,24 +57,8 @@ def _overkill_evidence(samples, offset, advanced_width):
     return at_one, at_two
 
 
-def detect_layout(samples):
-    """Work out how this file lays its fields out, by counting.
-
-    `samples` is a list of already-split field lists. Three questions get
-    answered, in order, each from the file's own lines:
-
-    1. Is the addon-only `hideCaster` field present? (It should not be.)
-    2. How wide is the Advanced Combat Logging block? Documented as 17,
-       measured as 19 on a 12.1.0 client.
-    3. Does the damage suffix carry a baseAmount before overkill? Found
-       by looking for where the -1 lives: a hit that killed nothing
-       writes -1 as its overkill, and almost no hit kills anything.
-
-    Returns a Layout carrying the answers and the evidence for each, so
-    `diagnose` can show its work instead of asking to be believed.
-    """
-    evidence = {}
-
+def _measure_hide_caster(samples, evidence):
+    """Question 1 of `detect_layout`: is the addon-only field there?"""
     # 1 -- hideCaster.
     with_field = without = 0
     for fields in samples:
@@ -86,8 +70,41 @@ def detect_layout(samples):
             with_field += 1
     hide_caster = with_field > without
     evidence["hide_caster"] = {"absent": without, "present": with_field}
-    offset = 2 if hide_caster else 1
+    return hide_caster
 
+
+def _break_width_tie(tied, samples, offset):
+    """Several widths are backed equally: returns (width, how it was settled)."""
+    tiebreak = ""
+    # Every candidate is backed by the same events -- which is
+    # what a file with a single kind of damage line looks like.
+    # Ask the file a *different* question: where does the overkill
+    # -1 land? A log of nothing but SPELL_DAMAGE used to answer
+    # this with "the widest candidate" and read every amount off
+    # the overkill field: 30 hits of 5,000 came out as -30.
+    scores = {
+        width: sum(_overkill_evidence(samples, offset, width))
+        for width in tied
+    }
+    if max(scores.values()) > 0:
+        tiebreak = "marqueur -1 : %s" % scores
+        tied = [
+            width for width in tied
+            if scores[width] == max(scores.values())
+        ]
+    # Still undecided: the file cannot tell these apart, so the
+    # width this client is known to use beats the largest number.
+    if len(tied) > 1:
+        tiebreak = ((tiebreak + ", ") if tiebreak else "") + (
+            "puis proximite avec %d" % DEFAULT_ADVANCED_WIDTH)
+    width = min(
+        tied, key=lambda width: (abs(width - DEFAULT_ADVANCED_WIDTH), -width)
+    )
+    return width, tiebreak
+
+
+def _measure_advanced_width(samples, offset, evidence):
+    """Question 2 of `detect_layout`: how wide is the advanced block?"""
     # 2 -- the advanced block's width. A line only votes when it cannot
     # be read without an advanced block at all; otherwise events that
     # never carry one (SPELL_CAST_START, the aura events) would vote for
@@ -132,30 +149,7 @@ def detect_layout(samples):
         if len(tied) == 1:
             advanced_width = tied[0]
         else:
-            # Every candidate is backed by the same events -- which is
-            # what a file with a single kind of damage line looks like.
-            # Ask the file a *different* question: where does the overkill
-            # -1 land? A log of nothing but SPELL_DAMAGE used to answer
-            # this with "the widest candidate" and read every amount off
-            # the overkill field: 30 hits of 5,000 came out as -30.
-            scores = {
-                width: sum(_overkill_evidence(samples, offset, width))
-                for width in tied
-            }
-            if max(scores.values()) > 0:
-                tiebreak = "marqueur -1 : %s" % scores
-                tied = [
-                    width for width in tied
-                    if scores[width] == max(scores.values())
-                ]
-            # Still undecided: the file cannot tell these apart, so the
-            # width this client is known to use beats the largest number.
-            if len(tied) > 1:
-                tiebreak = ((tiebreak + ", ") if tiebreak else "") + (
-                    "puis proximite avec %d" % DEFAULT_ADVANCED_WIDTH)
-            advanced_width = min(
-                tied, key=lambda width: (abs(width - DEFAULT_ADVANCED_WIDTH), -width)
-            )
+            advanced_width, tiebreak = _break_width_tie(tied, samples, offset)
     else:
         advanced_width = DEFAULT_ADVANCED_WIDTH
     evidence["advanced_width"] = {
@@ -165,11 +159,38 @@ def detect_layout(samples):
     evidence["advanced_width_chosen"] = advanced_width
     evidence["advanced_width_tiebreak"] = tiebreak
     evidence["advanced_logging"] = bool(width_votes)
+    return advanced_width
+
+
+def detect_layout(samples):
+    """Work out how this file lays its fields out, by counting.
+
+    `samples` is a list of already-split field lists. Three questions get
+    answered, in order, each from the file's own lines:
+
+    1. Is the addon-only `hideCaster` field present? (It should not be.)
+    2. How wide is the Advanced Combat Logging block? Documented as 17,
+       measured as 19 on a 12.1.0 client.
+    3. Does the damage suffix carry a baseAmount before overkill? Found
+       by looking for where the -1 lives: a hit that killed nothing
+       writes -1 as its overkill, and almost no hit kills anything.
+
+    Returns a Layout carrying the answers and the evidence for each, so
+    `diagnose` can show its work instead of asking to be believed.
+    """
+    evidence = {}
+
+    hide_caster = _measure_hide_caster(samples, evidence)
+    offset = 2 if hide_caster else 1
+    advanced_width = _measure_advanced_width(samples, offset, evidence)
 
     # 3 -- the baseAmount field, found by where the -1 sits.
     at_one, at_two = _overkill_evidence(samples, offset, advanced_width)
     has_base_amount = at_two >= at_one
-    evidence["overkill_position"] = {"index 1 (no baseAmount)": at_one, "index 2 (baseAmount)": at_two}
+    evidence["overkill_position"] = {
+        "index 1 (no baseAmount)": at_one,
+        "index 2 (baseAmount)": at_two,
+    }
     evidence["has_base_amount"] = has_base_amount
 
     return Layout(

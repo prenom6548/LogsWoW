@@ -26,7 +26,8 @@ sys.path.insert(0, ROOT)
 from logswow.analysis import SegmentAnalysis  # noqa: E402
 from logswow.events import Advanced, Layout, build_event, decompose  # noqa: E402
 from logswow.parse import LogFile, detect_layout  # noqa: E402
-from logswow.report import ReportWriter, plural  # noqa: E402
+from logswow.fmt import plural  # noqa: E402
+from logswow.report import ReportWriter  # noqa: E402
 from logswow.segment import Splitter, difficulty_name  # noqa: E402
 from logswow.timestamps import TimestampReader, format_duration  # noqa: E402
 from logswow.tokenize import looks_like_guid, split_fields, split_line  # noqa: E402
@@ -1312,7 +1313,7 @@ class TestThirdAuditFindings(unittest.TestCase):
         self.assertEqual((log.line_count, log.event_count, log.problems.total), first)
 
     def test_a_million_is_not_printed_as_a_thousand_thousands(self):
-        from logswow.report import compact
+        from logswow.fmt import compact
 
         self.assertTrue(compact(999999).endswith("M"))
         self.assertEqual(compact(999), "999")
@@ -1388,11 +1389,12 @@ class TestFourthAuditFindings(unittest.TestCase):
         import html as html_module
         import tempfile
 
-        from logswow import report as report_module
+        from logswow import fmt as fmt_module
 
         log, segments = run_fixture()
-        original = report_module.compact
-        report_module.compact = lambda value: str(int(value))
+        # One replacement reaches every table: the page calls fmt.compact.
+        original = fmt_module.compact
+        fmt_module.compact = lambda value: str(int(value))
         try:
             with tempfile.TemporaryDirectory() as directory:
                 target = os.path.join(directory, "rapport.html")
@@ -1400,7 +1402,7 @@ class TestFourthAuditFindings(unittest.TestCase):
                 with open(target, encoding="utf-8") as handle:
                     page = handle.read()
         finally:
-            report_module.compact = original
+            fmt_module.compact = original
 
         def cells(fragment):
             return [
@@ -1746,7 +1748,8 @@ class TestReport(unittest.TestCase):
                 page = handle.read()
         self.assertIn("text-anchor='end'", page)  # the left axis values
         self.assertIn("Courbe et echelle de droite", page)
-        self.assertIn("Golem d&#x27;essai", page)  # the curve says whose health it is  # what the curve is
+        # the curve says whose health it is
+        self.assertIn("Golem d&#x27;essai", page)
 
     def test_a_healers_panel_shows_healing_not_only_damage(self):
         import tempfile

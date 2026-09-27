@@ -5,4 +5,3 @@ __pycache__/
 # and the performance of everyone who was in the group. See PROVENANCE.md.
 WoWCombatLog*.txt
 *.html
-!examples/exemple-combat.txt

@@ -55,7 +55,8 @@ def build():
             or time_text.startswith("02:") else 18
         lines.append("9/%d/2026 %s  %s" % (day, time_text, payload))
 
-    add("23:59:00.000", "COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.1.0,PROJECT_ID,1")
+    add("23:59:00.000",
+        "COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.1.0,PROJECT_ID,1")
     add("23:59:00.100", 'ZONE_CHANGE,2000,"Salle d\'essai",23')
 
     # -- pull 1: a clean kill, with a pet and an interrupt ---------------

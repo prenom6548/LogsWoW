@@ -18,10 +18,17 @@ What this can and cannot answer is worth being plain about:
     on your own machine does not have.
 """
 
-from collections import deque
-
+from .auras import AuraLedger
 from .events import Actor
+from .models import (
+    CombatBlock,
+    Enemy,
+    Player,
+    _bucket,
+    canon,
+)
 from .specs import SPEC_ID_INDEX
+from .timeline import MAX_DAMAGED_UNITS, TimelineLedger
 from .tokenize import as_int
 
 # The client writes this GUID when it has no unit to name. It carries
@@ -32,8 +39,6 @@ from .tokenize import as_int
 NULL_GUID = "0000000000000000"
 
 DOWNTIME_THRESHOLD_MS = 2000
-DEATH_CHAIN_LENGTH = 12
-MAX_TIMELINE_BUCKETS = 400
 
 # How long the group has to stop dealing and taking damage before what
 # follows counts as a new pull. Six seconds is long enough to survive a
@@ -48,300 +53,8 @@ PULL_GAP_MS = 6000
 # orders of magnitude clear.
 MIN_PULL_SHARE = 0.001
 
-# How many enemy units a single pull bothers to name.
-PULL_LABEL_UNITS = 3
 
-# An enemy the group has not touched for this long is no longer "engaged":
-# it walked off, reset, or despawned without a UNIT_DIED, and it must stop
-# weighing on the pooled health curve.
-POOL_STALE_MS = 30000
-
-# Bounds on the per-enemy health sampling, so a 20-minute key cannot grow
-# without limit while it works out which unit was the main target.
-MAX_TRACKED_ENEMIES = 40
-KEEP_TRACKED_ENEMIES = 20
-MAX_HP_SAMPLES = 400
-
-# Damage is banked per enemy GUID while the analysis works out which
-# single unit the group spent the fight killing. That is one entry per
-# distinct unit met, and a long run meets a great many: 150,000 of them
-# on a 48 MB test file, which took peak memory to 56 MB on their own.
-# Only the leaders can ever win that ranking, so the tail is dropped.
-MAX_DAMAGED_UNITS = 5000
-KEEP_DAMAGED_UNITS = 500
-
-# One pull naming the same unit more than this many times is a memory
-# guard, not a real pack: the count beside a name stops being exact
-# above it. No real pull comes close.
-MAX_UNITS_PER_NAME = 1000
-
-
-class Ability:
-    """One spell's contribution, on one side of one ledger."""
-
-    __slots__ = (
-        "spell_id", "name", "total", "hits", "crits", "targets", "overkill",
-        "overheal", "biggest",
-    )
-
-    def __init__(self, spell_id, name):
-        self.spell_id = spell_id
-        self.name = name or "Attaque"
-        self.total = 0
-        self.hits = 0
-        self.crits = 0
-        # Who was on the other end, and for how much. A set only answered
-        # "how many"; the report wants "on whom", which is the same data
-        # for one more integer per name.
-        self.targets = {}
-        self.overkill = 0
-        self.overheal = 0
-        self.biggest = 0
-
-    def add(self, amount, critical=False, target=None, overkill=0, overheal=0):
-        self.total += amount
-        self.hits += 1
-        if critical:
-            self.crits += 1
-        if amount > self.biggest:
-            self.biggest = amount
-        if target:
-            # Bounded: a 20-minute key meets a lot of trash, and one
-            # ability's list of victims is not worth unbounded memory.
-            if target in self.targets or len(self.targets) < 80:
-                self.targets[target] = self.targets.get(target, 0) + amount
-        if overkill > 0:
-            self.overkill += overkill
-        if overheal > 0:
-            self.overheal += overheal
-
-    @property
-    def overheal_rate(self):
-        total = self.total + self.overheal
-        return (self.overheal / total) if total else 0.0
-
-    @property
-    def crit_rate(self):
-        return (self.crits / self.hits) if self.hits else 0.0
-
-    @property
-    def average(self):
-        return (self.total / self.hits) if self.hits else 0
-
-    def ranked_targets(self, limit=10):
-        return sorted(self.targets.items(), key=lambda item: -item[1])[:limit]
-
-
-class Enemy:
-    """Every unit sharing a name, added together.
-
-    Aggregating by name rather than by GUID is what makes this readable:
-    a key meets thirty-two units called "Diablotin sauvage" and nobody
-    wants thirty-two panels. A boss has one unit and one name, so the
-    same treatment gives exactly what is wanted there too.
-    """
-
-    __slots__ = (
-        "name", "units", "damage_done", "damage_taken", "deaths", "casts",
-        "damage_by_ability", "taken_by_ability", "casts_by_spell",
-    )
-
-    def __init__(self, name):
-        self.name = name
-        self.units = set()
-        self.damage_done = 0
-        self.damage_taken = 0
-        self.deaths = 0
-        self.casts = 0
-        self.damage_by_ability = {}
-        self.taken_by_ability = {}
-        self.casts_by_spell = {}
-
-    @property
-    def count(self):
-        return len(self.units)
-
-
-class CombatBlock:
-    """One pull: a stretch of fighting with no long silence inside it.
-
-    A boss encounter is one of these. A Mythic+ key is a few dozen, which
-    is the whole reason this exists -- "what did we actually pull" is a
-    question the file can answer and a single 20-minute total cannot.
-    """
-
-    __slots__ = (
-        "start_ts", "end_ts", "damage_done", "damage_boss", "damage_taken",
-        "taken_from_boss", "deaths", "enemies",
-    )
-
-    def __init__(self, start_ts):
-        self.start_ts = start_ts
-        self.end_ts = start_ts
-        self.damage_done = 0
-        self.damage_boss = 0        # the part of damage_done that hit a boss
-        self.damage_taken = 0
-        self.taken_from_boss = 0    # the part of damage_taken a boss dealt
-        self.deaths = 0
-        self.enemies = {}
-
-    @property
-    def damage_trash(self):
-        return self.damage_done - self.damage_boss
-
-    def has_boss(self, boss_names):
-        return any(canon(name) in boss_names for name in self.enemies)
-
-    def note_enemy(self, guid, name):
-        # "nil" is what the client writes for a unit with no name, which
-        # is not an enemy worth listing in a pull.
-        if not name or name == "nil":
-            return
-        seen = self.enemies.get(name)
-        if seen is None:
-            if len(self.enemies) >= 24:
-                return
-            seen = set()
-            self.enemies[name] = seen
-        if len(seen) < MAX_UNITS_PER_NAME:
-            seen.add(guid)
-
-    @property
-    def duration_ms(self):
-        return max(0, self.end_ts - self.start_ts)
-
-    def label(self, limit=PULL_LABEL_UNITS, boss_names=frozenset()):
-        """'Voyou de l'allee x4, Chaman ensorcele x2', bosses first.
-
-        Trash is often dragged onto a boss and killed there, so a pull
-        that contains a boss is named after it before anything else,
-        however many trash units came along.
-        """
-        ranked = sorted(self.enemies.items(), key=lambda item: -len(item[1]))
-        bosses = [item for item in ranked if canon(item[0]) in boss_names]
-        others = [item for item in ranked if canon(item[0]) not in boss_names]
-        pieces = []
-        for name, guids in bosses:
-            pieces.append("%s x%d" % (name, len(guids)) if len(guids) > 1 else name)
-        room = max(0, limit - len(bosses))
-        for name, guids in others[:room]:
-            pieces.append("%s x%d" % (name, len(guids)) if len(guids) > 1 else name)
-        if len(others) > room:
-            pieces.append("et %d autre(s)" % (len(others) - room))
-        return ", ".join(pieces)
-
-    def boss_label(self, boss_names):
-        """Only the bosses in this pull, or ''."""
-        names = [name for name in self.enemies if canon(name) in boss_names]
-        return ", ".join(sorted(names))
-
-
-class Player:
-    """One friendly actor's whole ledger for one segment."""
-
-    __slots__ = (
-        "guid", "name", "damage_done", "healing_done", "overhealing",
-        "damage_taken", "absorbed_taken", "deaths", "interrupts", "dispels",
-        "casts", "damage_by_ability", "healing_by_ability", "taken_by_ability",
-        "casts_by_ability", "healing_to", "interrupted_spells", "dispelled_spells",
-        "spec_id", "auras_gained", "auras_applied", "casts_by_spell",
-        "_gained_until", "_applied_until", "absorb_done", "pet_casts",
-        "absorb_by_ability", "pet_damage_taken",
-        "damage_to_bosses",
-        "first_cast_ts", "last_cast_ts", "downtime_ms",
-        "longest_gaps", "recent", "hp_fraction", "min_hp_fraction", "max_hp",
-        "active_ms", "died_at",
-    )
-
-    def __init__(self, guid, name):
-        self.guid = guid
-        self.name = name
-        self.damage_done = 0
-        self.healing_done = 0
-        self.overhealing = 0
-        self.damage_taken = 0
-        self.absorbed_taken = 0
-        self.deaths = 0
-        self.interrupts = 0
-        self.dispels = 0
-        self.casts = 0
-        # Casts by this player's own summons, included in `casts` above.
-        self.pet_casts = 0
-        # Damage this player's shields prevented on somebody. Warcraft
-        # Logs adds this into "healing"; it is kept apart here, because
-        # the file reports them as two different things and a shield that
-        # ate 90M is worth seeing as itself.
-        self.absorb_done = 0
-        self.absorb_by_ability = {}
-        # What this player's summons took, kept out of `damage_taken`.
-        # A mage whose elemental is being chewed on has not taken that
-        # damage: nobody healed them for it, their health never moved,
-        # and on one real key it was 12% of what the report showed them
-        # as having survived.
-        self.pet_damage_taken = 0
-        self.damage_by_ability = {}
-        self.healing_by_ability = {}
-        self.taken_by_ability = {}
-        self.casts_by_ability = {}
-        self.healing_to = {}
-        self.interrupted_spells = {}
-        self.dispelled_spells = {}
-        self.spec_id = 0
-        self.damage_to_bosses = 0
-        # (spell, who put it there, BUFF/DEBUFF) -> milliseconds
-        self.auras_gained = {}
-        # (spell, on whom) -> milliseconds
-        self.auras_applied = {}
-        # The far end of what each of those has already counted, so two
-        # instances of one aura running at the same time are counted once.
-        self._gained_until = {}
-        self._applied_until = {}
-        self.casts_by_spell = {}
-        self.first_cast_ts = None
-        self.last_cast_ts = None
-        self.downtime_ms = 0
-        self.longest_gaps = []
-        self.recent = deque(maxlen=DEATH_CHAIN_LENGTH)
-        self.hp_fraction = None
-        self.min_hp_fraction = None
-        self.max_hp = 0
-        self.active_ms = 0
-        self.died_at = []
-
-    @property
-    def short_name(self):
-        return self.name.split("-", 1)[0] if self.name else self.guid
-
-    @property
-    def overheal_rate(self):
-        total = self.healing_done + self.overhealing
-        return (self.overhealing / total) if total else 0.0
-
-
-def canon(name):
-    """A name as the log writes it on a unit, whichever apostrophe it used.
-
-    ENCOUNTER_START writes "Xathuux l\u2019Annihilateur" with a curly
-    apostrophe and the unit's own events write "Xathuux l'Annihilateur"
-    with a straight one, on the same client in the same file. Matching
-    the two is what tells a boss pull from the trash funnelled into it,
-    so every comparison of names goes through here.
-    """
-    if not name:
-        return ""
-    return name.replace("\u2019", "'").replace("\u2018", "'").strip()
-
-
-def _bucket(store, spell_id, name):
-    key = (spell_id, name or "Attaque")
-    ability = store.get(key)
-    if ability is None:
-        ability = Ability(spell_id, name)
-        store[key] = ability
-    return ability
-
-
-class SegmentAnalysis:
+class SegmentAnalysis(AuraLedger, TimelineLedger):
     """Accumulates one segment. `feed` per event, `finish` once."""
 
     def __init__(self, segment, pull_gap_ms=PULL_GAP_MS):
@@ -462,43 +175,24 @@ class SegmentAnalysis:
             return True
         return False
 
-    def _bucket_index(self, ts):
-        """Which timeline bucket a moment falls in, never a negative one.
-
-        A log is not perfectly ordered -- a line can carry a timestamp
-        earlier than the first event of its own segment. That gave a
-        negative index, `timeline_series` only walks from zero, and the
-        damage on that line vanished from the graph while staying in the
-        player's row: 4,000 taken, 3,000 drawn. It is counted in the
-        first bucket instead, which is where it happened to within one
-        bucket's width.
-        """
-        return max(0, (ts - self.first_ts) // self._bucket_ms)
-
-    def _timeline_add(self, ts, key, value):
-        if self.first_ts is None:
-            return
-        index = self._bucket_index(ts)
-        bucket = self._timeline.get(index)
-        if bucket is None:
-            bucket = {"damage_taken": 0, "healing": 0, "deaths": 0}
-            self._timeline[index] = bucket
-        bucket[key] = bucket.get(key, 0) + value
-
     # -- the stream -------------------------------------------------------
 
     def feed(self, event):
+        """Route one event to the ledgers it concerns.
+
+        Every event of the segment passes through here once, in file
+        order. The two that carry no unit pair are handled first; every
+        other one goes to the reader for its suffix (`_BY_SUFFIX`, at the
+        end of the class) and then, if it describes a hostile unit's
+        health, to the sampling that picks the main target's curve.
+        """
         self.events_seen += 1
         subevent = event.subevent
         if subevent == "COMBATANT_INFO":
             self._feed_combatant_info(event)
             return
         if subevent == "ENCOUNTER_START":
-            # A key sees the boss pulls it contains; their names are what
-            # lets a trash pull that funnels into a boss be told apart.
-            fields = event.fields
-            if len(fields) > 2 and isinstance(fields[2], str) and fields[2]:
-                self.boss_names.add(canon(fields[2]))
+            self._feed_encounter_start(event)
             return
         if event.advanced is not None:
             self._feed_pool(event)
@@ -506,97 +200,16 @@ class SegmentAnalysis:
         if self.first_ts is None:
             self.first_ts = event.ts
         self.last_ts = event.ts
-        subevent = event.subevent
-
-        # Pets: SPELL_SUMMON names the owner directly, and the advanced
-        # block carries an ownerGUID on everything a pet does. Both are
-        # used, because a pet summoned before the pull has no summon line
-        # inside the segment.
-        if subevent == "SPELL_SUMMON" and event.source.is_player and event.dest.guid:
-            self.pet_owner[event.dest.guid] = event.source.guid
-        if event.advanced is not None:
-            owner = event.advanced.owner_guid
-            info = event.advanced.info_guid
-            # Only a player can own a pet, and only a pet or a guardian can
-            # be owned. Without both checks a stray ownerGUID turns a boss
-            # into somebody's minion and its damage into theirs.
-            if (
-                owner.startswith("Player-")
-                and info.startswith(("Pet-", "Vehicle-", "Creature-"))
-                and info not in self.pet_owner
-            ):
-                self.pet_owner[info] = owner
+        self._learn_owner(event)
 
         kind = event.suffix_kind
-
-        # SWING_DAMAGE and SWING_DAMAGE_LANDED are the same hit written
-        # twice: on a real 12.1.0 log, 5,943 of 6,135 pairs sharing a
-        # timestamp, a source and a target carried identical amounts, so
-        # adding both doubled every melee total. _LANDED is kept for what
-        # only it has -- its advanced block describes the *target* (7,561
-        # of 7,561), where SWING_DAMAGE's describes the attacker -- and it
-        # is never added to a total.
-        if kind == "_DAMAGE_LANDED":
-            self._feed_landed(event)
-        elif kind in ("_DAMAGE", "_SHIELD", "_SPLIT"):
-            self._feed_damage(event)
-        elif kind == "_HEAL":
-            self._feed_heal(event)
-        elif kind == "_CAST_SUCCESS":
-            if event.source.is_hostile and not event.source.is_player:
-                self._resolve_enemy_cast(event.source.guid, event.spell_id, "aboutis")
-                enemy = self._enemy(event.source)
-                if enemy is not None:
-                    enemy.casts += 1
-                    name = event.spell_name or "?"
-                    if name in enemy.casts_by_spell or len(enemy.casts_by_spell) < 60:
-                        enemy.casts_by_spell[name] = enemy.casts_by_spell.get(name, 0) + 1
-            self._feed_cast(event)
-        elif kind == "_INTERRUPT":
-            self._feed_interrupt(event)
-        elif kind in ("_DISPEL", "_STOLEN"):
-            if self._is_ours(event.source):
-                player = self._player(event.source)
-                player.dispels += 1
-                name = event.extra_spell_name or "?"
-                player.dispelled_spells[name] = player.dispelled_spells.get(name, 0) + 1
-        elif kind == "_CAST_START":
-            self._feed_enemy_cast_start(event)
-        elif kind in ("_AURA_APPLIED", "_AURA_REFRESH"):
-            self._aura_open(event)
-        elif kind == "_AURA_REMOVED":
-            self._aura_close(event)
+        handler = self._BY_SUFFIX.get(kind)
+        if handler is not None:
+            handler(self, event)
         elif subevent == "UNIT_DIED":
-            self._pool.pop(event.dest.guid, None)
-            if not event.dest.is_player and event.dest.is_hostile:
-                enemy = self._enemy(event.dest)
-                if enemy is not None:
-                    enemy.deaths += 1
-            if not event.dest.is_player:
-                for key in [
-                    k for k in self._pending_casts if k[0] == event.dest.guid
-                ]:
-                    del self._pending_casts[key]
-                    self.enemy_casts["cible morte"] += 1
-            self._feed_death(event)
+            self._feed_unit_died(event)
         elif subevent == "SPELL_ABSORBED":
-            amount = event.absorbed_amount
-            if event.dest.is_player and self._is_ours(event.dest):
-                self._player(event.dest).absorbed_taken += amount
-            # ...and credit whoever's shield ate it. For a discipline
-            # priest or a blood death knight this is most of their
-            # output, and it was in no ledger at all until a Warcraft
-            # Logs export of the same key showed 53.8M of it on one
-            # player and this reader showed none.
-            caster_guid, caster_name = event.absorb_caster
-            if amount and caster_guid:
-                shield = Actor(caster_guid, caster_name, 0, 0)
-                if self._is_ours(shield):
-                    spell_id, spell_name = event.absorb_spell
-                    player = self._player(shield)
-                    player.absorb_done += amount
-                    _bucket(player.absorb_by_ability, spell_id, spell_name).add(
-                        amount, False, event.dest.display_name)
+            self._feed_absorbed(event)
 
         # The health curve of whatever the group actually spent the fight
         # killing. Picking the unit with the biggest health pool was a
@@ -613,11 +226,92 @@ class SegmentAnalysis:
         ):
             self._sample_enemy_health(event)
 
+    def _feed_encounter_start(self, event):
+        """A key sees the boss pulls it contains; their names are what
+        lets a trash pull that funnels into a boss be told apart."""
+        fields = event.fields
+        if len(fields) > 2 and isinstance(fields[2], str) and fields[2]:
+            self.boss_names.add(canon(fields[2]))
+
+    def _learn_owner(self, event):
+        """Pets: SPELL_SUMMON names the owner directly, and the advanced
+        block carries an ownerGUID on everything a pet does. Both are
+        used, because a pet summoned before the pull has no summon line
+        inside the segment."""
+        if (event.subevent == "SPELL_SUMMON" and event.source.is_player
+                and event.dest.guid):
+            self.pet_owner[event.dest.guid] = event.source.guid
+        if event.advanced is not None:
+            owner = event.advanced.owner_guid
+            info = event.advanced.info_guid
+            # Only a player can own a pet, and only a pet or a guardian can
+            # be owned. Without both checks a stray ownerGUID turns a boss
+            # into somebody's minion and its damage into theirs.
+            if (
+                owner.startswith("Player-")
+                and info.startswith(("Pet-", "Vehicle-", "Creature-"))
+                and info not in self.pet_owner
+            ):
+                self.pet_owner[info] = owner
+
+    def _feed_cast_success(self, event):
+        """A cast that completed: an enemy's resolves its pending start."""
+        if event.source.is_hostile and not event.source.is_player:
+            self._resolve_enemy_cast(event.source.guid, event.spell_id, "aboutis")
+            enemy = self._enemy(event.source)
+            if enemy is not None:
+                enemy.casts += 1
+                name = event.spell_name or "?"
+                if name in enemy.casts_by_spell or len(enemy.casts_by_spell) < 60:
+                    enemy.casts_by_spell[name] = enemy.casts_by_spell.get(name, 0) + 1
+        self._feed_cast(event)
+
+    def _feed_dispel(self, event):
+        if self._is_ours(event.source):
+            player = self._player(event.source)
+            player.dispels += 1
+            name = event.extra_spell_name or "?"
+            player.dispelled_spells[name] = player.dispelled_spells.get(name, 0) + 1
+
+    def _feed_unit_died(self, event):
+        self._pool.pop(event.dest.guid, None)
+        if not event.dest.is_player and event.dest.is_hostile:
+            enemy = self._enemy(event.dest)
+            if enemy is not None:
+                enemy.deaths += 1
+        if not event.dest.is_player:
+            for key in [
+                k for k in self._pending_casts if k[0] == event.dest.guid
+            ]:
+                del self._pending_casts[key]
+                self.enemy_casts["cible morte"] += 1
+        self._feed_death(event)
+
+    def _feed_absorbed(self, event):
+        """A shield ate a hit: bank it on the victim and on the caster."""
+        amount = event.absorbed_amount
+        if event.dest.is_player and self._is_ours(event.dest):
+            self._player(event.dest).absorbed_taken += amount
+        # ...and credit whoever's shield ate it. For a discipline
+        # priest or a blood death knight this is most of their
+        # output, and it was in no ledger at all until a Warcraft
+        # Logs export of the same key showed 53.8M of it on one
+        # player and this reader showed none.
+        caster_guid, caster_name = event.absorb_caster
+        if amount and caster_guid:
+            shield = Actor(caster_guid, caster_name, 0, 0)
+            if self._is_ours(shield):
+                spell_id, spell_name = event.absorb_spell
+                player = self._player(shield)
+                player.absorb_done += amount
+                _bucket(player.absorb_by_ability, spell_id, spell_name).add(
+                    amount, False, event.dest.display_name)
+
     def _feed_damage(self, event):
+        """One hit: whose ledger it belongs to depends on both ends."""
         amount = event.amount
         source_ours = self._is_ours(event.source)
         dest_ours = self._is_ours(event.dest)
-
         if (
             not source_ours
             and not dest_ours
@@ -625,102 +319,114 @@ class SegmentAnalysis:
             and event.source.is_friendly
             and not event.source.is_hostile
         ):
-            self.orphan_damage += amount
-            name = event.source.short_name or event.source.guid
-            if not name or name == "nil":
-                name = "source non nommee par le journal"
-            if name in self.orphan_sources or len(self.orphan_sources) < 30:
-                self.orphan_sources[name] = self.orphan_sources.get(name, 0) + amount
-
+            self._bank_orphan(event, amount)
         if source_ours and not dest_ours:
-            player = self._player(event.source)
-            player.damage_done += amount
-            ability = _bucket(player.damage_by_ability, event.spell_id, event.spell_name)
-            ability.add(amount, event.is_critical, event.dest.display_name,
-                        max(0, event.overkill))
-            self.total_damage += amount
-            self._enemy_damage[event.dest.guid] = (
-                self._enemy_damage.get(event.dest.guid, 0) + amount
-            )
-            if len(self._enemy_damage) > MAX_DAMAGED_UNITS:
-                self._prune_damaged_units()
-            # Record the name here rather than only where health is
-            # sampled: a unit can take damage for a whole fight without a
-            # single event carrying its advanced block, and it was then
-            # the top target with no name at all.
-            if event.dest.name and event.dest.guid not in self._enemy_names:
-                self._enemy_names[event.dest.guid] = event.dest.display_name
-            block = self._touch_block(event)
-            block.damage_done += amount
-            if canon(event.dest.name) in self.boss_names:
-                block.damage_boss += amount
-                player.damage_to_bosses += amount
-            if not event.dest.is_pet:
-                block.note_enemy(event.dest.guid, event.dest.display_name)
-            enemy = self._enemy(event.dest)
-            if enemy is not None:
-                enemy.damage_taken += amount
-                _bucket(enemy.taken_by_ability, event.spell_id, event.spell_name).add(
-                    amount, event.is_critical, player.short_name
-                )
-
+            self._feed_damage_dealt(event, amount)
         if dest_ours and not event.dest.is_player:
-            # A summon's damage is the group's, not the owner's. It stays
-            # in the timeline and in the pull, because the graph is about
-            # what the group took, and out of the player's own row.
-            owner = self._player(event.dest)
-            owner.pet_damage_taken += amount
-            self._timeline_add(event.ts, "damage_taken", amount)
-            block = self._touch_block(event)
-            block.damage_taken += amount
-            if canon(event.source.name) in self.boss_names:
-                block.taken_from_boss += amount
-            if not source_ours:
-                enemy = self._enemy(event.source)
-                if enemy is not None:
-                    enemy.damage_done += amount
+            self._feed_summon_hit(event, amount, source_ours)
         elif dest_ours:
-            player = self._player(event.dest)
-            player.damage_taken += amount
-            # The absorbed part is NOT banked here. The client writes the
-            # same absorption twice -- once in this hit's `absorbed`
-            # field, once as its own SPELL_ABSORBED line -- and adding
-            # both doubled every shield in the ledger (proved on a
-            # synthetic log: 504,000 absorbed, 1,008,000 counted).
-            # SPELL_ABSORBED is the one kept, because it is also written
-            # for a hit absorbed *entirely*, which the client records as
-            # a MISSED with no damage event to carry an absorbed field.
-            ability = _bucket(player.taken_by_ability, event.spell_id, event.spell_name)
-            ability.add(amount, False, event.source.display_name)
-            raid_ability = _bucket(self.enemy_damage_by_ability, event.spell_id, event.spell_name)
-            # Count the owner, not the pet: "2 players hit" when only one
-            # player is present is a pet being counted as a person.
-            raid_ability.add(amount, False, player.short_name)
-            player.recent.append(
-                (
-                    event.ts,
-                    event.source.display_name,
-                    event.spell_name,
-                    -amount,
-                    self._hp_of(event),
-                    event.overkill,
-                )
+            self._feed_player_hit(event, amount, source_ours)
+
+    def _bank_orphan(self, event, amount):
+        """Friendly damage that belongs to no player the file names."""
+        self.orphan_damage += amount
+        name = event.source.short_name or event.source.guid
+        if not name or name == "nil":
+            name = "source non nommee par le journal"
+        if name in self.orphan_sources or len(self.orphan_sources) < 30:
+            self.orphan_sources[name] = self.orphan_sources.get(name, 0) + amount
+
+    def _feed_damage_dealt(self, event, amount):
+        """The group hit something that is not the group."""
+        player = self._player(event.source)
+        player.damage_done += amount
+        ability = _bucket(player.damage_by_ability, event.spell_id, event.spell_name)
+        ability.add(amount, event.is_critical, event.dest.display_name,
+                    max(0, event.overkill))
+        self.total_damage += amount
+        self._enemy_damage[event.dest.guid] = (
+            self._enemy_damage.get(event.dest.guid, 0) + amount
+        )
+        if len(self._enemy_damage) > MAX_DAMAGED_UNITS:
+            self._prune_damaged_units()
+        # Record the name here rather than only where health is
+        # sampled: a unit can take damage for a whole fight without a
+        # single event carrying its advanced block, and it was then
+        # the top target with no name at all.
+        if event.dest.name and event.dest.guid not in self._enemy_names:
+            self._enemy_names[event.dest.guid] = event.dest.display_name
+        block = self._touch_block(event)
+        block.damage_done += amount
+        if canon(event.dest.name) in self.boss_names:
+            block.damage_boss += amount
+            player.damage_to_bosses += amount
+        if not event.dest.is_pet:
+            block.note_enemy(event.dest.guid, event.dest.display_name)
+        enemy = self._enemy(event.dest)
+        if enemy is not None:
+            enemy.damage_taken += amount
+            _bucket(enemy.taken_by_ability, event.spell_id, event.spell_name).add(
+                amount, event.is_critical, player.short_name
             )
-            self._track_hp(event, player)
-            self._timeline_add(event.ts, "damage_taken", amount)
-            block = self._touch_block(event)
-            block.damage_taken += amount
-            if canon(event.source.name) in self.boss_names:
-                block.taken_from_boss += amount
-            if event.source.is_hostile and not event.source.is_pet:
-                block.note_enemy(event.source.guid, event.source.display_name)
-            if not source_ours:
-                enemy = self._enemy(event.source)
-                if enemy is not None:
-                    enemy.damage_done += amount
-                    _bucket(
-                        enemy.damage_by_ability, event.spell_id, event.spell_name
-                    ).add(amount, event.is_critical, player.short_name)
+
+    def _feed_summon_hit(self, event, amount, source_ours):
+        # A summon's damage is the group's, not the owner's. It stays
+        # in the timeline and in the pull, because the graph is about
+        # what the group took, and out of the player's own row.
+        owner = self._player(event.dest)
+        owner.pet_damage_taken += amount
+        self._timeline_add(event.ts, "damage_taken", amount)
+        block = self._touch_block(event)
+        block.damage_taken += amount
+        if canon(event.source.name) in self.boss_names:
+            block.taken_from_boss += amount
+        if not source_ours:
+            enemy = self._enemy(event.source)
+            if enemy is not None:
+                enemy.damage_done += amount
+
+    def _feed_player_hit(self, event, amount, source_ours):
+        player = self._player(event.dest)
+        player.damage_taken += amount
+        # The absorbed part is NOT banked here. The client writes the
+        # same absorption twice -- once in this hit's `absorbed`
+        # field, once as its own SPELL_ABSORBED line -- and adding
+        # both doubled every shield in the ledger (proved on a
+        # synthetic log: 504,000 absorbed, 1,008,000 counted).
+        # SPELL_ABSORBED is the one kept, because it is also written
+        # for a hit absorbed *entirely*, which the client records as
+        # a MISSED with no damage event to carry an absorbed field.
+        ability = _bucket(player.taken_by_ability, event.spell_id, event.spell_name)
+        ability.add(amount, False, event.source.display_name)
+        raid_ability = _bucket(self.enemy_damage_by_ability, event.spell_id, event.spell_name)
+        # Count the owner, not the pet: "2 players hit" when only one
+        # player is present is a pet being counted as a person.
+        raid_ability.add(amount, False, player.short_name)
+        player.recent.append(
+            (
+                event.ts,
+                event.source.display_name,
+                event.spell_name,
+                -amount,
+                self._hp_of(event),
+                event.overkill,
+            )
+        )
+        self._track_hp(event, player)
+        self._timeline_add(event.ts, "damage_taken", amount)
+        block = self._touch_block(event)
+        block.damage_taken += amount
+        if canon(event.source.name) in self.boss_names:
+            block.taken_from_boss += amount
+        if event.source.is_hostile and not event.source.is_pet:
+            block.note_enemy(event.source.guid, event.source.display_name)
+        if not source_ours:
+            enemy = self._enemy(event.source)
+            if enemy is not None:
+                enemy.damage_done += amount
+                _bucket(
+                    enemy.damage_by_ability, event.spell_id, event.spell_name
+                ).add(amount, event.is_critical, player.short_name)
 
     def _feed_combatant_info(self, event):
         """Who each player was: the specialization id, at one fixed field."""
@@ -736,55 +442,6 @@ class SegmentAnalysis:
             player = self.players.get(guid)
             if player is not None:
                 player.spec_id = spec_id
-
-    def _feed_pool(self, event):
-        """Keep the last known health of every hostile unit the log shows.
-
-        The advanced block describes the attacker on SWING_DAMAGE and the
-        target on SPELL_DAMAGE, so the unit is found by matching its GUID
-        against both ends rather than assuming either.
-        """
-        advanced = event.advanced
-        info = advanced.info_guid
-        if not info or advanced.max_hp <= 0:
-            return
-        if info == event.dest.guid:
-            actor = event.dest
-        elif info == event.source.guid:
-            actor = event.source
-        else:
-            return
-        if actor.is_player or actor.is_pet or not actor.is_hostile:
-            return
-        if info in self._pool or len(self._pool) < 400:
-            self._pool[info] = (advanced.current_hp, advanced.max_hp, event.ts)
-
-    def _sample_pool(self, ts):
-        """Once per timeline bucket, write the pooled health ratio."""
-        if self.first_ts is None:
-            return
-        index = self._bucket_index(ts)
-        if index == self._pool_last_index:
-            return
-        self._pool_last_index = index
-        if not self._pool:
-            return
-        cutoff = ts - POOL_STALE_MS
-        current = maximum = 0
-        for guid, (hp, max_hp, seen) in list(self._pool.items()):
-            if seen < cutoff or hp <= 0:
-                del self._pool[guid]
-                continue
-            current += hp
-            maximum += max_hp
-        if maximum <= 0:
-            return
-        bucket = self._timeline.get(index)
-        if bucket is None:
-            bucket = {"damage_taken": 0, "healing": 0, "deaths": 0}
-            self._timeline[index] = bucket
-        bucket["pool"] = current / maximum
-        bucket["engaged"] = len(self._pool)
 
     def _feed_enemy_cast_start(self, event):
         """An enemy started casting. Remember it until something ends it."""
@@ -822,53 +479,6 @@ class SegmentAnalysis:
         player.interrupted_spells[stopped] = player.interrupted_spells.get(stopped, 0) + 1
         self.interrupted_spells[stopped] = self.interrupted_spells.get(stopped, 0) + 1
         self._resolve_enemy_cast(event.dest.guid, event.extra_spell_id, "coupes")
-
-    def _sample_enemy_health(self, event):
-        guid = event.dest.guid
-        fraction = event.advanced.health_fraction
-        if fraction is None:
-            return
-        self._enemy_names.setdefault(guid, event.dest.name)
-        samples = self._hp_samples.get(guid)
-        if samples is None:
-            if len(self._hp_samples) >= MAX_TRACKED_ENEMIES:
-                self._prune_tracked_enemies()
-            samples = []
-            self._hp_samples[guid] = samples
-        if not samples or event.ts - samples[-1][0] >= 1000:
-            if len(samples) < MAX_HP_SAMPLES:
-                samples.append((event.ts, fraction))
-
-    def _prune_damaged_units(self):
-        """Keep only the units that could still be the main target.
-
-        The ranking in `finish` reads the top of this table and nothing
-        else, so a unit sitting far below the leaders cannot change the
-        answer. Whatever is still being sampled for its health is kept
-        too, so the two tables cannot disagree about who exists.
-        """
-        ranked = sorted(
-            self._enemy_damage, key=lambda guid: -self._enemy_damage[guid]
-        )
-        keep = set(ranked[:KEEP_DAMAGED_UNITS])
-        keep.update(self._hp_samples)
-        self._enemy_damage = {
-            guid: amount for guid, amount in self._enemy_damage.items()
-            if guid in keep
-        }
-        self._enemy_names = {
-            guid: name for guid, name in self._enemy_names.items()
-            if guid in keep
-        }
-
-    def _prune_tracked_enemies(self):
-        """Keep sampling only the units worth being the main target."""
-        ranked = sorted(
-            self._hp_samples,
-            key=lambda guid: -self._enemy_damage.get(guid, 0),
-        )
-        for guid in ranked[KEEP_TRACKED_ENEMIES:]:
-            self._hp_samples.pop(guid, None)
 
     def _touch_block(self, event):
         """Open, extend or restart the current pull."""
@@ -1010,170 +620,12 @@ class SegmentAnalysis:
         )
         self._timeline_add(event.ts, "deaths", 1)
 
-    # -- auras ------------------------------------------------------------
-
-    def _aura_key(self, event):
-        """What identifies one aura: the unit, the spell, **and the caster**.
-
-        Two casters can hold the same spell on the same target at the
-        same time, and real logs do it constantly: two players casting
-        "Clairvoyance de tisse-arcane" on one of them, and -- the case
-        that needs the GUID rather than the name -- **several creatures
-        sharing a name**, each stacking its own "Celerite du Neant" on
-        the same player. Keyed by unit and spell alone, the second
-        application found the slot taken and was dropped, then its
-        removal closed the *first* one's interval: a silent under-count
-        present since the first commit. It stopped being silent when an
-        unmatched removal started being read as "up since the pull
-        began" -- one such removal credited 122 seconds of a 154-second
-        fight -- and the bounded-uptime invariant said so on two of the
-        owner's five real logs. The caster's *name* is still what the
-        report groups by; only the slot is per unit.
-        """
-        return (event.dest.guid, event.spell_id,
-                event.source.guid or event.source.short_name or "?")
-
-    def _aura_open(self, event):
-        """Remember when an aura landed, and who put it there.
-
-        Both ends matter and the file has both: a player wants to know
-        which of their buffs came from whom, and which of their debuffs
-        they kept up on what.
-        """
-        key = self._aura_key(event)
-        if key not in self.aura_open:
-            if len(self.aura_open) >= 4000:
-                # Remember that one was dropped: `_aura_close` must not
-                # then read an unmatched removal as "it was up from the
-                # start", because here it demonstrably was not.
-                self._aura_overflowed = True
-                return
-            self.aura_open[key] = (
-                event.ts,
-                event.source.short_name or "?",
-                event.spell_name,
-                event.aura_type or "BUFF",
-                event.dest.short_name or "?",
-                event.dest.is_player,
-            )
-
-    def _aura_close(self, event):
-        """An aura ended. If it began before the segment did, say so.
-
-        A buff cast before the pull has no APPLIED line inside the
-        segment, so its removal used to match nothing and the whole
-        uptime was lost -- a shield taken before the pull read as 0%.
-        The file does say it was there: it was removed at this moment and
-        never applied within the segment, so it was up from the segment's
-        first event until now. That is the same reading the online sites
-        use, and it stays inside the bound the invariants check.
-
-        Two cases where that reasoning fails, and both are refused: a
-        removal whose APPLIED was dropped by the cap in `_aura_open`, and
-        a *second* unmatched removal of the same aura on the same unit.
-        The client writes an APPLIED before every REMOVED, so one
-        unmatched removal means the aura predates the segment -- but two
-        mean lines are missing, and inferring from the segment's start
-        each time credits the whole run again and again. A run of a
-        synthetic log did exactly that and came out at twenty-four times
-        the length of the fight, which is what the bounded-uptime
-        invariant is there to catch.
-        """
-        key = self._aura_key(event)
-        opened = self.aura_open.pop(key, None)
-        if opened is None:
-            if self._aura_overflowed or self.first_ts is None:
-                return
-            if event.ts <= self.first_ts or key in self._inferred_auras:
-                return
-            if len(self._inferred_auras) >= 4000:
-                return
-            self._inferred_auras.add(key)
-            opened = (
-                self.first_ts,
-                event.source.short_name or "?",
-                event.spell_name,
-                event.aura_type or "BUFF",
-                event.dest.short_name or "?",
-                event.dest.is_player,
-            )
-            self.auras_before_the_pull += 1
-        self._bank_aura(event.dest.guid, event.spell_id, opened, event.ts)
-
-    @staticmethod
-    def _merge_uptime(totals, horizons, key, start, ended, room):
-        """Add [start, ended] to a row's uptime, counting overlap once.
-
-        **Uptime is the time the aura was up, not the sum of the times it
-        was applied**, and on a real fight those differ by a lot: six
-        "Tortionnaire infidele" each held their own Fixation on one
-        player at the same moment, and adding the six durations gave 249
-        seconds of a 181-second fight. What a reader means by "68% of the
-        fight" is the union of the intervals.
-
-        Banks arrive in order of when each aura *ended*, so the union can
-        be kept without storing any interval: everything up to `horizon`
-        is already counted, and only what lies beyond it is new.
-        """
-        if key not in totals and len(totals) >= room:
-            return
-        horizon = horizons.get(key)
-        if horizon is not None and start < horizon:
-            start = horizon
-        if ended <= start:
-            return
-        totals[key] = totals.get(key, 0) + (ended - start)
-        if horizon is None or ended > horizon:
-            horizons[key] = ended
-
-    def _bank_aura(self, guid, spell_id, opened, ended):
-        start, source_name, spell_name, aura_type, dest_name, dest_is_player = opened
-        if ended <= start:
-            return
-        # Only a player's *own* buffs count as that player's uptime. Routing
-        # a pet's auras to its owner, the way damage is routed, pushed one
-        # warlock's totals past 300% of the fight: several pets can hold
-        # the same aura at the same time, and a person cannot.
-        if dest_is_player:
-            player = self.players.get(guid)
-            if player is not None:
-                self._merge_uptime(
-                    player.auras_gained, player._gained_until,
-                    (spell_id, spell_name, source_name, aura_type),
-                    start, ended, 400,
-                )
-        caster = self._by_short_name.get(source_name)
-        if caster is not None:
-            self._merge_uptime(
-                caster.auras_applied, caster._applied_until,
-                (spell_id, spell_name, dest_name), start, ended, 400,
-            )
-
     # -- closing ----------------------------------------------------------
 
     def finish(self, segment):
+        """Close the segment: everything that can only be known at its end."""
         end = segment.end_ts or self.last_ts or self.first_ts or 0
-
-        # Which unit the group actually spent the fight killing, known only
-        # now. On a boss pull this is the boss; in a key it is whichever
-        # single unit soaked the most damage, and the report names it
-        # rather than leaving the reader to guess what the curve shows.
-        if self._enemy_damage:
-            ranked = sorted(
-                self._enemy_damage, key=lambda guid: -self._enemy_damage[guid]
-            )
-            # The unit that took the most damage, among those with enough
-            # health samples to draw an honest line. Some units take
-            # damage for a whole fight without one event carrying their
-            # advanced block, and a curve cannot be invented for them.
-            for guid in ranked:
-                samples = self._hp_samples.get(guid) or []
-                if len(samples) >= 3:
-                    self.boss_name = self._enemy_names.get(guid, "")
-                    self.boss_hp = samples
-                    break
-        self._hp_samples = {}
-
+        self._pick_main_target()
         # Whatever is still pending never completed and nothing here can
         # say why: a stun, a fear, a knockback, the caster walking out of
         # range. The file does not label a spell as crowd control, so this
@@ -1181,6 +633,17 @@ class SegmentAnalysis:
         self.enemy_casts["autre"] += len(self._pending_casts)
         self._pending_casts = {}
 
+        self._drop_crumbs()
+        # An aura still up when the pull ended counts to the end of it,
+        # not to the last event that happened to mention it.
+        for (guid, spell_id, _source), opened in list(self.aura_open.items()):
+            self._bank_aura(guid, spell_id, opened, end)
+        self.aura_open = {}
+
+        self._close_downtime(segment, end)
+        self._collapse_timeline()
+
+    def _drop_crumbs(self):
         # Drop the stray ticks, but never drop the only pull there is.
         if len(self.blocks) > 1 and self.total_damage > 0:
             floor = self.total_damage * MIN_PULL_SHARE
@@ -1188,12 +651,8 @@ class SegmentAnalysis:
             self.dropped_pulls = len(self.blocks) - len(kept)
             if kept:
                 self.blocks = kept
-        # An aura still up when the pull ended counts to the end of it,
-        # not to the last event that happened to mention it.
-        for (guid, spell_id, _source), opened in list(self.aura_open.items()):
-            self._bank_aura(guid, spell_id, opened, end)
-        self.aura_open = {}
 
+    def _close_downtime(self, segment, end):
         # A player's own downtime runs to the end of the pull, not to
         # their last cast: a rotation that stops thirty seconds early is
         # exactly the thing worth seeing.
@@ -1208,27 +667,6 @@ class SegmentAnalysis:
             player.active_ms = segment.duration_ms or (
                 (self.last_ts or 0) - (self.first_ts or 0)
             )
-
-        # Collapse the timeline into a bounded, evenly-spaced series.
-        if self._timeline:
-            highest = max(self._timeline)
-            if highest >= MAX_TIMELINE_BUCKETS:
-                factor = highest // MAX_TIMELINE_BUCKETS + 1
-                collapsed = {}
-                for index in sorted(self._timeline):
-                    bucket = self._timeline[index]
-                    target = collapsed.setdefault(
-                        index // factor, {"damage_taken": 0, "healing": 0, "deaths": 0}
-                    )
-                    for name, value in bucket.items():
-                        if name in ("pool", "engaged"):
-                            # A ratio is not a sum: the last one in the
-                            # merged bucket is the one that stands.
-                            target[name] = value
-                        else:
-                            target[name] = target.get(name, 0) + value
-                self._timeline = collapsed
-                self._bucket_ms *= factor
 
     # -- readers the report uses ------------------------------------------
 
@@ -1253,72 +691,10 @@ class SegmentAnalysis:
     def top_abilities(self, store, limit=12):
         return sorted(store.values(), key=lambda ability: ability.total, reverse=True)[:limit]
 
-    def timeline_series(self):
-        """[(second, damage_taken, healing, deaths, pool)], evenly spaced.
-
-        `pool` is the engaged enemies' pooled health as a fraction, or
-        None for a bucket with no reading.
-        """
-        if not self._timeline:
-            return [], self._bucket_ms
-        highest = max(self._timeline)
-        series = []
-        for index in range(highest + 1):
-            bucket = self._timeline.get(index) or {}
-            series.append(
-                (
-                    index * self._bucket_ms / 1000.0,
-                    bucket.get("damage_taken", 0),
-                    bucket.get("healing", 0),
-                    bucket.get("deaths", 0),
-                    bucket.get("pool"),
-                )
-            )
-        return series, self._bucket_ms
-
-    @property
-    def has_pool_curve(self):
-        return any("pool" in bucket for bucket in self._timeline.values())
-
     @property
     def has_several_pulls(self):
         """True when a pull table would say something a total cannot."""
         return len(self.blocks) > 1
-
-    def player_uptimes(self, guid, limit=14, kind=None):
-        """[(spell, who applied it, milliseconds)] for one player.
-
-        `kind` filters to "BUFF" or "DEBUFF"; None merges both.
-        """
-        player = self.players.get(guid)
-        if player is None:
-            return []
-        merged = {}
-        for (spell_id, name, source, aura_type), milliseconds in player.auras_gained.items():
-            if kind and aura_type != kind:
-                continue
-            key = (spell_id, name, source)
-            merged[key] = merged.get(key, 0) + milliseconds
-        rows = [
-            (name, source, ms, spell_id)
-            for (spell_id, name, source), ms in merged.items()
-            if ms > 0
-        ]
-        rows.sort(key=lambda row: row[2], reverse=True)
-        return rows[:limit]
-
-    def player_applied(self, guid, limit=14):
-        """[(spell, on whom, milliseconds)] -- a player's own auras."""
-        player = self.players.get(guid)
-        if player is None:
-            return []
-        rows = [
-            (name, target, milliseconds, spell_id)
-            for (spell_id, name, target), milliseconds in player.auras_applied.items()
-            if milliseconds > 0
-        ]
-        rows.sort(key=lambda row: row[2], reverse=True)
-        return rows[:limit]
 
     def ranked_enemies(self, key="damage_done", limit=20):
         rows = [
@@ -1346,3 +722,26 @@ class SegmentAnalysis:
                                 ("", "Role non indique"))
             if groups[role]
         ]
+
+    # Which reader each suffix goes to. SWING_DAMAGE and SWING_DAMAGE_LANDED
+    # are the same hit written twice: on a real 12.1.0 log, 5,943 of 6,135
+    # pairs sharing a timestamp, a source and a target carried identical
+    # amounts, so adding both doubled every melee total. _LANDED is kept for
+    # what only it has -- its advanced block describes the *target* (7,561
+    # of 7,561), where SWING_DAMAGE's describes the attacker -- and it is
+    # never added to a total.
+    _BY_SUFFIX = {
+        "_DAMAGE_LANDED": _feed_landed,
+        "_DAMAGE": _feed_damage,
+        "_SHIELD": _feed_damage,
+        "_SPLIT": _feed_damage,
+        "_HEAL": _feed_heal,
+        "_CAST_SUCCESS": _feed_cast_success,
+        "_INTERRUPT": _feed_interrupt,
+        "_DISPEL": _feed_dispel,
+        "_STOLEN": _feed_dispel,
+        "_CAST_START": _feed_enemy_cast_start,
+        "_AURA_APPLIED": AuraLedger._aura_open,
+        "_AURA_REFRESH": AuraLedger._aura_open,
+        "_AURA_REMOVED": AuraLedger._aura_close,
+    }

@@ -19,88 +19,114 @@ from .segment import Splitter
 from .timestamps import format_duration
 
 
+class _Reading:
+    """What one pass over the file collected, for the sections below."""
+
+    def __init__(self, path, default_year, limit):
+        self.log = LogFile(path, default_year=default_year)
+        splitter = Splitter()
+        self.subevents = Counter()
+        self.unresolved = Counter()
+        self.shapes = {}
+        self.advanced_seen = Counter()
+        self.players = set()
+        for index, event in enumerate(self.log.events()):
+            if limit and index >= limit:
+                break
+            self.subevents[event.subevent] += 1
+            splitter.feed(event)
+            if event.source.is_player:
+                self.players.add(event.source.name)
+            if event.subevent not in SPECIAL_EVENTS:
+                self.shapes.setdefault(event.subevent, Counter())[len(event.fields)] += 1
+                self.advanced_seen[bool(event.advanced)] += 1
+            if event.mismatch:
+                self.unresolved[(event.subevent, event.mismatch)] += 1
+        self.segments = splitter.finish()
+
+
 def run(path, default_year=None, limit=None):
-    log = LogFile(path, default_year=default_year)
-    splitter = Splitter()
-    subevents = Counter()
-    unresolved = Counter()
-    shapes = {}
-    advanced_seen = Counter()
-    players = set()
+    """The whole diagnosis of one file, as the text `diagnose` prints."""
+    reading = _Reading(path, default_year, limit)
+    log = reading.log
+    lines = [
+        "Fichier    : %s" % path,
+        "Taille     : %.1f Mo, %d lignes, %d evenements" % (
+            log.size_bytes / 1048576.0, log.line_count, log.event_count),
+        "Duree      : %s" % format_duration(log.duration_ms),
+        "",
+    ]
+    lines += _layout_section(reading)
+    lines += _segments_section(reading)
+    lines += _events_section(reading)
+    lines += _problems_section(reading)
+    return "\n".join(lines)
 
-    for index, event in enumerate(log.events()):
-        if limit and index >= limit:
-            break
-        subevents[event.subevent] += 1
-        splitter.feed(event)
-        if event.source.is_player:
-            players.add(event.source.name)
-        if event.subevent not in SPECIAL_EVENTS:
-            shapes.setdefault(event.subevent, Counter())[len(event.fields)] += 1
-            advanced_seen[bool(event.advanced)] += 1
-        if event.mismatch:
-            unresolved[(event.subevent, event.mismatch)] += 1
-    segments = splitter.finish()
 
-    lines = []
-    add = lines.append
-    add("Fichier    : %s" % path)
-    add("Taille     : %.1f Mo, %d lignes, %d evenements" % (
-        log.size_bytes / 1048576.0, log.line_count, log.event_count))
-    add("Duree      : %s" % format_duration(log.duration_ms))
-    add("")
-    add("DISPOSITION MESUREE DANS CE FICHIER")
-    layout = log.layout
+def _layout_section(reading):
+    layout = reading.log.layout
     evidence = layout.evidence
-    add("  bloc avance         : %d champs  (votes: %s)" % (
+    lines = ["DISPOSITION MESUREE DANS CE FICHIER"]
+    lines.append("  bloc avance         : %d champs  (votes: %s)" % (
         layout.advanced_width, evidence.get("advanced_width", {})))
     if evidence.get("advanced_width_tiebreak"):
-        add("    votes a egalite, departage par : %s"
-            % evidence["advanced_width_tiebreak"])
-    add("  champ baseAmount    : %s  (position du -1: %s)" % (
+        lines.append("    votes a egalite, departage par : %s"
+                     % evidence["advanced_width_tiebreak"])
+    lines.append("  champ baseAmount    : %s  (position du -1: %s)" % (
         "present" if layout.has_base_amount else "absent",
         evidence.get("overkill_position", {})))
-    add("  champ hideCaster    : %s  (%s)" % (
+    lines.append("  champ hideCaster    : %s  (%s)" % (
         "present" if layout.hide_caster else "absent", evidence.get("hide_caster", {})))
-    add("  journalisation avancee : %s" % (
-        "oui" if evidence.get("advanced_logging") else "non -- positions et points de vie absents"))
-    add("  evenements avec bloc avance : %d sur %d" % (
-        advanced_seen.get(True, 0), sum(advanced_seen.values()) or 1))
-    add("")
-    add("COMBATS DELIMITES : %d" % len(segments))
-    for segment in segments:
-        add("  [%2d] %-46s %8s  %s" % (
+    lines.append("  journalisation avancee : %s" % (
+        "oui" if evidence.get("advanced_logging")
+        else "non -- positions et points de vie absents"))
+    lines.append("  evenements avec bloc avance : %d sur %d" % (
+        reading.advanced_seen.get(True, 0), sum(reading.advanced_seen.values()) or 1))
+    lines.append("")
+    return lines
+
+
+def _segments_section(reading):
+    lines = ["COMBATS DELIMITES : %d" % len(reading.segments)]
+    for segment in reading.segments:
+        lines.append("  [%2d] %-46s %8s  %s" % (
             segment.index, segment.label[:46], format_duration(segment.duration_ms),
             segment.outcome or ""))
-    add("")
-    add("JOUEURS VUS : %d" % len(players))
-    add("")
-    add("EVENEMENTS (%d types)" % len(subevents))
-    for subevent, count in subevents.most_common():
+    lines += ["", "JOUEURS VUS : %d" % len(reading.players), ""]
+    return lines
+
+
+def _events_section(reading):
+    lines = ["EVENEMENTS (%d types)" % len(reading.subevents)]
+    for subevent, count in reading.subevents.most_common():
         known = (
             subevent in SPECIAL_EVENTS
             or subevent in BARE_EVENTS
             or decompose(subevent) is not None
         )
-        widths = dict(shapes.get(subevent, {}))
-        add("  %-34s %8d  %s%s" % (
+        widths = dict(reading.shapes.get(subevent, {}))
+        lines.append("  %-34s %8d  %s%s" % (
             subevent, count, "" if known else "[SCHEMA INCONNU] ",
             widths if len(widths) > 1 else ""))
-    add("")
-    if unresolved:
-        add("LIGNES NON RESOLUES")
-        for (subevent, reason), count in unresolved.most_common(20):
-            add("  %-34s %6d  %s" % (subevent, count, reason))
+    lines.append("")
+    if reading.unresolved:
+        lines.append("LIGNES NON RESOLUES")
+        for (subevent, reason), count in reading.unresolved.most_common(20):
+            lines.append("  %-34s %6d  %s" % (subevent, count, reason))
     else:
-        add("LIGNES NON RESOLUES : aucune")
-    add("")
-    problems = log.problems
+        lines.append("LIGNES NON RESOLUES : aucune")
+    lines.append("")
+    return lines
+
+
+def _problems_section(reading):
+    problems = reading.log.problems
     # One line, one reason: the breakdown below is the whole ledger. The
     # two commonest reasons used to be printed again above it, which read
     # as two separate problems for one bad line.
-    add("PROBLEMES DE LECTURE : %d" % problems.total)
+    lines = ["PROBLEMES DE LECTURE : %d" % problems.total]
     for reason, count in sorted(problems.by_reason.items(), key=lambda item: -item[1])[:10]:
-        add("  %-50s %d" % (reason, count))
+        lines.append("  %-50s %d" % (reason, count))
     for line_number, reason, text in problems.samples[:8]:
-        add("    ligne %s : %s | %s" % (line_number, reason, text[:90]))
-    return "\n".join(lines)
+        lines.append("    ligne %s : %s | %s" % (line_number, reason, text[:90]))
+    return lines

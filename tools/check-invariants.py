@@ -41,11 +41,8 @@ def check(condition, label, detail=""):
     raise Failure("%s%s" % (label, (" -- " + detail) if detail else ""))
 
 
-def audit_segment(segment):
-    a = segment.analysis
-    players = list(a.players.values())
-    print("\n[%d] %s" % (segment.index, segment.label))
-
+def _damage(a, players):
+    """Damage: the segment, each player, each ability, each target."""
     # 1. The segment's damage total is the sum of its players' totals.
     check(a.total_damage == sum(p.damage_done for p in players),
           "total damage == sum of players", "%d vs %d" % (
@@ -67,6 +64,9 @@ def audit_segment(segment):
                       "%s / %s: ability == sum of targets" % (p.short_name, x.name),
                       "%d vs %d" % (x.total, sum(x.targets.values())))
 
+
+def _healing(a, players):
+    """Healing: effective, per ability, per target, and overheal."""
     # 4. Healing: effective == sum of abilities == sum over targets.
     for p in players:
         if not (p.healing_done or p.overhealing):
@@ -83,6 +83,9 @@ def audit_segment(segment):
         check(p.overhealing == by_ability_over,
               "%s: overheal == sum of abilities' overheal" % p.short_name)
 
+
+def _taken(a, players):
+    """Damage taken, on the group's side and the enemies'."""
     # 5. What the group took equals what enemies (and friendly fire) dealt.
     taken = sum(p.damage_taken for p in players)
     for p in players:
@@ -107,6 +110,9 @@ def audit_segment(segment):
         check(received == a.total_damage, "enemy damage taken == group damage done",
               "%d vs %d" % (received, a.total_damage))
 
+
+def _pulls(a, players):
+    """Pulls: they add up to the run and never overlap."""
     # 7. Pulls add up to the run (after crumbs were dropped, <= total).
     pulls = sum(b.damage_done for b in a.blocks)
     check(pulls <= a.total_damage and pulls >= a.total_damage * 0.99,
@@ -118,6 +124,9 @@ def audit_segment(segment):
     for earlier, later in zip(a.blocks, a.blocks[1:]):
         check(later.start_ts >= earlier.end_ts, "pulls do not overlap")
 
+
+def _deaths(a, players):
+    """Deaths, counted three ways."""
     # 8. Deaths: segment list, player counters and timeline agree.
     check(len(a.deaths) == sum(p.deaths for p in players),
           "deaths list == sum of player death counters")
@@ -128,6 +137,9 @@ def audit_segment(segment):
     for d in a.deaths:
         check(d["ts"] >= (a.first_ts or 0), "death is inside the segment")
 
+
+def _bounds(a, players):
+    """Quantities that have a bound by construction."""
     # 9. Bounded quantities stay bounded.
     duration = max(1, a.duration_ms)
     for p in players:
@@ -148,6 +160,9 @@ def audit_segment(segment):
           + casts["cible morte"] + casts["autre"],
           "enemy casts: outcomes sum to starts", str(casts))
 
+
+def _shields(a, players):
+    """Shields: what each one ate sums to the player's total."""
     # 9b. Shields: what each one ate sums to the player's total.
     for p in players:
         if not p.absorb_by_ability:
@@ -157,6 +172,9 @@ def audit_segment(segment):
               "%s: absorbed == sum of shields" % p.short_name,
               "%d vs %d" % (p.absorb_done, by_ability))
 
+
+def _interrupts(a, players):
+    """Interrupts and dispels: counters and lists agree."""
     # 10. Interrupts: the player counters and the segment's list agree.
     check(sum(p.interrupts for p in players) == sum(a.interrupted_spells.values()),
           "interrupts: player counters == segment list")
@@ -165,6 +183,30 @@ def audit_segment(segment):
               "%s: interrupted spells == interrupts" % p.short_name)
         check(sum(p.dispelled_spells.values()) == p.dispels,
               "%s: dispelled spells == dispels" % p.short_name)
+
+
+FAMILIES = (_damage, _healing, _taken, _pulls, _deaths, _bounds, _shields, _interrupts)
+
+
+def audit_segment(segment):
+    """Every family of invariants on one segment; returns what failed.
+
+    One failure no longer stops the run: a family that fails is reported
+    and the next one still runs, and so does the next segment. A real
+    dungeon log failed the pooled-health bound on one key and, because
+    the tool stopped there, nothing after that key was ever checked.
+    """
+    a = segment.analysis
+    players = list(a.players.values())
+    print("\n[%d] %s" % (segment.index, segment.label))
+    failures = []
+    for family in FAMILIES:
+        try:
+            family(a, players)
+        except Failure as failure:
+            print("  FAIL %s" % failure)
+            failures.append("[%d] %s" % (segment.index, failure))
+    return failures
 
 
 def main(argv):
@@ -190,14 +232,19 @@ def main(argv):
     # Every check runs inside the guard: one raised outside it used to
     # come out as a traceback, which is the opposite of what a tool that
     # exists to report cleanly should do.
+    failures = []
     try:
         check(len(segments) > 0, "at least one segment")
         for earlier, later in zip(segments, segments[1:]):
             check(later.start_ts >= earlier.start_ts, "segments are in file order")
-        for segment in segments:
-            audit_segment(segment)
     except Failure as failure:
-        print("\nINVARIANT VIOLATED: %s" % failure)
+        failures.append(str(failure))
+    for segment in segments:
+        failures.extend(audit_segment(segment))
+    if failures:
+        print("\n%d INVARIANT(S) VIOLATED:" % len(failures))
+        for failure in failures:
+            print("  %s" % failure)
         return 1
 
     name = os.path.basename(path)

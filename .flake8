@@ -1,0 +1,6 @@
+[flake8]
+# Lines run to 100 so that comment sentences stay readable; the project
+# writes slices as a[x : y], which is what E203 objects to.
+max-line-length = 100
+extend-ignore = E203
+exclude = .git,__pycache__
