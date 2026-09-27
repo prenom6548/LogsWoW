@@ -105,6 +105,17 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
         # The pooled enemy health: guid -> (current, max, last seen). Read
         # once per timeline bucket into the "pool" series.
         self._pool = {}
+        # The boss encounters inside this segment, from its own markers:
+        # (name, start, end, success). A key sees every boss it contains;
+        # a boss segment sees itself.
+        self.encounters = []
+        # Encounters no unit is named after -- a council of several
+        # bosses -- whose damage was counted on the boss over their window.
+        self.window_encounters = []
+        self._encounter = None
+        # Hostile health readings whose current exceeds their maximum,
+        # left out of the pooled curve and the main target's curve.
+        self.inconsistent_health = 0
         self._pool_last_index = None
         self._pending_casts = {}
         self._block = None
@@ -210,6 +221,8 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
             self._feed_unit_died(event)
         elif subevent == "SPELL_ABSORBED":
             self._feed_absorbed(event)
+        elif subevent == "ENCOUNTER_END":
+            self._feed_encounter_end(event)
 
         # The health curve of whatever the group actually spent the fight
         # killing. Picking the unit with the biggest health pool was a
@@ -227,11 +240,68 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
             self._sample_enemy_health(event)
 
     def _feed_encounter_start(self, event):
-        """A key sees the boss pulls it contains; their names are what
-        lets a trash pull that funnels into a boss be told apart."""
+        """A boss encounter opens: its name, and the window it lasts.
+
+        The name is what lets a trash pull that funnels into a boss be
+        told apart. The window is what the file actually says about which
+        stretch of a key was a boss fight -- and it is the only thing that
+        works for a council, whose units are all named something other
+        than the encounter: "Le conseil des tribus" had no unit of that
+        name, and a real key showed 0% of damage on the boss for all five
+        players. Matching names alone also coloured a wipe like a kill.
+        """
         fields = event.fields
-        if len(fields) > 2 and isinstance(fields[2], str) and fields[2]:
-            self.boss_names.add(canon(fields[2]))
+        name = fields[2] if len(fields) > 2 and isinstance(fields[2], str) else ""
+        if name:
+            self.boss_names.add(canon(name))
+        if self._encounter is not None:
+            # A start with the previous one still open: its END never came.
+            self._close_encounter(self.last_ts or event.ts, None)
+        self._encounter = {
+            "label": name or "Rencontre", "name": canon(name), "start": event.ts,
+            "named": 0, "window": 0, "players": {}, "blocks": {},
+        }
+
+    def _feed_encounter_end(self, event):
+        if self._encounter is None:
+            return
+        fields = event.fields
+        success = bool(as_int(fields[5], 0)) if len(fields) > 5 else None
+        self._close_encounter(event.ts, success)
+
+    def _note_window_damage(self, player, block, amount):
+        """Damage dealt during an open encounter, to no unit named as a boss."""
+        encounter = self._encounter
+        encounter["window"] += amount
+        players = encounter["players"]
+        players[player.guid] = players.get(player.guid, 0) + amount
+        held = encounter["blocks"].get(id(block))
+        encounter["blocks"][id(block)] = (block, (held[1] if held else 0) + amount)
+
+    def _close_encounter(self, end, success):
+        """Tag the pulls the encounter overlapped, and settle a council.
+
+        An encounter whose own name was never on a unit it fought is a
+        council, or anything else the client names as a whole: its whole
+        window counts as boss damage, and the page says so rather than
+        showing a boss fight with no damage on the boss.
+        """
+        encounter, self._encounter = self._encounter, None
+        self.encounters.append((encounter["label"], encounter["start"], end, success))
+        for block in reversed(self.blocks):
+            if block.end_ts < encounter["start"]:
+                break
+            if block.start_ts <= end:
+                block.encounters.append((encounter["label"], success))
+        if encounter["named"] or not encounter["window"]:
+            return
+        self.window_encounters.append(encounter["label"])
+        for block, amount in encounter["blocks"].values():
+            block.damage_boss += amount
+        for guid, amount in encounter["players"].items():
+            player = self.players.get(guid)
+            if player is not None:
+                player.damage_to_bosses += amount
 
     def _learn_owner(self, event):
         """Pets: SPELL_SUMMON names the owner directly, and the advanced
@@ -357,9 +427,14 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
             self._enemy_names[event.dest.guid] = event.dest.display_name
         block = self._touch_block(event)
         block.damage_done += amount
-        if canon(event.dest.name) in self.boss_names:
+        dest_name = canon(event.dest.name)
+        if dest_name in self.boss_names:
             block.damage_boss += amount
             player.damage_to_bosses += amount
+        elif self._encounter is not None:
+            self._note_window_damage(player, block, amount)
+        if self._encounter is not None and dest_name == self._encounter["name"]:
+            self._encounter["named"] += amount
         if not event.dest.is_pet:
             block.note_enemy(event.dest.guid, event.dest.display_name)
         enemy = self._enemy(event.dest)
@@ -378,8 +453,6 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
         self._timeline_add(event.ts, "damage_taken", amount)
         block = self._touch_block(event)
         block.damage_taken += amount
-        if canon(event.source.name) in self.boss_names:
-            block.taken_from_boss += amount
         if not source_ours:
             enemy = self._enemy(event.source)
             if enemy is not None:
@@ -416,8 +489,6 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
         self._timeline_add(event.ts, "damage_taken", amount)
         block = self._touch_block(event)
         block.damage_taken += amount
-        if canon(event.source.name) in self.boss_names:
-            block.taken_from_boss += amount
         if event.source.is_hostile and not event.source.is_pet:
             block.note_enemy(event.source.guid, event.source.display_name)
         if not source_ours:
@@ -483,7 +554,11 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
     def _touch_block(self, event):
         """Open, extend or restart the current pull."""
         block = self._block
-        if block is None or event.ts - block.end_ts > self.pull_gap_ms:
+        # A lull inside a boss encounter is not the end of a pull: a real
+        # council fight came out as two pulls, split by an intermission.
+        inside = (self._encounter is not None and block is not None
+                  and block.end_ts >= self._encounter["start"])
+        if block is None or (event.ts - block.end_ts > self.pull_gap_ms and not inside):
             block = CombatBlock(event.ts)
             self._block = block
             self.blocks.append(block)
@@ -625,6 +700,8 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
     def finish(self, segment):
         """Close the segment: everything that can only be known at its end."""
         end = segment.end_ts or self.last_ts or self.first_ts or 0
+        if self._encounter is not None:
+            self._close_encounter(end, None)
         self._pick_main_target()
         # Whatever is still pending never completed and nothing here can
         # say why: a stun, a fear, a knockback, the caster walking out of

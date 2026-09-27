@@ -116,7 +116,7 @@ class CombatBlock:
 
     __slots__ = (
         "start_ts", "end_ts", "damage_done", "damage_boss", "damage_taken",
-        "taken_from_boss", "deaths", "enemies",
+        "deaths", "enemies", "encounters",
     )
 
     def __init__(self, start_ts):
@@ -125,16 +125,39 @@ class CombatBlock:
         self.damage_done = 0
         self.damage_boss = 0        # the part of damage_done that hit a boss
         self.damage_taken = 0
-        self.taken_from_boss = 0    # the part of damage_taken a boss dealt
         self.deaths = 0
         self.enemies = {}
+        # (encounter name, success) for each boss encounter this pull
+        # overlapped, as the segment's own markers bound it.
+        self.encounters = []
 
     @property
     def damage_trash(self):
         return self.damage_done - self.damage_boss
 
     def has_boss(self, boss_names):
-        return any(canon(name) in boss_names for name in self.enemies)
+        return bool(self.encounters) or any(
+            canon(name) in boss_names for name in self.enemies)
+
+    @property
+    def outcome(self):
+        """True if a boss was killed in this pull, False if every boss
+        encounter in it was lost, None when the file does not say."""
+        results = [success for _name, success in self.encounters]
+        if any(results):
+            return True
+        if results and all(success is False for success in results):
+            return False
+        return None
+
+    def _unnamed_encounters(self, bosses):
+        """Encounters no unit in this pull is named after (a council)."""
+        named = {canon(name) for name, _guids in bosses}
+        seen = []
+        for name, _success in self.encounters:
+            if canon(name) not in named and name not in seen:
+                seen.append(name)
+        return seen
 
     def note_enemy(self, guid, name):
         # "nil" is what the client writes for a unit with no name, which
@@ -164,7 +187,7 @@ class CombatBlock:
         ranked = sorted(self.enemies.items(), key=lambda item: -len(item[1]))
         bosses = [item for item in ranked if canon(item[0]) in boss_names]
         others = [item for item in ranked if canon(item[0]) not in boss_names]
-        pieces = []
+        pieces = list(self._unnamed_encounters(bosses))
         for name, guids in bosses:
             pieces.append("%s x%d" % (name, len(guids)) if len(guids) > 1 else name)
         room = max(0, limit - len(bosses))
@@ -177,7 +200,8 @@ class CombatBlock:
     def boss_label(self, boss_names):
         """Only the bosses in this pull, or ''."""
         names = [name for name in self.enemies if canon(name) in boss_names]
-        return ", ".join(sorted(names))
+        extra = self._unnamed_encounters([(name, None) for name in names])
+        return ", ".join(extra + sorted(names))
 
 
 class Player:

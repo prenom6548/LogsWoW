@@ -30,6 +30,7 @@ class _Reading:
         self.shapes = {}
         self.advanced_seen = Counter()
         self.players = set()
+        self.inconsistent_health = 0
         for index, event in enumerate(self.log.events()):
             if limit and index >= limit:
                 break
@@ -40,6 +41,9 @@ class _Reading:
             if event.subevent not in SPECIAL_EVENTS:
                 self.shapes.setdefault(event.subevent, Counter())[len(event.fields)] += 1
                 self.advanced_seen[bool(event.advanced)] += 1
+            advanced = event.advanced
+            if advanced is not None and 0 < advanced.max_hp < advanced.current_hp:
+                self.inconsistent_health += 1
             if event.mismatch:
                 self.unresolved[(event.subevent, event.mismatch)] += 1
         self.segments = splitter.finish()
@@ -82,6 +86,10 @@ def _layout_section(reading):
         else "non -- positions et points de vie absents"))
     lines.append("  evenements avec bloc avance : %d sur %d" % (
         reading.advanced_seen.get(True, 0), sum(reading.advanced_seen.values()) or 1))
+    # A unit written with more health than its own maximum: the file
+    # contradicts itself, and the enemy health curves leave it out.
+    lines.append("  points de vie incoherents   : %d (courants > maximum ; ignores "
+                 "pour les courbes de vie ennemies)" % reading.inconsistent_health)
     lines.append("")
     return lines
 

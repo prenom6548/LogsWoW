@@ -88,6 +88,28 @@ color:var(--muted);font-size:12.5px}
 ORPHAN_NOTE_SHARE = 0.005
 
 
+def _boss_pill(outcome):
+    """The badge of a pull holding a boss, coloured by what happened.
+
+    It used to be green whatever the outcome, and green is what a kill
+    looks like everywhere else on the page: on a real key, the wipe and
+    the kill on the same boss wore the same badge.
+    """
+    if outcome:
+        return "<span class='pill ok'>boss &middot; reussite</span>"
+    if outcome is False:
+        return "<span class='pill ko'>boss &middot; echec</span>"
+    return "<span class='pill'>boss</span>"
+
+
+def _council_note(names):
+    if not names:
+        return ""
+    return (" %s%s: aucune unite ne porte le nom de la rencontre (un conseil, "
+            "par exemple), donc tous les degats infliges pendant sa duree sont "
+            "comptes sur le boss." % (", ".join(fmt.esc(name) for name in names), NBSP))
+
+
 class ReportWriter(TimelineMixin, PanelsMixin):
     """Writes the whole page for a list of segments."""
 
@@ -267,7 +289,7 @@ class ReportWriter(TimelineMixin, PanelsMixin):
         for index, block in enumerate(analysis.blocks, start=1):
             label = fmt.esc(block.label(boss_names=bosses)) or "<span class=dim>?</span>"
             if block.has_boss(bosses):
-                label = "<span class='pill ok'>boss</span> " + label
+                label = _boss_pill(block.outcome) + " " + label
             boss_cells = ""
             if any_boss:
                 # Trash is often funnelled onto a boss and killed there:
@@ -303,7 +325,8 @@ class ReportWriter(TimelineMixin, PanelsMixin):
             "<p class=dim style='margin:10px 0 0;font-size:12px'>Un pull se termine "
             "quand le groupe passe plus de %s sans infliger ni subir de degats. "
             "Un groupe qui enchaîne les packs sans pause les verra donc regroupes%s: "
-            "<code>--pull-gap</code> change ce seuil.%s</p></div>"
+            "<code>--pull-gap</code> change ce seuil, sauf a l'interieur d'une "
+            "rencontre de boss, qui reste toujours un seul pull.%s%s</p></div>"
             % (
                 fmt.plural(len(analysis.blocks), "pull"),
                 boss_heads,
@@ -315,6 +338,7 @@ class ReportWriter(TimelineMixin, PanelsMixin):
                  % (analysis.dropped_pulls,
                     "s" if analysis.dropped_pulls > 1 else ""))
                 if analysis.dropped_pulls else "",
+                _council_note(analysis.window_encounters),
             )
         )
 

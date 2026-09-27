@@ -77,6 +77,13 @@ class TimelineLedger:
             return
         if actor.is_player or actor.is_pet or not actor.is_hostile:
             return
+        if advanced.current_hp > advanced.max_hp:
+            # A reading that contradicts itself does not vote. A real key
+            # wrote one unit at 3,814,068 health out of a maximum of 24,
+            # and the pooled curve went to 8,724,400%: which of the two
+            # fields is wrong the file does not say, so neither is used.
+            self.inconsistent_health += 1
+            return
         if info in self._pool or len(self._pool) < 400:
             self._pool[info] = (advanced.current_hp, advanced.max_hp, event.ts)
 
@@ -111,6 +118,11 @@ class TimelineLedger:
         guid = event.dest.guid
         fraction = event.advanced.health_fraction
         if fraction is None:
+            return
+        if event.advanced.current_hp > event.advanced.max_hp:
+            # Same rule as the pool: clamped to 100%, this would draw a
+            # health the file never actually gave.
+            self.inconsistent_health += 1
             return
         self._enemy_names.setdefault(guid, event.dest.name)
         samples = self._hp_samples.get(guid)

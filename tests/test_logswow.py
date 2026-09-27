@@ -1806,5 +1806,125 @@ class TestReport(unittest.TestCase):
         self.assertEqual(plural(3, "joueur"), "3 joueurs")
 
 
+class TestFifthAuditFindings(unittest.TestCase):
+    """The 2026-09-27 audit, run on two real logs the owner supplied
+    during it: a raid night and a Mythic+ session. Each test here is a
+    defect one of them showed, rebuilt from fabricated lines."""
+
+    PLAYER = 'Player-9-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+    PLAYER_GUID = "Player-9-00000001"
+
+    @staticmethod
+    def _mob(number, name):
+        guid = "Creature-0-9-2-1-%d-%010d" % (70000 + number, number)
+        return guid, '%s,"%s",0xa48,0x0' % (guid, name)
+
+    def _run(self, timed_payloads):
+        """[(milliseconds, payload)] -> segments, finished."""
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, (ms, payload) in enumerate(timed_payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ms, fields, index + 1))
+        return splitter.finish()
+
+    def _hit(self, mob, amount=5000, hp=500, maxhp=1000):
+        guid, actor = mob
+        block = ",".join(advanced_block(19, info=guid, hp=hp, maxhp=maxhp))
+        return ('SPELL_DAMAGE,%s,%s,222,"Frappe",0x1,%s,%d,%d,-1,1,0,0,0,nil,nil,nil,ST'
+                % (self.PLAYER, actor, block, amount, amount))
+
+    def _page(self, segments):
+        import tempfile
+
+        log, _fixture_segments = run_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "rapport.html")
+            ReportWriter(log, segments, target).write()
+            with open(target, encoding="utf-8") as handle:
+                return handle.read()
+
+    def test_a_self_contradicting_health_reading_does_not_vote(self):
+        """A real key wrote one unit at 3,814,068 health out of a maximum
+        of 24, and the pooled health of the engaged enemies was drawn at
+        8,724,400% -- far outside the graph."""
+        sane = self._mob(1, "Sbire")
+        broken_guid, broken = self._mob(2, "Seide")
+        block = ",".join(advanced_block(19, info=broken_guid, hp=3814068, maxhp=24))
+        segments = self._run([
+            (0, 'CHALLENGE_MODE_START,"Donjon",2000,500,7,[9]'),
+            (1000, self._hit(sane)),
+            (1500, 'SPELL_CAST_SUCCESS,%s,%s,9,"Cri",0x1,%s' % (broken, self.PLAYER, block)),
+            (2500, self._hit(sane, hp=400)),
+            (60000, self._hit(self._mob(3, "Brute"))),
+            (61000, "CHALLENGE_MODE_END,2000,1,7,61000"),
+        ])
+        analysis = segments[0].analysis
+        pools = [row[4] for row in analysis.timeline_series()[0] if row[4] is not None]
+        self.assertTrue(pools)
+        self.assertTrue(all(0 <= value <= 1 for value in pools), pools)
+        self.assertEqual(analysis.inconsistent_health, 1)
+
+    def test_a_council_is_counted_on_the_boss(self):
+        """No unit of "Le conseil des tribus" bore the encounter's name,
+        so a real key counted its 101M of damage as trash and every
+        player's "Part sur les boss" read 0%."""
+        segments = self._run([
+            (0, 'CHALLENGE_MODE_START,"Donjon",2000,500,7,[9]'),
+            (1000, self._hit(self._mob(1, "Sbire"), 3000)),
+            (60000, 'ENCOUNTER_START,77,"Le conseil",8,5,2000'),
+            (61000, self._hit(self._mob(2, "Chef A"), 7000)),
+            (62000, self._hit(self._mob(3, "Chef B"), 4000)),
+            (90000, 'ENCOUNTER_END,77,"Le conseil",8,5,1,30000'),
+            (91000, "CHALLENGE_MODE_END,2000,1,7,91000"),
+        ])
+        key = next(s for s in segments if s.kind == "keystone").analysis
+        council = key.blocks[-1]
+        self.assertEqual(council.damage_boss, 11000)
+        self.assertEqual(key.blocks[0].damage_boss, 0)
+        self.assertEqual(key.players[self.PLAYER_GUID].damage_to_bosses, 11000)
+        self.assertEqual(key.window_encounters, ["Le conseil"])
+        self.assertTrue(council.label(boss_names=key.boss_names).startswith("Le conseil"))
+        # ...and the encounter's own segment says the same.
+        boss = next(s for s in segments if s.kind == "encounter").analysis
+        self.assertEqual(sum(b.damage_boss for b in boss.blocks), boss.total_damage)
+        self.assertIn("aucune unite ne porte le nom de la rencontre", self._page(segments))
+
+    def test_a_wipe_and_a_kill_wear_different_badges(self):
+        """On a real key the wipe and the kill on Mchimba wore the same
+        green badge, the colour a kill has everywhere else on the page."""
+        boss = self._mob(1, "Mchimba")
+        segments = self._run([
+            (0, 'CHALLENGE_MODE_START,"Donjon",2000,500,7,[9]'),
+            (1000, 'ENCOUNTER_START,5,"Mchimba",8,5,2000'),
+            (2000, self._hit(boss)),
+            (20000, 'ENCOUNTER_END,5,"Mchimba",8,5,0,19000'),
+            (80000, 'ENCOUNTER_START,5,"Mchimba",8,5,2000'),
+            (81000, self._hit(boss)),
+            (99000, 'ENCOUNTER_END,5,"Mchimba",8,5,1,19000'),
+            (100000, "CHALLENGE_MODE_END,2000,1,7,100000"),
+        ])
+        key = next(s for s in segments if s.kind == "keystone").analysis
+        self.assertEqual([block.outcome for block in key.blocks], [False, True])
+        page = self._page(segments)
+        self.assertIn("boss &middot; echec", page)
+        self.assertIn("boss &middot; reussite", page)
+        self.assertNotIn("<span class='pill ok'>boss</span>", page)
+
+    def test_a_lull_inside_an_encounter_does_not_split_the_pull(self):
+        """The council fight was cut in two by an intermission longer
+        than the pull gap: one boss, two pulls."""
+        boss = self._mob(1, "Golem")
+        segments = self._run([
+            (0, 'CHALLENGE_MODE_START,"Donjon",2000,500,7,[9]'),
+            (1000, 'ENCOUNTER_START,5,"Golem",8,5,2000'),
+            (2000, self._hit(boss)),
+            (30000, self._hit(boss)),
+            (40000, 'ENCOUNTER_END,5,"Golem",8,5,1,39000'),
+            (41000, "CHALLENGE_MODE_END,2000,1,7,41000"),
+        ])
+        for segment in segments:
+            self.assertEqual(len(segment.analysis.blocks), 1, segment.kind)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
