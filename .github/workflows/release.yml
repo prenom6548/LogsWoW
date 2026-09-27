@@ -1,17 +1,24 @@
-# Publish a release when a version tag is pushed:  git tag v0.2.0 && git push origin v0.2.0
+# Publish a release, in either of two ways:
 #
-# It runs the tests, checks that the tag matches logswow.__version__, builds
-# the single-file logswow-<version>.pyz with tools/build-pyz, and publishes
-# it with its SHA256SUMS and the version's section of CHANGELOG.md.
+#   - on GitHub: Actions -> Release -> "Run workflow" on main. The version
+#     is read from logswow/__init__.py, and the tag v<version> is created
+#     on that commit by the release itself.
+#   - from a clone:  git tag v0.2.0 && git push origin v0.2.0
+#
+# Either way it reruns the tests, checks the tag is the package's version,
+# builds the single-file logswow-<version>.pyz with tools/build-pyz, and
+# publishes it with its SHA256SUMS and the version's section of
+# CHANGELOG.md.
 #
 # Nothing but what the runner already has -- git, python3 and the gh
 # command -- and no third-party action: like the package itself, nothing
-# to install and nothing to audit. It never runs on a plain push to main.
+# to install and nothing to audit. It never runs on an ordinary push.
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,21 +28,42 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Fetch the tagged commit
+      - name: Fetch the commit to release
         env:
           TOKEN: ${{ github.token }}
         run: |
           git init -q .
           auth=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
           git -c "http.extraheader=AUTHORIZATION: basic $auth" \
-              fetch -q --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" "$GITHUB_REF"
+              fetch -q --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" "$GITHUB_SHA"
           git checkout -q FETCH_HEAD
 
       - name: The tag must be the package's version
         run: |
           version=$(python3 -c "import logswow; print(logswow.__version__)")
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "The tag is $GITHUB_REF_NAME but logswow/__init__.py says $version."
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+              echo "A release is made from main, not from $GITHUB_REF."
+              exit 1
+            fi
+            tag="v$version"
+          else
+            tag="$GITHUB_REF_NAME"
+            if [ "$tag" != "v$version" ]; then
+              echo "The tag is $tag but logswow/__init__.py says $version."
+              exit 1
+            fi
+          fi
+          echo "Releasing $tag"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: This version is not published yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$TAG is already published: raise __version__ and add its CHANGELOG section."
             exit 1
           fi
 
@@ -50,12 +78,12 @@ jobs:
           cd dist && sha256sum -- *.pyz > SHA256SUMS && cat SHA256SUMS
 
       - name: Release notes from CHANGELOG.md
-        run: python3 tools/release-notes "${GITHUB_REF_NAME#v}" > notes.md
+        run: python3 tools/release-notes "$VERSION" > notes.md
 
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.pyz dist/SHA256SUMS \
-            --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --title "LogsWoW ${GITHUB_REF_NAME#v}" --notes-file notes.md
+          gh release create "$TAG" dist/*.pyz dist/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "LogsWoW $VERSION" --notes-file notes.md

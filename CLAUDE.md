@@ -765,7 +765,7 @@ tools/check-invariants.py   cross-checks a real log's numbers against themselves
 tools/pre-push          git hook: tests, invariants on the fixture, flake8 (no network)
 tools/build-pyz         builds dist/logswow-<version>.pyz, the one file a release ships
 tools/release-notes     prints one version's section of CHANGELOG.md
-.github/workflows/release.yml   on a v* tag: tests, version check, build, publish
+.github/workflows/release.yml   on a v* tag or "Run workflow": tests, version check, build, publish
 ```
 
 ## Releasing a version
@@ -779,10 +779,16 @@ workflow does the rest:
    the player rather than the developer. A test fails while the current
    version has no section, and the workflow refuses to publish without
    one.
-3. Commit on `main`, push, then `git tag v<version>` and
-   `git push origin v<version>`.
+3. Commit on `main` and push. Then either click **Actions -> Release ->
+   Run workflow** on `main` (the workflow creates the tag `v<version>`
+   on that commit), or `git tag v<version>` and `git push origin
+   v<version>` from a clone. A Claude Code session cannot do the second:
+   its git proxy refuses tag pushes (HTTP 403, measured 2026-09-27), and
+   a refusal is not something to route around -- so the button exists.
 
-The workflow refuses a tag that is not the package's version, reruns
+The workflow refuses a tag that is not the package's version, a
+dispatch from any branch but `main`, and a version already published;
+it reruns
 every test, builds the `.pyz` (the package and the licence, nothing
 else -- a test checks no log or fixture gets in) and publishes it with
 its `SHA256SUMS`. **It uses no third-party action**, not even

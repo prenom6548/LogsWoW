@@ -220,8 +220,9 @@ le fichier même après un premier échec, et fait le bilan à la fin.
 Rien ne tourne en ligne à chaque envoi : le hook `tools/pre-push` rejoue
 ces vérifications sur votre machine avant chaque envoi. Seule la
 **publication d'une version** passe par une action GitHub
-(`.github/workflows/release.yml`), déclenchée par une étiquette `v0.2.0` :
-elle relance les tests, vérifie que l'étiquette est bien la version du
+(`.github/workflows/release.yml`), déclenchée soit par le bouton « Run
+workflow » de l'onglet Actions (sur `main`), soit par une étiquette
+`v0.2.0` poussée depuis une copie du dépôt : elle relance les tests, vérifie que l'étiquette est bien la version du
 paquet, fabrique le `.pyz` et son empreinte `SHA256SUMS`, et publie le tout
 avec les notes de la version. Elle n'utilise que ce que la machine de
 GitHub possède déjà, sans aucune action tierce.
