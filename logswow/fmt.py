@@ -8,6 +8,7 @@ import html
 
 
 def esc(value):
+    """Any value as HTML text, quotes included: every name from a log goes through here."""
     return html.escape(str(value), quote=True)
 
 
@@ -32,6 +33,7 @@ def compact(value):
 
 
 def percent(value):
+    """0.456 -> '46 %', with the narrow no-break space French puts before the sign."""
     return "%.0f %%" % (value * 100)
 
 
@@ -46,5 +48,6 @@ def plural(count, singular, many=None):
 
 
 def bar_row(cells, fraction):
+    """A table cell whose background is a bar `fraction` of its width."""
     width = max(0.0, min(1.0, fraction)) * 100
     return '<td class="bar" style="--w:%.1f%%">%s</td>' % (width, cells)

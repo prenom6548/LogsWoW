@@ -19,6 +19,24 @@ from .segment import Splitter
 from .timestamps import format_duration
 
 
+def _contradicts_itself(event):
+    """A hostile unit written with more health than its own maximum.
+
+    The same test the analysis applies before an enemy's health may vote
+    for a curve, so the count printed here is what the curves left out.
+    A player's reading is not counted: a player's health is only ever
+    clamped, never left out.
+    """
+    advanced = event.advanced
+    if advanced is None or not 0 < advanced.max_hp < advanced.current_hp:
+        return False
+    info = advanced.info_guid
+    actor = event.dest if info == event.dest.guid else (
+        event.source if info == event.source.guid else None)
+    return (actor is not None and actor.is_hostile
+            and not actor.is_player and not actor.is_pet)
+
+
 class _Reading:
     """What one pass over the file collected, for the sections below."""
 
@@ -41,8 +59,7 @@ class _Reading:
             if event.subevent not in SPECIAL_EVENTS:
                 self.shapes.setdefault(event.subevent, Counter())[len(event.fields)] += 1
                 self.advanced_seen[bool(event.advanced)] += 1
-            advanced = event.advanced
-            if advanced is not None and 0 < advanced.max_hp < advanced.current_hp:
+            if _contradicts_itself(event):
                 self.inconsistent_health += 1
             if event.mismatch:
                 self.unresolved[(event.subevent, event.mismatch)] += 1

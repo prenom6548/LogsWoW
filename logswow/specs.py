@@ -88,6 +88,7 @@ def describe(spec_id):
 
 
 def role_of(spec_id):
+    """tank, soigneur, dps -- or '' for an id this table does not know."""
     return describe(spec_id)[2]
 
 

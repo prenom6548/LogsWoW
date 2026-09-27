@@ -176,3 +176,29 @@ que ce soit d'autre listé en section 4 -- ce sont des questions à poser,
 pas des tâches actées. Le propriétaire a explicitement demandé de ne rien
 modifier à la version actuelle pendant cette recherche, et rien ne l'a
 été.
+
+## 6. Suite donnée par l'audit du 2026-09-27
+
+L'audit annoncé a eu lieu, sur deux vrais journaux fournis pendant sa
+réalisation (une soirée de raid héroïque, une session Mythique+). Ce qu'il
+a fait des questions de la section 4 :
+
+1. **Verdict d'un pull de boss : corrigé.** Le badge « boss » de la table
+   des pulls était vert quelle que soit l'issue ; sur une vraie clé, le
+   wipe et le kill sur Mchimba portaient le même. Il dit maintenant
+   « réussite » (vert) ou « échec » (rouge), d'après l'`ENCOUNTER_END` de
+   la rencontre que le pull recouvre. La même correction a révélé un
+   défaut plus large : une rencontre dont aucune unité ne porte le nom
+   (« Le conseil des tribus », « Viperis et Aspis », « Autel Annelé »)
+   avait 0 dégât « sur le boss ». Ses bornes `ENCOUNTER_START`/`END`
+   servent désormais à la reconnaître. Un pull de **trash** n'a toujours
+   pas de verdict : le fichier n'en donne pas, et rien n'est affiché.
+2. **`PULL_GAP_MS` : une seconde source, et une règle ajoutée.** Sur les
+   quatre clés d'un autre soir, 6 s donne 11, 8, 2 et 12 pulls, dans la
+   plage déjà mesurée. Mais une rencontre de boss était coupée en deux
+   par une accalmie de plus de 6 s : un pull contenu dans une rencontre
+   ne se coupe plus.
+3. **Deux boss homonymes consécutifs** : toujours pas observés.
+4. **`enemies` par pull** : inchangé, aucun besoin ne s'en est dégagé.
+5. **API GraphQL de Warcraft Logs** : non consultée ; ce n'était pas
+   l'objet d'un audit de code.

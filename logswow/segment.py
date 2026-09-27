@@ -48,6 +48,7 @@ DIFFICULTY_NAMES = {
 
 
 def difficulty_name(difficulty_id):
+    """A difficulty id as the reader says it, or its number when unknown."""
     if not difficulty_id:
         return ""
     return DIFFICULTY_NAMES.get(difficulty_id, "difficulte %d" % difficulty_id)
@@ -96,6 +97,7 @@ class Segment:
 
     @property
     def outcome(self):
+        """The result in the reader's words: reussite, echec, sans combat, interrompu..."""
         if self.kind == "session":
             return ""
         if self.never_fought and not self.truncated:
@@ -108,6 +110,7 @@ class Segment:
 
     @property
     def label(self):
+        """'Allee du meurtre +14', 'Golem Mythique': the name a fight is listed under."""
         pieces = [self.name]
         if self.kind == "keystone" and self.key_level:
             pieces.append("+%d" % self.key_level)

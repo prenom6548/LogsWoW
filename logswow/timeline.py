@@ -234,4 +234,5 @@ class TimelineLedger:
 
     @property
     def has_pool_curve(self):
+        """True when at least one bucket holds a pooled health reading."""
         return any("pool" in bucket for bucket in self._timeline.values())

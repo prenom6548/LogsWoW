@@ -140,6 +140,11 @@ a 531M total, which are a dot finishing on something already dead. The
 smallest genuine pull in that run was 20M, two orders of magnitude clear.
 The count of what was dropped is shown rather than hidden.
 
+**A lull inside a boss encounter never ends a pull** (2026-09-27): a
+real council fight was cut in two by an intermission longer than 6 s.
+While an `ENCOUNTER_START` is open, the current pull is extended however
+long the silence.
+
 ### What a healer's panel needs, and what "interrupts" is not
 
 Added 2026-09-18 after the owner looked at a healer's panel and found it
@@ -224,6 +229,17 @@ the two must not be judged as one. Boss names come from the
 `ENCOUNTER_START` lines a key contains; units named exactly like the
 boss (its images, its adds that share the name) count as boss, which is
 a known limit rather than a bug.
+
+**The name rule has a blind side, and the markers cover it** (2026-09-27).
+An encounter no unit is named after -- a council, a duo, an altar --
+had 0 damage on the boss: "Le conseil des tribus", "Viperis et Aspis",
+"Avatar de Sephraliss" and four raid pulls on "Autel Annele", every
+player's "Part sur les boss" at 0%. The analysis now keeps each
+encounter's own window (`SegmentAnalysis.encounters`); if nothing in it
+bore the encounter's name, **all damage dealt during the window counts
+as boss**, the pull table says so, and `window_encounters` names them.
+The same window tags each pull with the encounter's outcome, so the
+badge says reussite or echec instead of a green "boss" on a wipe.
 
 ### The 2026-09-18 audit, and the tool it left behind
 
@@ -407,8 +423,9 @@ has its own arithmetic -- shares, rankings, sums -- and a new test
 re-renders the report with the rounding removed and asserts that the
 damage ranking adds up to the segment's total. A standing tool for that
 lives in the audit habit rather than the repo: render with
-`report.compact` replaced by an exact formatter, then compare the tables
-to the objects.
+`fmt.compact` replaced by an exact formatter, then compare the tables
+to the objects. Every rendering module calls `fmt.compact` through the
+module, so that one replacement reaches every table on the page.
 
 Also checked, and clean: 185 rounds of fuzzing over three different log
 shapes (mutated lines, truncated files, random bytes) with no exception
@@ -616,6 +633,68 @@ infaillible 36.3% against 36.26%, Rempart angelique 23.2% against
 mechanics that hit different players (their number is raid-wide, this
 one is per player).
 
+### 2026-09-27: a full audit, two more real logs, and what they alone could show
+
+The owner asked for a complete audit, attached the first report of it,
+and then supplied two real logs while it ran: a heroic raid night (261
+MB, 896,610 lines) and a Mythic+ session (278 MB, 951,575 lines, four
+keys). Both read with zero read problems. **They found what the tests,
+the five earlier logs and the first report had not**, and every item
+below was fixed with a test that fails without the fix.
+
+- **The invariant checker stopped at the first failure**, so on the
+  dungeon it reported one key and checked nothing after it. It now runs
+  every family on every segment and prints the whole bill at the end.
+- **A unit written with more health than its maximum** (3,814,068 of 24)
+  sent the pooled curve to 8,724,400%. Such readings no longer vote for
+  any enemy curve and `diagnose` counts them: which field is wrong, the
+  file does not say.
+- **Councils, and the green badge on a wipe**: see "Trash funnelled onto
+  a boss". An independent recount of each encounter window, written
+  without `logswow`, agrees to the unit on the council and the avatar.
+- **The rule "every name goes through `display_name`" was false**: six
+  sites split names at the first dash, and "Jeune-ne chancrecaille" was
+  "Jeune" in 21 cells. Every stored name now goes through
+  `SegmentAnalysis._name_of`: a player's unique realm-less label, anyone
+  else's whole name. Two players sharing a name on two realms are
+  "Tisane" and "Tisane (2)", and an aura's caster is found by GUID.
+- **A player's row took the name of whatever unit opened it**: a hunter
+  whose pet struck first became the pet. Found on fabricated lines, not
+  on either real log; six rows of the synthetic key had it.
+- **`report -o autre-journal.txt` destroyed another log**, one step away
+  from the case the 19 September audit had closed. Any existing file
+  that is not a LogsWoW report is refused unless `--force`; the log
+  being read never, `--force` or not. The page is written aside and
+  moved into place.
+- **An ENCOUNTER_START with the previous one still open** (a lost END)
+  used to swallow the rest of the file; it now closes it as truncated.
+- **An encounter of 8 ms with no hit in it** was counted as a wipe; it
+  is "sans combat". The shortest real encounter had 7,867 fighting lines.
+- **The field split was half of a report's time.** The csv module (C)
+  now reads every line with no bracket, parenthesis or backslash, and
+  the character loop the rest. Not one field differs across 2,094,088
+  lines; the raid's report went from 38.3 s to 22.6 s.
+
+**How a refactoring was proved to change nothing.** `analysis.py` (MI 0)
+and `report.py` were split into `models`, `auras`, `timeline`, `fmt`,
+`report_timeline`, `report_panels` (and later `encounters`), and `feed`
+(complexity 52) became a dispatch table. Before and after, a script
+dumped every number of
+every segment -- players, abilities, blocks, the timeline -- plus a hash
+of the rendered page, on the fixture, a synthetic key and both real
+logs. They were identical, page bytes included, before any behaviour was
+touched. Then each fix was checked the same way: the snapshot had to
+change *only* where the fix meant it to. The name fix renamed 547 aura
+rows and moved the summed aura time by exactly zero milliseconds; that
+is what says it was a rename and not a recount.
+
+Also checked after the fixes: 600 rounds of fuzzing over the fixture
+(mutated lines, truncated files, random bytes) with no exception and a
+whole page every time; both real logs at zero read problems, every
+invariant holding; tests green on Python 3.8 to 3.13; flake8, pyflakes
+and bandit silent; no function above complexity C; coverage 84% -> 90%
+(`diagnose` 7% -> 96%, `cli.py` 59% -> 79%).
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -644,7 +723,10 @@ now handles.
 
 ### Performance, measured
 
-242 MB / 784,435 lines in **41 s, 27 MB of peak memory**. The reader is a
+261 MB / 896,610 lines (a real raid night, report included) in
+**22.6 s, 58 MB of peak memory** since the csv split (38.3 s before);
+the analysis alone peaks near 33 MB, the rest is the 4.3 MB page being
+assembled. Earlier: 242 MB / 784,435 lines in 41 s. The reader is a
 generator and the analysis accumulates as it goes; nothing holds a fight,
 let alone the file. Do not introduce a pass that collects events into a
 list -- a raid night is routinely several hundred megabytes.
@@ -660,22 +742,30 @@ shape of the file, not only its size, decides what the reader costs.
 
 ```
 logswow/timestamps.py   four timestamp shapes, year rollover
-logswow/tokenize.py     depth-aware field split (quotes, [], ())
+logswow/tokenize.py     field split: csv fast path, depth-aware loop (quotes, [], ())
 logswow/events.py       Layout, Actor, Advanced, Event, the prefix/suffix scheme
 logswow/parse.py        LogFile.events(), detect_layout()
 logswow/segment.py      Splitter: pulls, keys, and keys containing pulls
-logswow/analysis.py     SegmentAnalysis.feed/finish -- all the arithmetic
-logswow/report.py       one self-contained HTML file
+logswow/analysis.py     SegmentAnalysis.feed/finish -- which event feeds which ledger
+logswow/models.py       Ability, Enemy, CombatBlock, Player -- the ledgers themselves
+logswow/auras.py        aura uptime (AuraLedger, inherited by SegmentAnalysis)
+logswow/encounters.py   boss encounter windows, outcomes, councils (EncounterLedger)
+logswow/timeline.py     timeline, pooled health, main target (TimelineLedger)
+logswow/report.py       one self-contained HTML file: page, fights, pulls, rankings
+logswow/report_timeline.py  the SVG timeline
+logswow/report_panels.py    per-player and per-enemy panels
+logswow/fmt.py          formatters (compact, percent, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
 logswow/cli.py          report / list / diagnose / where
 logswow/specs.py        specialization ids -> class, spec, role
 logswow/wowhead.py      spell links in the machine's language
 tools/check-invariants.py   cross-checks a real log's numbers against themselves
+tools/pre-push          git hook: tests, invariants on the fixture, flake8 (no network)
 ```
 
 ## What this deliberately does not do
 
-Three limits are structural, and the README says so to the owner in his
+Four limits are structural, and the README says so to the owner in his
 own language. Do not quietly try to add them:
 
 - **No comparison to other players.** A percentile needs everybody else's
@@ -693,16 +783,18 @@ own language. Do not quietly try to add them:
   `baseAmount` section below. What *is* in the file, and is shown, is
   the damage shields absorbed.
 
-If the owner asks for one of these, say which of the three it is and what
+If the owner asks for one of these, say which of the four it is and what
 it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
-1. `python3 tests/run-tests.py` -- 146 tests, no network, fast.
-   Every bug either audit found keeps a test there
-   (`TestAuditFindings`, `TestSecondAuditFindings`), and each one was
-   regression-checked the same way: stash the fix, watch the test fail,
-   restore it.
+0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
+   runs step 1, the invariants on the fixture and flake8 before a push.
+1. `python3 tests/run-tests.py` -- 163 tests, no network, fast. `flake8`
+   must be silent (`.flake8` sets 100 columns).
+   Every bug an audit found keeps a test there (`TestAuditFindings` to
+   `TestFifthAuditFindings`), and each one was regression-checked the
+   same way: stash the fix, watch the test fail, restore it.
 2. `python3 -m logswow diagnose <a real log>` -- the number that matters
    is `PROBLEMES DE LECTURE : 0`.
 2b. `python3 tools/check-invariants.py <a real log>` -- must end on
@@ -713,6 +805,9 @@ it would actually require, rather than approximating it.
    without looking at `analysis.py`, is the only check that can catch a
    ledger which is self-consistent and wrong. That is how the absorb
    double-count and the orphaned pet were found.
+2d. For a refactoring, **snapshot every number before and after** on a
+   real log and compare (see the 2026-09-27 section): identical, or the
+   refactoring changed behaviour.
 3. If you touched anything about field positions, check a real file's
    totals before and after. A wrong offset does not raise; it prints a
    confident wrong number, which is the failure mode this whole file is

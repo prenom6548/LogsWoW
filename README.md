@@ -17,7 +17,11 @@ ne charge rien depuis nulle part, et elle ne contient aucun script.
 ## Ce qu'il faut avant
 
 Rien à installer. Python 3.8 ou plus récent, et c'est tout : pas de
-`pip install`, aucune dépendance, aucun réseau.
+`pip install`, aucune dépendance, aucun réseau. Le paquet se copie ou se
+clone, il ne s'installe pas ; il n'a donc volontairement ni
+`pyproject.toml` ni `setup.py`. Les tests passent de Python 3.8 à 3.13 ;
+préférez une version encore maintenue (3.10 ou plus récente en 2026), les
+plus anciennes ne reçoivent plus de correctifs de sécurité.
 
 Côté jeu, deux réglages, à faire une fois :
 
@@ -28,7 +32,9 @@ Côté jeu, deux réglages, à faire une fois :
    ne persiste pas : il faut la retaper à chaque session, ou installer un
    petit addon qui le fait en entrant en instance.
 
-Le fichier se trouve sous `_retail_\Logs\`. Pour le retrouver :
+Le fichier se trouve sous `_retail_\Logs\`. Sous Linux, il est dans la
+copie du disque C que garde votre lanceur (Lutris, Steam avec Proton,
+Bottles, Wine). Pour le retrouver :
 
 ```
 python3 -m logswow where
@@ -39,7 +45,7 @@ python3 -m logswow where
 | Commande | Ce qu'elle fait |
 |---|---|
 | `report FICHIER` | écrit la page HTML complète |
-| | `-o` le nom du fichier, `--only` un seul combat, `--pull-gap` le découpage des pulls, `--wowhead` la langue des liens |
+| | `-o` le nom du fichier, `--only` un seul combat, `--pull-gap` le découpage des pulls, `--wowhead` la langue des liens, `--force` pour écraser un fichier qui n'est pas un rapport |
 | `list FICHIER` | liste les combats du fichier, une ligne chacun |
 | `diagnose FICHIER` | montre ce que le lecteur a compris, et ce qu'il n'a pas compris |
 | `where` | cherche le dossier `Logs` du jeu |
@@ -54,7 +60,9 @@ lu serait pire que pas de rapport du tout.
 
 - **Les combats** : chaque pull de boss et chaque clé mythique, avec sa
   durée, son issue, et le nombre de morts. Une clé et les boss qu'elle
-  contient apparaissent tous les deux.
+  contient apparaissent tous les deux. Une rencontre que le jeu ouvre et
+  referme sans qu'aucun coup n'y soit porté est dite « sans combat » et
+  n'est pas comptée comme un échec.
 - **La composition du groupe**, tanks, soigneurs et DPS, avec la classe
   et la spécialisation de chacun. Elles viennent de ce que le client
   écrit au début du combat ; une spécialisation inconnue de l'outil est
@@ -68,10 +76,15 @@ lu serait pire que pas de rapport du tout.
 - **La liste des pulls** dès qu'un combat en contient plusieurs, ce qui
   est le cas de toute clé mythique : heure de début, durée, ce qui a été
   engagé et en quel nombre, dégâts infligés, subis, morts. Un pull qui
-  contient un boss le nomme en premier et sépare **les dégâts sur le
-  boss de ceux sur les trash** ramenés avec lui. Un pull se termine après
-  six secondes sans dégâts de part ni d'autre ; `--pull-gap` change ce
-  seuil si votre groupe enchaîne les packs.
+  contient un boss le nomme en premier, porte un badge qui dit l'issue
+  de la rencontre (réussite en vert, échec en rouge), et sépare **les
+  dégâts sur le boss de ceux sur les trash** ramenés avec lui. Les bornes
+  d'une rencontre viennent du journal lui-même : une rencontre dont aucune
+  unité ne porte le nom (un conseil, un duo) compte sur le boss tous les
+  dégâts infligés pendant sa durée, et la page le dit. Un pull se termine
+  après six secondes sans dégâts de part ni d'autre, sauf à l'intérieur
+  d'une rencontre de boss, qui reste toujours un seul pull ; `--pull-gap`
+  change ce seuil si votre groupe enchaîne les packs.
 - **Dégâts et soins** par joueur, avec le DPS, le HPS et la part de soin
   perdue en surguérison. Les **boucliers** ont leur propre colonne : ce
   qu'ils ont absorbé n'est pas un soin dans le journal, puisqu'ils
@@ -149,7 +162,7 @@ python3 -m logswow report WoWCombatLog.txt --only "Allée du meurtre"
   règles de votre spécialisation, écrites et maintenues par quelqu'un qui
   la joue.
 
-Ces trois limites sont structurelles, pas des fonctions manquantes.
+Ces limites sont structurelles, pas des fonctions manquantes.
 
 ## Où sont vos données
 
@@ -168,16 +181,24 @@ chaînes de mort. Une capture d'écran du rapport identifie donc moins
 qu'une capture du journal.
 
 Rappel utile : un journal de combat contient le nom et les performances
-de **tout le groupe**, pas seulement les vôtres.
+de **tout le groupe**, pas seulement les vôtres. **Le rapport HTML aussi** :
+sans les royaumes, mais avec le nom court, les dégâts, les soins et les
+morts de chacun. Ne le partagez qu'avec l'accord de ceux qu'il nomme,
+comme vous le feriez pour le journal lui-même.
+
+`report` refuse d'écrire par-dessus un fichier existant qui n'est pas un
+rapport LogsWoW (un autre journal, par exemple), sauf avec `--force`, et
+n'écrit jamais par-dessus le journal qu'il lit, même avec `--force`.
 
 ## Tests, et vérifier sur un vrai journal
 
 ```
 python3 tests/run-tests.py
 python3 tools/check-invariants.py WoWCombatLog.txt
+ln -s ../../tools/pre-push .git/hooks/pre-push     # une fois, pour les contributeurs
 ```
 
-Les tests, 146, tournent sans dépendance ni réseau sur
+Les tests, 163, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 
@@ -188,12 +209,19 @@ sur ses cibles ; les soins de même ; les morts comptées trois fois
 donnent le même nombre ; aucune durée d'effet ne dépasse le combat ; les
 incantations ennemies commencées valent la somme de leurs issues. Il a
 trouvé un bug à sa première exécution. Il ne dit pas si un chiffre est
-vrai, seulement si les chiffres sont cohérents entre eux.
+vrai, seulement si les chiffres sont cohérents entre eux. Il vérifie tout
+le fichier même après un premier échec, et fait le bilan à la fin.
+
+Le dépôt n'a pas d'intégration continue en ligne, par choix : le hook
+`tools/pre-push` rejoue ces vérifications sur votre machine avant chaque
+envoi. L'historique des changements, daté et chiffré, est tenu dans les
+sections datées de `CLAUDE.md`.
 
 Le journal est lu tel que le jeu l'écrit, avec ses fins de ligne
 Windows, sous Linux comme sous Windows.
 
 ## Licence
 
-GPLv3. Tout le monde peut modifier et redistribuer ; les versions
-fermées sont formellement interdites. Voir `LICENSE` et `PROVENANCE.md`.
+GPLv3. Tout le monde peut utiliser, modifier et redistribuer ;
+quiconque distribue une version, modifiée ou non, doit en fournir le code
+source sous la même licence. Voir `LICENSE` et `PROVENANCE.md`.

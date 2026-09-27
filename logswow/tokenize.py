@@ -137,10 +137,10 @@ def looks_like_guid(value):
     """True for a unit GUID, including the nil one.
 
     Used to tell whether a line carries the addon-only `hideCaster`
-    field. The text file is not supposed to contain it, but this package
-    has never been run against a file written by a real client, so the
-    parser checks rather than assumes -- and `diagnose` reports which
-    answer it got.
+    field. No real file read so far has contained it (seven, from two
+    client builds), but the addon-side event does, so the parser still
+    checks rather than assumes -- and `diagnose` reports which answer it
+    got.
     """
     if not isinstance(value, str) or not value:
         return False

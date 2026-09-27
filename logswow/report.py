@@ -121,6 +121,7 @@ class ReportWriter(TimelineMixin, PanelsMixin):
         self.wowhead_prefix = resolve(wowhead)
 
     def write(self):
+        """Assemble the page and put it in place in one step; returns its path."""
         parts = [self._head(), self._overview()]
         for segment in self.segments:
             parts.append(self._segment(segment))

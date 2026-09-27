@@ -43,6 +43,7 @@ class Ability:
         self.biggest = 0
 
     def add(self, amount, critical=False, target=None, overkill=0, overheal=0):
+        """Bank one hit or heal: its amount, and on whom."""
         self.total += amount
         self.hits += 1
         if critical:
@@ -73,6 +74,7 @@ class Ability:
         return (self.total / self.hits) if self.hits else 0
 
     def ranked_targets(self, limit=10):
+        """[(name, amount)] of whom this ability landed on, largest first."""
         return sorted(self.targets.items(), key=lambda item: -item[1])[:limit]
 
 
@@ -136,6 +138,7 @@ class CombatBlock:
         return self.damage_done - self.damage_boss
 
     def has_boss(self, boss_names):
+        """True when this pull overlapped a boss encounter or hit a unit named as one."""
         return bool(self.encounters) or any(
             canon(name) in boss_names for name in self.enemies)
 
@@ -160,6 +163,7 @@ class CombatBlock:
         return seen
 
     def note_enemy(self, guid, name):
+        """Remember one unit met in this pull, grouped by name, within bounds."""
         # "nil" is what the client writes for a unit with no name, which
         # is not an enemy worth listing in a pull.
         if not name or name == "nil":

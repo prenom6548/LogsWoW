@@ -19,6 +19,7 @@ What this can and cannot answer is worth being plain about:
 """
 
 from .auras import AuraLedger
+from .encounters import EncounterLedger
 from .events import Actor
 from .models import (
     CombatBlock,
@@ -54,7 +55,7 @@ PULL_GAP_MS = 6000
 MIN_PULL_SHARE = 0.001
 
 
-class SegmentAnalysis(AuraLedger, TimelineLedger):
+class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
     """Accumulates one segment. `feed` per event, `finish` once."""
 
     def __init__(self, segment, pull_gap_ms=PULL_GAP_MS):
@@ -285,70 +286,6 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
             and event.advanced.info_guid == event.dest.guid
         ):
             self._sample_enemy_health(event)
-
-    def _feed_encounter_start(self, event):
-        """A boss encounter opens: its name, and the window it lasts.
-
-        The name is what lets a trash pull that funnels into a boss be
-        told apart. The window is what the file actually says about which
-        stretch of a key was a boss fight -- and it is the only thing that
-        works for a council, whose units are all named something other
-        than the encounter: "Le conseil des tribus" had no unit of that
-        name, and a real key showed 0% of damage on the boss for all five
-        players. Matching names alone also coloured a wipe like a kill.
-        """
-        fields = event.fields
-        name = fields[2] if len(fields) > 2 and isinstance(fields[2], str) else ""
-        if name:
-            self.boss_names.add(canon(name))
-        if self._encounter is not None:
-            # A start with the previous one still open: its END never came.
-            self._close_encounter(self.last_ts or event.ts, None)
-        self._encounter = {
-            "label": name or "Rencontre", "name": canon(name), "start": event.ts,
-            "named": 0, "window": 0, "players": {}, "blocks": {},
-        }
-
-    def _feed_encounter_end(self, event):
-        if self._encounter is None:
-            return
-        fields = event.fields
-        success = bool(as_int(fields[5], 0)) if len(fields) > 5 else None
-        self._close_encounter(event.ts, success)
-
-    def _note_window_damage(self, player, block, amount):
-        """Damage dealt during an open encounter, to no unit named as a boss."""
-        encounter = self._encounter
-        encounter["window"] += amount
-        players = encounter["players"]
-        players[player.guid] = players.get(player.guid, 0) + amount
-        held = encounter["blocks"].get(id(block))
-        encounter["blocks"][id(block)] = (block, (held[1] if held else 0) + amount)
-
-    def _close_encounter(self, end, success):
-        """Tag the pulls the encounter overlapped, and settle a council.
-
-        An encounter whose own name was never on a unit it fought is a
-        council, or anything else the client names as a whole: its whole
-        window counts as boss damage, and the page says so rather than
-        showing a boss fight with no damage on the boss.
-        """
-        encounter, self._encounter = self._encounter, None
-        self.encounters.append((encounter["label"], encounter["start"], end, success))
-        for block in reversed(self.blocks):
-            if block.end_ts < encounter["start"]:
-                break
-            if block.start_ts <= end:
-                block.encounters.append((encounter["label"], success))
-        if encounter["named"] or not encounter["window"]:
-            return
-        self.window_encounters.append(encounter["label"])
-        for block, amount in encounter["blocks"].values():
-            block.damage_boss += amount
-        for guid, amount in encounter["players"].items():
-            player = self.players.get(guid)
-            if player is not None:
-                player.damage_to_bosses += amount
 
     def _learn_owner(self, event):
         """Pets: SPELL_SUMMON names the owner directly, and the advanced
@@ -803,6 +740,7 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
         return 0
 
     def ranked_players(self, key):
+        """[(player, value, per second)] for one ledger, largest first."""
         seconds = max(1.0, self.duration_ms / 1000.0)
         rows = []
         for player in self.players.values():
@@ -813,6 +751,7 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
         return rows
 
     def top_abilities(self, store, limit=12):
+        """The `limit` abilities of one store with the largest totals."""
         return sorted(store.values(), key=lambda ability: ability.total, reverse=True)[:limit]
 
     @property
@@ -821,6 +760,7 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
         return len(self.blocks) > 1
 
     def ranked_enemies(self, key="damage_done", limit=20):
+        """Enemies (grouped by name) by one ledger, largest first."""
         rows = [
             enemy
             for enemy in self.enemies.values()

@@ -228,6 +228,7 @@ class ParseProblems:
         self.samples = []
 
     def note(self, reason, event=None, line_number=None, text=""):
+        """Count one line the reader could not place, keeping a few as samples."""
         self.by_reason[reason] = self.by_reason.get(reason, 0) + 1
         if len(self.samples) < 25:
             self.samples.append((line_number, reason, text[:200]))
@@ -245,6 +246,7 @@ class ParseProblems:
 
     @property
     def total(self):
+        """Lines not understood, each counted once."""
         return sum(self.by_reason.values())
 
 

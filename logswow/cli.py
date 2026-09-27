@@ -112,6 +112,7 @@ def read_log(args, verbose=True):
 
 
 def no_fight_message(path):
+    """Why nothing was reported, without blaming an option nobody typed."""
     return (
         "Aucun combat n'a ete trouve dans %s. Le fichier est peut-etre vide, "
         "ou ecrit par une version du client que ce lecteur ne comprend pas : "
@@ -175,6 +176,7 @@ def _pull_gap_ms(args):
 
 
 def command_report(args):
+    """`report`: read, select, refuse a dangerous output, write the page."""
     read = read_log(args, not args.quiet)
     if read is None:
         return 2
@@ -213,6 +215,7 @@ def command_report(args):
 
 
 def command_list(args):
+    """`list`: one line per fight, numbered as `--only` expects."""
     read = read_log(args, not args.quiet)
     if read is None:
         return 2
@@ -235,6 +238,7 @@ def command_list(args):
 
 
 def command_diagnose(args):
+    """`diagnose`: what the reader understood of the file, and what it did not."""
     if not os.path.exists(args.log):
         sys.stderr.write("Fichier introuvable : %s\n" % args.log)
         return 2
@@ -255,6 +259,7 @@ def command_diagnose(args):
 
 
 def command_where(_args):
+    """`where`: the usual log folders on this machine, newest files first."""
     found = default_log_locations()
     if not found:
         print("Aucun dossier Logs trouve aux emplacements habituels.")
@@ -307,6 +312,7 @@ def _positive(text):
 
 
 def build_parser():
+    """The command line, in French: four commands and their options."""
     parser = argparse.ArgumentParser(
         prog="logswow",
         description="Lit un journal de combat de World of Warcraft, en local, "
@@ -391,6 +397,7 @@ def _prepare_console():
 
 
 def main(argv=None):
+    """Entry point: parse, run, and turn the ordinary interruptions into exit codes."""
     _prepare_console()
     parser = build_parser()
     args = parser.parse_args(argv)
