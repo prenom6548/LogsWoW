@@ -522,7 +522,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin):
             "Disposition detectee dans ce fichier&nbsp;: bloc avance de %d champs, "
             "champ de degats bruts %s, champ hideCaster %s. "
             "Lignes non comprises&nbsp;: %s. Evenements inconnus&nbsp;: %s.<br>"
-            "GPLv3. Aucune donnee ne quitte cette machine.</footer></div></body></html>"
+            "GPLv3 ou ulterieure. Aucune donnee ne quitte cette machine."
+            "</footer></div></body></html>"
             % (
                 __version__,
                 fmt.esc(os.path.basename(self.log.path)),

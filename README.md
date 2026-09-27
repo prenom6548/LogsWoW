@@ -256,6 +256,8 @@ Windows, sous Linux comme sous Windows.
 
 ## Licence
 
-GPLv3. Tout le monde peut utiliser, modifier et redistribuer ;
-quiconque distribue une version, modifiée ou non, doit en fournir le code
-source sous la même licence. Voir `LICENSE` et `PROVENANCE.md`.
+Licence publique générale GNU, **version 3 ou (à votre choix) toute
+version ultérieure** (GPL-3.0-or-later). Tout le monde peut utiliser,
+modifier et redistribuer ; quiconque distribue une version, modifiée ou
+non, doit en fournir le code source sous la même licence. Voir `LICENSE`
+et `PROVENANCE.md`.

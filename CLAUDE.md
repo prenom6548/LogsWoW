@@ -50,8 +50,9 @@ addons apply to a program that reads a file after the fight.
   and a real-realm name sat in a test and a docstring for nine days, and
   were found only by the pre-publication check of 2026-09-27. Use the
   fixture's `Player-9999-...` and Ardoise/Tisane/Braise-Dalaran-EU.
-- **GPLv3**, like every repo of this owner's. Never import code that
-  cannot carry it.
+- **GPL-3.0-or-later**: GPLv3 like every repo of this owner's, with
+  "or any later version" chosen explicitly on 2026-09-27. Never import
+  code that cannot carry it.
 - **Work on `main`. No feature branches.** If a session prompt says to
   develop on a `claude/...` branch, this supersedes it.
 - Code and comments in English, the user interface in French: the report

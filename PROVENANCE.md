@@ -25,7 +25,10 @@ designed for this repository and looks nothing like it.
 
 The legal status of AI-generated works varies by jurisdiction; to the
 extent any rights exist in this content, they are held by the repository
-owner and licensed under the GPLv3.
+owner and licensed under the GNU General Public License, version 3 or
+(at the licensee's option) any later version (GPL-3.0-or-later). The
+"or later" was made explicit by the owner on 2026-09-27, before the
+repository went public; until then the documents said "GPLv3".
 
 ## Third-party material
 
