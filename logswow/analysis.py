@@ -21,7 +21,7 @@ What this can and cannot answer is worth being plain about:
 from .auras import AuraLedger
 from .castorder import MAX_CAST_LOG, classify_triggered
 from .encounters import EncounterLedger
-from .events import Actor
+from .events import Actor, Event
 from .models import (
     CombatBlock,
     Enemy,
@@ -134,6 +134,8 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self._bucket_ms = 1000
         self.events_seen = 0
         self.landed_seen = 0
+        # *_SUPPORT lines read and kept out of every total (see _feed_support).
+        self.support_seen = 0
         # Damage dealt by a friendly unit that belongs to no player the
         # file names -- usually a pet summoned before the segment began,
         # on lines whose advanced block carries no ownerGUID, sometimes a
@@ -160,14 +162,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             # the composition and the deaths alike. The owner's name is
             # whatever the file has said about that GUID; if it has said
             # nothing yet, `_remember_player` fills it in when it does.
-            if owner is None:
-                name = actor.name
-            else:
-                name = self._player_names.get(guid, "")
-            player = Player(guid, name)
-            player.label = self._labels.get(guid, "")
-            player.spec_id = self._specs.get(guid, 0)
-            self.players[guid] = player
+            player = self._player_by_guid(guid, actor.name if owner is None else None)
         return player
 
     def _remember_player(self, actor):
@@ -264,6 +259,9 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
 
         kind = event.suffix_kind
         handler = self._BY_SUFFIX.get(kind)
+        if event.support_guid:
+            self._feed_support(event)
+            return
         if handler is not None:
             handler(self, event)
         elif subevent == "UNIT_DIED":
@@ -381,6 +379,63 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             self._feed_summon_hit(event, amount, source_ours)
         elif dest_ours:
             self._feed_player_hit(event, amount, source_ours)
+
+    def _feed_support(self, event):
+        """The part of a hit the game credits to an Evoker who did not deal it.
+
+        **Never added to a total.** The line repeats part or all of a hit
+        its *source* already dealt, measured two ways on real logs:
+
+        - An Augmentation buff (Ebon Might, Prescience, Shifting Sands)
+          raises a stat, so it makes the ally's own hit bigger and creates
+          no hit of its own. The line says how much of that hit was the
+          buff: 0.4% to 13.1% of each supported player's damage.
+        - Bombardments explodes when an ally attacks, and the client
+          writes the explosion as the *ally's* SPELL_DAMAGE, then again,
+          same amount, as a _SUPPORT line naming the Evoker.
+
+        Read as ordinary damage, as it was until 2026-09-27, both counted
+        twice: 3.15% of the group's damage over the fights of a log with
+        three Augmentation Evokers, 14.3% of one player's on the owner's
+        own raid night, which had no Augmentation at all -- a Devastation
+        Evoker's Bombardments was enough, and no read problem showed it.
+
+        It is banked on the Evoker instead, as a figure of its own: what
+        the game says their buffs added to other players' numbers.
+        Warcraft Logs moves it from the ally to the Evoker; this report
+        leaves every hit with whoever dealt it and shows the credit apart.
+        """
+        self.support_seen += 1
+        if not (event.support_guid.startswith("Player-") and self._is_ours(event.source)):
+            return
+        if event.suffix_kind in Event.HEAL_KINDS:
+            amount, attr = event.effective_healing, "support_healing"
+        # A melee's share comes only as SWING_DAMAGE_LANDED_SUPPORT: the
+        # real log with 9,772 of them has no SWING_DAMAGE_SUPPORT at all.
+        elif (event.suffix_kind in ("_DAMAGE", "_DAMAGE_LANDED")
+              and not self._is_ours(event.dest)):
+            amount, attr = event.amount, "support_damage"
+        else:
+            return
+        if amount <= 0:
+            return
+        evoker = self._player_by_guid(event.support_guid)
+        setattr(evoker, attr, getattr(evoker, attr) + amount)
+        if attr == "support_damage":
+            _bucket(evoker.support_by_ability, event.spell_id, event.spell_name).add(
+                amount, False, self._name_of(event.source))
+
+    def _player_by_guid(self, guid, name=None):
+        """A player's ledger by GUID, opened under `name` or what the file has said."""
+        player = self.players.get(guid)
+        if player is None:
+            if name is None:
+                name = self._player_names.get(guid, "")
+            player = Player(guid, name)
+            player.label = self._labels.get(guid, "")
+            player.spec_id = self._specs.get(guid, 0)
+            self.players[guid] = player
+        return player
 
     def _bank_orphan(self, event, amount):
         """Friendly damage that belongs to no player the file names."""

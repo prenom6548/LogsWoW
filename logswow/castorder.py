@@ -36,18 +36,56 @@ the median gap between two casts of the genuine ones is 0.0 to 21.1 s,
 and of the macro'd ones 35.9 to 186.7 s. With at least 8 casts and a
 median gap of 30 s at most, exactly the five genuine spells are left.
 
+Recalibrated the same day on sixteen real logs (32.7 million lines,
+all 40 specializations, 2,386 player-fights), where that rule showed
+three faults:
+
+- **It hid both copies of one press.** Fracture writes two unpaid casts
+  under two ids for every press (3,061 pairs of 3,062), and so do
+  Felblade, Throw Glaive and Skull Bash: each copy stands beside the
+  other, both were "triggered", and the press vanished. One spell
+  written twice under one name in the same instant is now shown once:
+  the paid copy, else the most cast, else the higher id.
+- **It hid the pressed spell of a free pair.** Mind Flay: Insanity lands
+  with a Shadowy Apparition 417 times of 417 and neither costs anything.
+  The spell at a trigger's side must now be one that is **paid for** --
+  at least once in the fight, because a proc can make the button free
+  (Spinning Crane Kick under Dance of Chi-Ji, Disintegrate under Essence
+  Burst) and Chi Burst, Twin Flame still ride on it.
+- **Two copies at one instant timed a cooldown at 0.0 s.** Power
+  Infusion is written twice when a talent copies it to the priest, and
+  a two-minute cooldown macro'd with a trinket passed the gap test. The
+  paid-neighbour rule already excludes it (the trinket is free); the
+  new "faster than any button" test counts copies within the window as
+  one moment, so that it does not bring it back.
+
+And one family it could not see at all: procs that fire *alone*, faster
+than any button. Soul Fragment is cast every 0.2 s (48,517 times in one
+spec's fights), Empyrean Hammer and Reclamation likewise; Warcraft Logs
+removes the first from its cast count. A never-paid spell whose median
+gap is under `TRIGGER_FASTER_THAN_MS` is read as triggered.
+
+Still out of reach, and stated rather than guessed: a proc that fires
+alone at a button's pace (Shadowy Apparition, 1.1 s) and a pressed spell
+that always lands with a paid one (Windstrike beside Lightning Bolt, if
+it is pressed at all -- the file cannot say which of the two set the
+other off).
+
 So a spell is called **probably triggered** when, within one fight, it
-was cast at least `TRIGGER_MIN_CASTS` times, at least `TRIGGER_SHARE` of
-them within `TRIGGER_WINDOW_MS` of another spell of the same player,
-none of them costing anything, and the median gap between two of them
-is at most `TRIGGER_MAX_MEDIAN_GAP_MS`. It is a reading of the file,
-stated on the page, and the reader can overrule it with one click.
+was cast at least `TRIGGER_MIN_CASTS` times, never costing anything, and
+either at least `TRIGGER_SHARE` of its casts landed within
+`TRIGGER_WINDOW_MS` of a paid spell with a median gap of at most
+`TRIGGER_MAX_MEDIAN_GAP_MS`, or the median gap between the moments it
+was cast is under `TRIGGER_FASTER_THAN_MS`, or it is the second copy of a spell written
+twice under one name. It is a reading of the file, stated on the page,
+and the reader can overrule it with one click.
 """
 
 TRIGGER_WINDOW_MS = 20
 TRIGGER_SHARE = 0.8
 TRIGGER_MIN_CASTS = 8
 TRIGGER_MAX_MEDIAN_GAP_MS = 30000
+TRIGGER_FASTER_THAN_MS = 500
 
 # The casts one player's sequence keeps per segment. A Mythic+ key is
 # about 3,700 per player, so this only guards against a file nobody has
@@ -62,29 +100,87 @@ def classify_triggered(cast_log):
     player's summons are left out: they are shown as their own group,
     and a pet's attacks follow rules of their own.
     """
+    stats = spell_stats(cast_log)
+    chosen = set()
+    for spell_id, row in stats.items():
+        if row["casts"] < TRIGGER_MIN_CASTS or row["paid"]:
+            continue
+        rides = (row["beside_paid"] >= TRIGGER_SHARE * row["casts"]
+                 and row["median_gap"] <= TRIGGER_MAX_MEDIAN_GAP_MS)
+        if rides or row["moment_gap"] < TRIGGER_FASTER_THAN_MS:
+            chosen.add(spell_id)
+    return frozenset(chosen | _echoes(stats))
+
+
+def _echoes(stats):
+    """One press written twice under one name: every copy but one."""
+    by_name = {}
+    for spell_id, row in stats.items():
+        by_name.setdefault(row["name"], []).append(spell_id)
+    hidden = set()
+    for ids in by_name.values():
+        if len(ids) < 2:
+            continue
+        kept = max(ids, key=lambda i: (stats[i]["paid"] > 0, stats[i]["casts"], i))
+        hidden.update(
+            i for i in ids
+            if i != kept and not stats[i]["paid"] and stats[i]["casts"] >= TRIGGER_MIN_CASTS
+            and stats[i]["same_name"] >= TRIGGER_SHARE * stats[i]["casts"])
+    return hidden
+
+
+def spell_stats(cast_log):
+    """Per spell id of the player's own casts, what the rule reads.
+
+    casts, paid (how many spent power), beside (landed within the window
+    of another spell), beside_paid (of a spell that spent power at least
+    once in this fight), same_name (of another id with the same name),
+    median_gap (between two casts, as the rule was calibrated), and
+    moment_gap (between two *moments*: copies within the window are one).
+
+    Two gaps, because each question needs its own. Dire Beast summons
+    two beasts at one instant: between casts its median is 7 s, between
+    moments 40 to 56 s, which is where macro'd cooldowns sit (36 to
+    187 s, measured between casts). And Power Infusion written twice at
+    once has a median of 0.0 s between casts, which the "faster than any
+    button" test must not read as a spell fired twice a second.
+    """
     own = sorted((entry for entry in cast_log if not entry[4]), key=lambda e: e[0])
-    stats = {}                      # spell id -> [casts, beside another, paid, times]
+    # A spell that is paid for is a button, even on the casts a proc made
+    # free: a Spinning Crane Kick under Dance of Chi-Ji, a Disintegrate
+    # under Essence Burst still set off what rides on them.
+    paying = {entry[1] for entry in own if entry[3]}
+    stats = {}
     start = 0
-    for index, (ts, spell_id, _name, paid, _pet) in enumerate(own):
+    for index, (ts, spell_id, name, paid, _pet) in enumerate(own):
         while own[start][0] < ts - TRIGGER_WINDOW_MS:
             start += 1
-        beside = False
+        beside = beside_paid = same_name = False
         probe = start
         while probe < len(own) and own[probe][0] <= ts + TRIGGER_WINDOW_MS:
-            if probe != index and own[probe][1] != spell_id:
+            other = own[probe]
+            if probe != index and other[1] != spell_id:
                 beside = True
-                break
+                beside_paid = beside_paid or other[1] in paying
+                same_name = same_name or other[2] == name
             probe += 1
-        row = stats.setdefault(spell_id, [0, 0, 0, []])
-        row[0] += 1
-        row[1] += beside
-        row[2] += bool(paid)
-        row[3].append(ts)
-    return frozenset(
-        spell_id for spell_id, (casts, beside, paid, times) in stats.items()
-        if casts >= TRIGGER_MIN_CASTS and not paid and beside >= TRIGGER_SHARE * casts
-        and _median_gap(times) <= TRIGGER_MAX_MEDIAN_GAP_MS
-    )
+        row = stats.get(spell_id)
+        if row is None:
+            row = stats[spell_id] = {"name": name, "casts": 0, "paid": 0, "beside": 0,
+                                     "beside_paid": 0, "same_name": 0, "times": [],
+                                     "moments": []}
+        row["casts"] += 1
+        row["paid"] += bool(paid)
+        row["beside"] += beside
+        row["beside_paid"] += beside_paid
+        row["same_name"] += same_name
+        row["times"].append(ts)
+        if not row["moments"] or ts - row["moments"][-1] > TRIGGER_WINDOW_MS:
+            row["moments"].append(ts)
+    for row in stats.values():
+        row["median_gap"] = _median_gap(row.pop("times"))
+        row["moment_gap"] = _median_gap(row.pop("moments"))
+    return stats
 
 
 def _median_gap(times):

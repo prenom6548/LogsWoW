@@ -139,11 +139,14 @@ class CastOrderMixin:
         if groups["declenches"]:
             note = ("<p class=dim style='font-size:12px;margin:4px 0 0'>Le journal écrit "
                     "de la même façon un sort appuyé et un sort que le jeu déclenche seul. "
-                    "Sont lus comme déclenchés ceux qui, dans ce combat, ont été lancés au "
-                    "moins 8 fois, à 80%s au moins en même temps qu'un autre sort, sans "
-                    "jamais coûter de ressource, et au plus toutes les 30 secondes en "
-                    "moyenne. C'est une lecture du fichier%s: cliquez pour les afficher.</p>"
-                    % (" %", fmt.NBSP))
+                    "Sont lus comme déclenchés, parmi les sorts lancés au moins 8 fois dans "
+                    "ce combat sans jamais coûter de ressource%s: ceux qui, à 80%s au moins, "
+                    "partent en même temps qu'un sort payé, avec un écart médian de 30 "
+                    "secondes au plus entre deux lancers%s; ceux dont l'écart médian est sous "
+                    "la demi-seconde, plus vite qu'aucun bouton%s; et la seconde copie d'un "
+                    "sort que le journal écrit deux fois, sous le "
+                    "même nom, au même instant. C'est une lecture du fichier%s: cliquez pour "
+                    "les afficher.</p>" % (fmt.NBSP, fmt.NBSP + "%", fmt.NBSP, fmt.NBSP, fmt.NBSP))
         return ("<div class=legend><p class=dim style='font-size:12px;margin:0'>Cliquez sur "
                 "un sort pour le masquer ou l'afficher.</p>%s%s</div>" % (body, note))
 

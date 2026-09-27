@@ -124,6 +124,11 @@ BARE_EVENTS = frozenset(
         "ENCHANT_APPLIED",
         "ENCHANT_REMOVED",
         "SPELL_ABSORBED",
+        # The part of an absorb the game credits to an Evoker's buff:
+        # already inside the SPELL_ABSORBED line of the same hit, so it is
+        # read and left alone. 20 or 23 fields, like SPELL_ABSORBED plus
+        # the Evoker's GUID.
+        "SPELL_ABSORBED_SUPPORT",
     }
 )
 
@@ -461,19 +466,32 @@ class Event:
 
 
 def decompose(subevent):
-    """'SPELL_PERIODIC_DAMAGE' -> ('SPELL_PERIODIC', 3, '_DAMAGE', counts)."""
+    """'SPELL_PERIODIC_DAMAGE' -> ('SPELL_PERIODIC', 3, '_DAMAGE', counts).
+
+    Every prefix is tried and the **longest suffix** wins, because two
+    splits can both be valid names: SPELL_EMPOWER_INTERRUPT is
+    SPELL + _EMPOWER_INTERRUPT (one field, the stage reached), and read as
+    SPELL_EMPOWER + _INTERRUPT it became an interrupt of the null GUID,
+    credited to the Evoker who let go of an empowered spell -- 1 to 47
+    lines per real log, each one an "Interruptions" that never happened.
+
+    The *_SUPPORT variants of a SWING event carry a spell prefix, the
+    buff the support came from: SWING_DAMAGE_LANDED_SUPPORT has the same
+    42 fields as SPELL_DAMAGE_SUPPORT (9,772 of 9,772 lines, one real log).
+    """
+    best = None
     for prefix, prefix_n in _PREFIXES:
         if not subevent.startswith(prefix):
             continue
         remainder = subevent[len(prefix) :]
-        if not remainder:
+        counts = _SUFFIXES.get(remainder)
+        if counts is None or (best is not None and len(remainder) <= len(best[2])):
             continue
-        best = None
-        for suffix, counts in _SUFFIXES.items():
-            if remainder == suffix and (best is None or len(suffix) > len(best[0])):
-                best = (suffix, counts)
-        if best:
-            return prefix, prefix_n, best[0], best[1]
+        if prefix == "SWING" and remainder.endswith("_SUPPORT"):
+            prefix_n = 3
+        best = (prefix, prefix_n, remainder, counts)
+    if best:
+        return best
     for suffix in ("_SHIELD_MISSED", "_SHIELD", "_SPLIT"):
         if subevent == "DAMAGE" + suffix:
             return "SPELL", 3, suffix, _SUFFIXES[suffix]
@@ -561,8 +579,12 @@ def build_event(ts, fields, line_number, layout=DEFAULT_LAYOUT):
     if advanced is not None:
         event.advanced = Advanced(advanced)
 
-    # The *_SUPPORT variants append the supporting player's GUID. Checked
-    # rather than assumed: neither real log read so far contains one.
+    # The *_SUPPORT variants append the supporting player's GUID: the
+    # Augmentation Evoker whose buff the game credits with part of a hit
+    # the *source* dealt (65,926 of 65,926 lines on a real log, every
+    # trailer an Evoker's). The kind keeps the base suffix so the amount
+    # reads the same way; `support_guid` is what marks the line, and the
+    # analysis never adds such a line to a total.
     if suffix_name.endswith("_SUPPORT") and suffix and looks_like_guid(suffix[-1]):
         event.support_guid = suffix[-1]
         suffix = suffix[:-1]

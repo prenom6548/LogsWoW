@@ -740,6 +740,66 @@ Names now fall back to "Rencontre"/"Donjon" (`segment._text`), and such
 a line is one read problem, "nom d'evenement illisible". 3,000 rounds
 over ten seeds after that, no exception.
 
+### Sixteen logs: the Evoker's lines, and the triggered rule on every class (2026-09-27)
+
+The owner uploaded sixteen real logs (9.5 GB, 32.7 million lines, all
+40 specializations, 2,386 player-fights) so the triggered-spell rule
+could be checked on classes the first two logs lacked. They were read
+one at a time in the session and deleted; only counts were kept. Every
+one reads with zero read problems and holds every invariant. What they
+found, in order of cost:
+
+- **`*_SUPPORT` lines were counted as damage.** The client writes, after
+  a hit, a line with the same source and target, the Evoker's buff as
+  the spell, and the Evoker's GUID as the last field, giving the part of
+  the hit the game credits to the Evoker (0.4% to 13.1% of a supported
+  player's damage), or, for Bombardments, the *whole* hit a second time
+  (the plain line is the ally's, same amount). `build_event` stripped
+  the suffix and the analysis fed it as ordinary damage and healing.
+  The worst player was +15.3%, the group up to +3.15% over the affected
+  fights, and the owner's own raid night -- no Augmentation at all, one
+  Devastation Evoker's Bombardments -- had a player at +14.3%. **No read
+  problem showed it**: the spell-prefixed lines have a width the reader
+  accepted; only `SWING_DAMAGE_LANDED_SUPPORT` (which carries a spell
+  prefix, 42 fields) did not fit. Such a line is now never added to a
+  total (`SegmentAnalysis._feed_support`); the Evoker gets it as
+  `Player.support_damage` / `support_healing`, on its own tile, with a
+  note that Warcraft Logs moves it instead. An independent recount of
+  every encounter of the worst log agreed with the package at a median
+  of +1.45% before the fix (up to +11.74%) and 0.00% after.
+- **`SPELL_EMPOWER_INTERRUPT` was an interrupt.** `decompose` took the
+  first prefix that matched, SPELL_EMPOWER + `_INTERRUPT`, so an Evoker
+  letting go of an empowered spell "interrupted" the null GUID. The
+  longest suffix now wins across prefixes. All such lines fell outside
+  the fights in these logs, so no count moved -- a latent bug.
+- `SPELL_ABSORBED_SUPPORT` is known and left alone: its amount is inside
+  the SPELL_ABSORBED line of the same hit.
+
+**The triggered-spell rule, replayed on every class** (`castorder.py`
+has the full account). The two-log rule got the five spells it was
+tuned on and made three kinds of mistake elsewhere: it hid *both*
+copies of a press written twice (Fracture, Felblade, Throw Glaive,
+Skull Bash -- the press vanished), it hid the pressed spell of a free
+pair (Mind Flay: Insanity beside Shadowy Apparition, 25 fights of 25),
+and a spell written twice at one instant timed a two-minute cooldown at
+0.0 s (Power Infusion). Now: a same-name twin shows one copy; a
+trigger's neighbour must be a spell *paid for at least once in the
+fight* (requiring it paid at that very cast lost Chi Burst, Twin Flame
+and Sacrosanct Crusade, whose buttons a proc makes free). And a family
+nothing caught: procs that fire alone faster than any button (Soul
+Fragment every 0.2 s, Empyrean Hammer, Reclamation) -- never paid and
+a median gap under half a second between *moments*, copies within the
+window counting once, so that Power Infusion written twice at one
+instant is not a spell fired twice a second. The paid-neighbour test
+keeps the gap between *casts* it was calibrated on: counted in moments,
+Dire Beast (two beasts at once, every 40-56 s) fell among the macros
+and 17 fights of 47 lost it -- caught by the full rerun, not by the
+replay, which is why the rerun is worth its twenty minutes.
+
+Left as they are, because the file cannot say: Shadowy Apparition (a
+proc alone at a button's pace) and Windstrike (always beside a *paid*
+Lightning Bolt; which of the two set the other off is not in the line).
+
 ### Enemies are aggregated by name, not by GUID
 
 A key meets thirty-two units called "Diablotin sauvage" and nobody wants
@@ -868,7 +928,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 173 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 185 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestFifthAuditFindings`), and each one was regression-checked the

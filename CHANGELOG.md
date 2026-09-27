@@ -3,6 +3,56 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.3.1 — 2026-09-27
+
+**Mesuré sur seize vrais journaux** — 32,7 millions de lignes, les 40
+spécialisations du jeu. Tous se lisent désormais sans une seule ligne
+incomprise, et chaque vérification croisée tient sur chacun.
+
+**Corrigé**
+
+- **Des dégâts comptés deux fois quand un Évocateur est dans le
+  groupe.** Le journal écrit, en plus de chaque coup, une ligne qui
+  attribue une part de ce coup aux renforts d'un Évocateur Augmentation
+  (Puissance d'ébène, Prescience…) ou aux Bombardements d'un Évocateur.
+  Ces lignes étaient additionnées comme de nouveaux dégâts : jusqu'à
+  +15 % pour un joueur, et jusqu'à +3 % pour le groupe sur les combats
+  concernés. Même une soirée sans Évocateur Augmentation était touchée,
+  par les Bombardements d'un Évocateur Dévastation, et aucun message ne
+  le signalait. Un recompte indépendant, écrit sans le programme, tombe
+  désormais sur les mêmes totaux (écart médian : 0,00 %).
+- **Le panneau de l'Évocateur montre ce que le jeu lui crédite** : une
+  tuile « Soutien crédité par le jeu » et le détail par renfort. Ces
+  montants restent comptés chez ceux qui ont porté les coups ; Warcraft
+  Logs, lui, les leur retire pour les donner à l'Évocateur, d'où un écart
+  entre les deux sites pour les joueurs renforcés.
+- **Des interruptions fantômes pour les Évocateurs** : relâcher un sort
+  à charger avant la fin était lu comme une interruption.
+- Les coups de mêlée renforcés par un Évocateur étaient comptés comme
+  lignes incomprises (9 793 dans un journal, 3 837 dans un autre) ; ils
+  sont lus.
+
+**Ordre des sorts : la reconnaissance des sorts automatiques, revue sur
+toutes les classes**
+
+- Un sort que le jeu écrit **deux fois sous le même nom au même
+  instant** (Fracture, Gangrelame, Lancer de glaive, Coup de crâne…)
+  n'est plus masqué en entier : une seule pastille reste, pour une
+  pression.
+- Un sort n'est plus lu comme déclenché parce qu'il part avec un autre
+  sort gratuit : il faut que ce voisin soit un sort payé. « Fouet mental :
+  insanité », qui part toujours avec une « Apparition ténébreuse », est
+  de nouveau visible.
+- « Infusion de puissance », écrite deux fois d'un coup, n'est plus prise
+  pour un sort rapide.
+- Les sorts que le jeu lance **plus vite qu'aucun bouton** (un écart
+  médian sous la demi-seconde, sans jamais coûter de ressource) sont
+  maintenant reconnus : « Fragment d'âme », « Marteau empyréen »,
+  « Reconquête ».
+- Reste hors de portée : un sort automatique qui part seul, au rythme
+  d'un bouton (« Apparition ténébreuse »). Un clic sur la légende le
+  masque.
+
 ## 0.3.0 — 2026-09-27
 
 **L'ordre des sorts de chaque joueur, pull par pull.**

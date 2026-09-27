@@ -5,9 +5,9 @@ installer : pas de bibliothèque, pas de compte, pas de connexion. Il
 existe deux façons de le récupérer, et la première suffit presque
 toujours :
 
-- **Le fichier unique `logswow-0.2.0.pyz`**, joint à chaque version
+- **Le fichier unique `logswow-0.3.1.pyz`**, joint à chaque version
   publiée (page « Releases » du dépôt). C'est tout le programme en un
-  fichier de 80 Ko, qu'on lance tel quel depuis n'importe quel dossier.
+  fichier de 90 Ko, qu'on lance tel quel depuis n'importe quel dossier.
 - **Le code source** (bouton « Code » puis « Download ZIP », ou
   `git clone`), pour qui veut lire le code ou lancer les tests.
 
@@ -15,7 +15,7 @@ Le dépôt est privé : pour télécharger, il faut un compte GitHub à qui le
 propriétaire a donné accès. Sinon, qu'il vous transmette simplement le
 fichier `.pyz` : il n'en faut pas plus.
 
-Dans les exemples ci-dessous, remplacez `0.2.0` par le numéro de la
+Dans les exemples ci-dessous, remplacez `0.3.1` par le numéro de la
 version que vous avez téléchargée.
 
 ---
@@ -60,7 +60,7 @@ Le jeu écrit alors `WoWCombatLog-<date>.txt` dans son dossier `Logs`.
 
 ### 2. Récupérer LogsWoW
 
-Téléchargez `logswow-0.2.0.pyz` et rangez-le où vous voulez, par
+Téléchargez `logswow-0.3.1.pyz` et rangez-le où vous voulez, par
 exemple dans `Documents\LogsWoW`.
 
 ### 3. Le lancer
@@ -69,14 +69,14 @@ Dans l'Invite de commandes, placez-vous dans ce dossier, puis :
 
 ```
 cd %USERPROFILE%\Documents\LogsWoW
-py logswow-0.2.0.pyz where
+py logswow-0.3.1.pyz where
 ```
 
 `where` affiche le dossier `Logs` du jeu (il regarde sur les disques C:
 à H:) et les derniers journaux qu'il contient. Ensuite :
 
 ```
-py logswow-0.2.0.pyz report "C:\Program Files (x86)\World of Warcraft\_retail_\Logs\WoWCombatLog-091826_203000.txt"
+py logswow-0.3.1.pyz report "C:\Program Files (x86)\World of Warcraft\_retail_\Logs\WoWCombatLog-091826_203000.txt"
 ```
 
 La page HTML apparaît à côté du journal, sous le même nom en `.html` ;
@@ -113,8 +113,8 @@ S'il manque :
 
 ```
 mkdir -p ~/LogsWoW
-mv ~/Téléchargements/logswow-0.2.0.pyz ~/LogsWoW/
-python3 ~/LogsWoW/logswow-0.2.0.pyz where
+mv ~/Téléchargements/logswow-0.3.1.pyz ~/LogsWoW/
+python3 ~/LogsWoW/logswow-0.3.1.pyz where
 ```
 
 (Sur un système en anglais, le dossier est `~/Downloads`.)
@@ -122,14 +122,14 @@ python3 ~/LogsWoW/logswow-0.2.0.pyz where
 Le fichier peut aussi se lancer directement, comme une commande :
 
 ```
-chmod +x ~/LogsWoW/logswow-0.2.0.pyz
-~/LogsWoW/logswow-0.2.0.pyz where
+chmod +x ~/LogsWoW/logswow-0.3.1.pyz
+~/LogsWoW/logswow-0.3.1.pyz where
 ```
 
 Pour ne plus taper le chemin, ajoutez à la fin de `~/.bashrc` :
 
 ```
-alias logswow='python3 ~/LogsWoW/logswow-0.2.0.pyz'
+alias logswow='python3 ~/LogsWoW/logswow-0.3.1.pyz'
 ```
 
 puis ouvrez un nouveau terminal : `logswow where`, `logswow report …`.
@@ -158,7 +158,7 @@ find ~ -name 'WoWCombatLog*.txt' 2>/dev/null
 Mettez le chemin entre guillemets : il contient des espaces.
 
 ```
-python3 ~/LogsWoW/logswow-0.2.0.pyz report "$HOME/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
+python3 ~/LogsWoW/logswow-0.3.1.pyz report "$HOME/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
 xdg-open "$HOME/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.html"
 ```
 
@@ -187,9 +187,9 @@ prendre l'installateur macOS sur python.org.
 
 ```
 mkdir -p ~/LogsWoW
-mv ~/Downloads/logswow-0.2.0.pyz ~/LogsWoW/
-python3 ~/LogsWoW/logswow-0.2.0.pyz where
-python3 ~/LogsWoW/logswow-0.2.0.pyz report "/Applications/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
+mv ~/Downloads/logswow-0.3.1.pyz ~/LogsWoW/
+python3 ~/LogsWoW/logswow-0.3.1.pyz where
+python3 ~/LogsWoW/logswow-0.3.1.pyz report "/Applications/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
 open "/Applications/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.html"
 ```
 
@@ -202,7 +202,7 @@ Si le dossier du jeu refuse l'écriture, écrivez la page ailleurs avec
 
 Pour lire le code ou lancer les tests, téléchargez le ZIP du dépôt (ou
 `git clone`), placez-vous **dans le dossier qui contient `logswow`**, et
-remplacez `logswow-0.2.0.pyz` par `-m logswow` :
+remplacez `logswow-0.3.1.pyz` par `-m logswow` :
 
 ```
 python3 -m logswow where              # Linux, macOS
@@ -223,9 +223,9 @@ publié, calculez la vôtre et comparez :
 
 | Système | Commande |
 |---|---|
-| Windows | `certutil -hashfile logswow-0.2.0.pyz SHA256` |
-| Linux | `sha256sum logswow-0.2.0.pyz` |
-| macOS | `shasum -a 256 logswow-0.2.0.pyz` |
+| Windows | `certutil -hashfile logswow-0.3.1.pyz SHA256` |
+| Linux | `sha256sum logswow-0.3.1.pyz` |
+| macOS | `shasum -a 256 logswow-0.3.1.pyz` |
 
 ---
 
@@ -242,7 +242,7 @@ publié, calculez la vôtre et comparez :
 ## Si quelque chose ne va pas
 
 - **Lancez `diagnose` en premier** :
-  `python3 logswow-0.2.0.pyz diagnose "chemin/du/journal.txt"`. Il montre
+  `python3 logswow-0.3.1.pyz diagnose "chemin/du/journal.txt"`. Il montre
   ce que le lecteur a compris du fichier ; la ligne qui compte est
   `PROBLEMES DE LECTURE : 0`.
 - **« Aucun combat n'a été trouvé »** : le fichier est vide, ou

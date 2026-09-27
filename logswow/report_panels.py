@@ -136,6 +136,11 @@ class PanelsMixin:
             ("Degats subis", fmt.compact(player.damage_taken)),
             ("Absorbe sur lui", fmt.compact(player.absorbed_taken)),
             ("Absorbe par ses boucliers", fmt.compact(player.absorb_done)),
+        ]
+        if player.support_damage or player.support_healing:
+            tiles.append(("Soutien credite par le jeu",
+                          fmt.compact(player.support_damage + player.support_healing)))
+        tiles += [
             ("Sorts par minute", "%.1f" % (player.casts / max(1.0, seconds / 60.0))),
             ("Temps sans action", format_duration(player.downtime_ms)),
             ("Interruptions", str(player.interrupts)),
@@ -169,6 +174,9 @@ class PanelsMixin:
             analysis.top_abilities(player.taken_by_ability, 16),
             None, seconds, "taken", player.damage_taken)))
         sections.extend(sections_absorb)
+        if player.support_damage or player.support_healing:
+            sections.append(("Soutien que le jeu lui credite", self._support(
+                analysis, player, seconds)))
         sections.append(("Gains recus", self._aura_table(
             analysis.player_uptimes(player.guid, 18, kind="BUFF"), duration, "De qui")))
         sections.append(("Affaiblissements subis", self._aura_table(
@@ -225,6 +233,25 @@ class PanelsMixin:
                 body,
                 "".join(notes),
             )
+        )
+
+    def _support(self, analysis, player, seconds):
+        """An Augmentation Evoker's share of other players' numbers, and what it is not."""
+        table = ""
+        if player.support_by_ability:
+            table = self._ability_table(
+                analysis.top_abilities(player.support_by_ability, 10),
+                None, seconds, "damage", player.support_damage)
+        return (
+            "%s<p class=dim style='font-size:12px;margin:4px 0 0'>Le journal credite "
+            "cet evocateur de %s de degats et %s de soins portes par d'autres joueurs"
+            "%s: la part que ses renforts (Puissance d'ebene, Prescience...) ont ajoutee "
+            "a leurs coups, et ses Bombardements, que le journal ecrit au nom de l'allie "
+            "qui les a declenches. Ces montants sont <b>deja comptes</b> chez ceux qui ont "
+            "porte les coups et ne sont pas ajoutes aux siens%s; Warcraft Logs, lui, les "
+            "retire aux autres pour les lui donner, d'ou l'ecart entre les deux.</p>"
+            % (table, fmt.compact(player.support_damage), fmt.compact(player.support_healing),
+               NBSP, NBSP)
         )
 
     def _targets_table(self, targets, limit=20):

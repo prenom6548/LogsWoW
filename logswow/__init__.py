@@ -6,4 +6,4 @@ Python 3 standard library only, so `python3 -m logswow` works on a fresh
 install with nothing to pip install.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"

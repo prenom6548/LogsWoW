@@ -107,6 +107,13 @@ lu serait pire que pas de rapport du tout.
   être rattachée à aucun joueur. Ils sont laissés hors du total, et un
   encadré le dit, avec leur nom et leur montant — un total silencieusement
   incomplet serait pire.
+- **La part d'un Évocateur Augmentation** : le journal attribue à ses
+  renforts (Puissance d'ébène, Prescience…) une part des coups des autres
+  joueurs, et à lui les Bombardements qu'un allié déclenche. Ces montants
+  sont déjà dans les dégâts de ceux qui ont porté les coups : ils sont
+  montrés à part sur le panneau de l'Évocateur, jamais ajoutés une
+  seconde fois. Warcraft Logs, lui, les déplace vers l'Évocateur, d'où un
+  écart entre les deux pour les joueurs renforcés.
 - **Ce qui a fait mal au groupe** : chaque capacité ennemie, combien elle
   a coûté, combien de joueurs elle a touchés.
 - **Les morts**, chacune avec la chaîne des derniers coups et soins reçus
@@ -130,9 +137,10 @@ lu serait pire que pas de rapport du tout.
   pastilles, sans aucun script dans la page. Les sorts de ses invocations
   sont à part, en pastilles rondes. Ceux que le jeu déclenche tout seul
   sont écrits dans le journal exactement comme un sort appuyé ; ceux qui
-  en ont toutes les marques (lancés en même temps qu'un autre sort, sans
-  coût, très souvent) sont regroupés à part et masqués au départ, et un
-  clic les réaffiche. `--sans-sequence` retire cette section, pour une
+  en ont les marques (jamais payés, et lancés en même temps qu'un sort
+  payé, ou plus vite qu'aucun bouton, ou second exemplaire d'un sort que
+  le journal écrit deux fois sous le même nom) sont regroupés à part et
+  masqués au départ, et un clic les réaffiche. `--sans-sequence` retire cette section, pour une
   page environ deux fois plus légère.
 - **Par ennemi**, de la même façon : les unités portant le même nom sont
   regroupées, avec ce qu'elles infligent et à qui, ce qu'elles ont subi

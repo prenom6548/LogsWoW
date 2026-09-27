@@ -2435,5 +2435,186 @@ class TestCastOrder(unittest.TestCase):
         self.assertEqual(spell_colour(100), spell_colour(100))
 
 
+class TestWhatSixteenLogsFound(unittest.TestCase):
+    """Sixteen real logs from the owner, 32.7 million lines (2026-09-27)."""
+
+    ALLY = 'Player-9-00000001,"Ardoise-Dalaran-EU",0x512,0x0'
+    ALLY_GUID = "Player-9-00000001"
+    EVOKER = 'Player-9-00000002,"Braise-Dalaran-EU",0x512,0x0'
+    EVOKER_GUID = "Player-9-00000002"
+    MOB = 'Creature-0-9-2-1-70000-0000000001,"Golem",0xa48,0x0'
+    NOBODY = '0000000000000000,nil,0x80000000,0x80000000'
+
+    def _adv(self, info):
+        return ",".join(advanced_block(19, info=info))
+
+    def _run(self, timed_payloads):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, (ms, payload) in enumerate(timed_payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            event = build_event(ms, fields, index + 1)
+            self.assertIsNone(event.mismatch, payload[:40])
+            splitter.feed(event)
+        return splitter.finish()
+
+    def _lines(self):
+        mob = "Creature-0-9-2-1-70000-0000000001"
+        return [
+            (0, 'SPELL_DAMAGE,%s,%s,100,"Frappe",0x1,%s,10000,9000,-1,1,0,0,0,nil,nil,nil,ST'
+             % (self.ALLY, self.MOB, self._adv(mob))),
+            # Ebon Might's share of that same hit, credited to the Evoker.
+            (0, 'SPELL_DAMAGE_SUPPORT,%s,%s,395152,"Puissance d\'ebene",0xc,%s,'
+             '800,700,-1,12,0,0,0,nil,nil,nil,%s'
+             % (self.ALLY, self.MOB, self._adv(mob), self.EVOKER_GUID)),
+            (100, 'SWING_DAMAGE,%s,%s,%s,2000,1800,-1,1,0,0,0,nil,nil,nil'
+             % (self.ALLY, self.MOB, self._adv(self.ALLY_GUID))),
+            (100, 'SWING_DAMAGE_LANDED,%s,%s,%s,2000,1800,-1,1,0,0,0,nil,nil,nil'
+             % (self.ALLY, self.MOB, self._adv(mob))),
+            # A melee support line carries a spell prefix: 42 fields, the
+            # width that was 9,772 read problems on one real log.
+            (100, 'SWING_DAMAGE_LANDED_SUPPORT,%s,%s,395152,"Puissance d\'ebene",0xc,%s,'
+             '150,140,-1,1,0,0,0,nil,nil,nil,%s'
+             % (self.ALLY, self.MOB, self._adv(mob), self.EVOKER_GUID)),
+            (200, 'SPELL_HEAL,%s,%s,200,"Soin",0x2,%s,3000,2900,0,0,nil'
+             % (self.ALLY, self.ALLY, self._adv(self.ALLY_GUID))),
+            (200, 'SPELL_HEAL_SUPPORT,%s,%s,410089,"Prescience",0x40,%s,200,190,0,0,nil,%s'
+             % (self.ALLY, self.ALLY, self._adv(self.ALLY_GUID), self.EVOKER_GUID)),
+            (300, 'SPELL_ABSORBED_SUPPORT,%s,%s,300,"Coup",0x1,%s,413984,"Sables changeants",'
+             '0x40,1947,2866,nil,%s' % (self.MOB, self.ALLY, self.ALLY, self.EVOKER_GUID)),
+            # An Evoker letting go of an empowered spell, 1 to 47 per log.
+            (400, 'SPELL_EMPOWER_INTERRUPT,%s,%s,357208,"Souffle de feu",0x4,1'
+             % (self.EVOKER, self.NOBODY)),
+            (500, 'SPELL_CAST_SUCCESS,%s,%s,361469,"Frappe vivante",0x4,%s'
+             % (self.EVOKER, self.MOB, self._adv(self.EVOKER_GUID))),
+        ]
+
+    def test_a_support_line_is_never_counted_twice(self):
+        """Every _SUPPORT line repeats part or all of a hit its source
+        already dealt. Read as damage, it gave supported players up to
+        14.3% of damage they never did, on the owner's own raid night."""
+        analysis = self._run(self._lines())[0].analysis
+        ally = analysis.players[self.ALLY_GUID]
+        self.assertEqual(ally.damage_done, 12000)
+        self.assertEqual(analysis.total_damage, 12000)
+        self.assertEqual(ally.healing_done, 3000)
+        self.assertNotIn((395152, "Puissance d'ebene"), ally.damage_by_ability)
+        self.assertEqual(analysis.support_seen, 3)
+        self.assertEqual(analysis.landed_seen, 1)
+
+    def test_the_evoker_is_credited_apart(self):
+        analysis = self._run(self._lines())[0].analysis
+        evoker = analysis.players[self.EVOKER_GUID]
+        self.assertEqual(evoker.support_damage, 950)
+        self.assertEqual(evoker.support_healing, 200)
+        self.assertEqual(evoker.damage_done, 0)
+        self.assertEqual(evoker.label, "Braise")
+        self.assertEqual(sum(a.total for a in evoker.support_by_ability.values()), 950)
+
+    def test_letting_go_of_an_empowered_spell_is_not_an_interrupt(self):
+        """SPELL_EMPOWER_INTERRUPT is SPELL + _EMPOWER_INTERRUPT. Read as
+        SPELL_EMPOWER + _INTERRUPT, the Evoker 'interrupted' the null GUID."""
+        self.assertEqual(decompose("SPELL_EMPOWER_INTERRUPT")[:3],
+                         ("SPELL", 3, "_EMPOWER_INTERRUPT"))
+        analysis = self._run(self._lines())[0].analysis
+        self.assertEqual(analysis.players[self.EVOKER_GUID].interrupts, 0)
+
+    def test_the_absorbed_support_line_is_a_known_event(self):
+        event = event_from(self._lines()[7][1])
+        self.assertIsNone(event.mismatch)
+        self.assertEqual(event.subevent, "SPELL_ABSORBED_SUPPORT")
+
+    def test_the_page_says_the_credit_is_already_counted(self):
+        import tempfile
+
+        segments = self._run(self._lines())
+        log, _fixture_segments = run_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "rapport.html")
+            ReportWriter(log, segments, target).write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertIn("Soutien credite par le jeu", page)
+        self.assertIn("deja comptes", page)
+
+
+class TestTriggeredAcrossAllClasses(unittest.TestCase):
+    """The triggered-spell rule, recalibrated on sixteen logs (2026-09-27)."""
+
+    @staticmethod
+    def _classify(log):
+        from logswow.castorder import classify_triggered
+
+        return classify_triggered(log)
+
+    def test_a_free_spell_beside_a_free_spell_is_not_called_triggered(self):
+        """Mind Flay: Insanity lands with a Shadowy Apparition 417 times of
+        417, and neither is ever paid: the rule used to hide the pressed
+        one. A trigger now needs a spell that is paid for at its side."""
+        log = []
+        for i in range(12):
+            log.append((i * 5400, 391403, "Fouet mental : insanite", False, False))
+            log.append((i * 5400 + 3, 341263, "Apparition tenebreuse", False, False))
+            log.append((i * 5400 + 1600, 341263, "Apparition tenebreuse", False, False))
+            log.append((i * 5400 + 3000, 8092, "Attaque mentale", True, False))
+        self.assertNotIn(391403, self._classify(log))
+
+    def test_a_press_made_free_by_a_proc_still_sets_off_its_trigger(self):
+        """Chi Burst rides on Spinning Crane Kick, which Dance of Chi-Ji
+        makes free: the button is a paid spell even on its free casts."""
+        log = []
+        for i in range(12):
+            log.append((i * 1500, 101546, "Coup tournoyant", i % 3 == 0, False))
+            log.append((i * 1500 + 4, 393056, "Nova de chi", False, False))
+        self.assertEqual(self._classify(log), frozenset({393056}))
+
+    def test_one_press_written_twice_under_one_name_shows_once(self):
+        """Fracture writes two unpaid casts per press, 3,061 times in a row.
+        The rule used to hide both; now it hides exactly one."""
+        log = []
+        for i in range(20):
+            log.append((i * 3700, 263642, "Fracture", False, False))
+            log.append((i * 3700 + 1, 225919, "Fracture", False, False))
+        log.append((90000, 263642, "Fracture", False, False))
+        self.assertEqual(self._classify(log), frozenset({225919}))
+
+    def test_the_paid_copy_of_a_twin_is_the_one_kept(self):
+        log = []
+        for i in range(12):
+            log.append((i * 2100, 1329, "Estropier", True, False))
+            log.append((i * 2100 + 2, 27576, "Estropier", False, False))
+        self.assertEqual(self._classify(log), frozenset({27576}))
+
+    def test_faster_than_any_button_is_not_pressed(self):
+        """Soul fragments: 48,517 casts at a median of 0.2 s, alone."""
+        log = [(i * 200, 1223412, "Fragment d'ame", False, False) for i in range(40)]
+        log += [(i * 1500 + 90, 100, "Frappe", True, False) for i in range(6)]
+        self.assertEqual(self._classify(log), frozenset({1223412}))
+
+    def test_a_spell_written_twice_at_once_is_not_faster_than_a_button(self):
+        """Power Infusion on a friend, and on oneself by a talent, is two
+        lines at the same instant: 0.0 s between casts. The 'faster than
+        any button' test counts moments, so a two-minute cooldown macro'd
+        with a free trinket stays visible."""
+        log = []
+        for i in range(9):
+            ts = i * 120000
+            log.append((ts, 10060, "Infusion de puissance", False, False))
+            log.append((ts, 10060, "Infusion de puissance", False, False))
+            log.append((ts + 1, 999, "Bijou", False, False))
+        self.assertNotIn(10060, self._classify(log))
+
+    def test_two_summons_at_one_instant_keep_the_gap_it_was_calibrated_on(self):
+        """Dire Beast brings two beasts at once, about every 45 s, beside a
+        paid Kill Command. Between moments that is a macro's pace; between
+        casts, the 0.0 s pairs keep it a proc, as it was calibrated."""
+        log = []
+        for i in range(10):
+            ts = i * 45000
+            log.append((ts, 34026, "Ordre de tuer", True, False))
+            log.append((ts + 2, 1308188, "Bete feroce", False, False))
+            log.append((ts + 3, 1308188, "Bete feroce", False, False))
+        self.assertEqual(self._classify(log), frozenset({1308188}))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
