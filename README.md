@@ -16,6 +16,11 @@ ne charge rien depuis nulle part, et elle ne contient aucun script.
 
 ## Ce qu'il faut avant
 
+**La marche à suivre pas à pas, pour Windows, Linux (dont Linux Mint) et
+macOS, est dans [`INSTALL.md`](INSTALL.md).** Chaque version publiée
+fournit un fichier unique, `logswow-<version>.pyz`, qui se lance tel quel :
+`python3 logswow-0.2.0.pyz report WoWCombatLog.txt`.
+
 Rien à installer. Python 3.8 ou plus récent, et c'est tout : pas de
 `pip install`, aucune dépendance, aucun réseau. Le paquet se copie ou se
 clone, il ne s'installe pas ; il n'a donc volontairement ni
@@ -198,7 +203,7 @@ python3 tools/check-invariants.py WoWCombatLog.txt
 ln -s ../../tools/pre-push .git/hooks/pre-push     # une fois, pour les contributeurs
 ```
 
-Les tests, 163, tournent sans dépendance ni réseau sur
+Les tests, 165, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 
@@ -212,10 +217,18 @@ trouvé un bug à sa première exécution. Il ne dit pas si un chiffre est
 vrai, seulement si les chiffres sont cohérents entre eux. Il vérifie tout
 le fichier même après un premier échec, et fait le bilan à la fin.
 
-Le dépôt n'a pas d'intégration continue en ligne, par choix : le hook
-`tools/pre-push` rejoue ces vérifications sur votre machine avant chaque
-envoi. L'historique des changements, daté et chiffré, est tenu dans les
-sections datées de `CLAUDE.md`.
+Rien ne tourne en ligne à chaque envoi : le hook `tools/pre-push` rejoue
+ces vérifications sur votre machine avant chaque envoi. Seule la
+**publication d'une version** passe par une action GitHub
+(`.github/workflows/release.yml`), déclenchée par une étiquette `v0.2.0` :
+elle relance les tests, vérifie que l'étiquette est bien la version du
+paquet, fabrique le `.pyz` et son empreinte `SHA256SUMS`, et publie le tout
+avec les notes de la version. Elle n'utilise que ce que la machine de
+GitHub possède déjà, sans aucune action tierce.
+
+Ce qui change d'une version à l'autre est dans
+[`CHANGELOG.md`](CHANGELOG.md) ; le détail technique, daté et chiffré, dans
+les sections datées de `CLAUDE.md`.
 
 Le journal est lu tel que le jeu l'écrit, avec ses fins de ligne
 Windows, sous Linux comme sous Windows.

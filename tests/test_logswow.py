@@ -2214,5 +2214,53 @@ class TestWhatTheAuditLeftUntested(unittest.TestCase):
         self.assertIn("WoWCombatLog.txt", out)
 
 
+class TestRelease(unittest.TestCase):
+    """The one file a release ships must run on its own, from anywhere."""
+
+    def test_the_current_version_says_what_changed(self):
+        """The release workflow publishes CHANGELOG.md's section for the
+        tagged version, and refuses to publish without one."""
+        import subprocess
+
+        from logswow import __version__
+
+        result = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools", "release-notes"), __version__],
+            capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertGreater(len(result.stdout.strip()), 100)
+
+    def test_the_single_file_build_runs_and_keeps_its_exit_codes(self):
+        import subprocess
+        import tempfile
+
+        from logswow import __version__
+
+        with tempfile.TemporaryDirectory() as directory:
+            built = subprocess.run(
+                [sys.executable, os.path.join(ROOT, "tools", "build-pyz"), directory],
+                capture_output=True, text=True, timeout=120)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            archive = os.path.join(directory, "logswow-%s.pyz" % __version__)
+            self.assertTrue(os.path.isfile(archive))
+
+            def run(*argv):
+                return subprocess.run([sys.executable, archive] + list(argv), cwd=directory,
+                                      capture_output=True, text=True, timeout=120)
+
+            self.assertIn(__version__, run("--version").stdout)
+            page = os.path.join(directory, "rapport.html")
+            self.assertEqual(run("report", FIXTURE, "-q", "-o", page).returncode, 0)
+            self.assertTrue(os.path.isfile(page))
+            self.assertEqual(run("report", os.path.join(directory, "absent.txt")).returncode, 2)
+
+            import zipfile
+
+            names = zipfile.ZipFile(archive).namelist()
+            self.assertIn("LICENSE", names)
+            self.assertFalse([n for n in names if n.startswith(("tests", "examples"))
+                              or n.endswith(".txt")])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

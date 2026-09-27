@@ -4,6 +4,8 @@ Everything a session needs to work on this repository is in this
 repository: this file for how it is built and what was learned building
 it, `README.md` for what it does, `PROVENANCE.md` for where it comes
 from, `LOGS-SITES-RESEARCH.md` for why it exists, and
+`INSTALL.md` for how a player gets it running on Windows, Linux or macOS,
+`CHANGELOG.md` for what each published version changed,
 `PULL-DETECTION-RESEARCH.md` for what looking at Warcraft Logs' own pull
 segmentation (via WoWAnalyzer's open-source client) turned up, and what
 is still open about ours -- read before an audit of `segment.py`.
@@ -761,7 +763,32 @@ logswow/specs.py        specialization ids -> class, spec, role
 logswow/wowhead.py      spell links in the machine's language
 tools/check-invariants.py   cross-checks a real log's numbers against themselves
 tools/pre-push          git hook: tests, invariants on the fixture, flake8 (no network)
+tools/build-pyz         builds dist/logswow-<version>.pyz, the one file a release ships
+tools/release-notes     prints one version's section of CHANGELOG.md
+.github/workflows/release.yml   on a v* tag: tests, version check, build, publish
 ```
+
+## Releasing a version
+
+Added 2026-09-27, at the owner's request. A release is a tag, and the
+workflow does the rest:
+
+1. Raise `__version__` in `logswow/__init__.py` (the report's footer
+   prints it, so a page says which version wrote it).
+2. Add its section at the top of `CHANGELOG.md`, in French, written for
+   the player rather than the developer. A test fails while the current
+   version has no section, and the workflow refuses to publish without
+   one.
+3. Commit on `main`, push, then `git tag v<version>` and
+   `git push origin v<version>`.
+
+The workflow refuses a tag that is not the package's version, reruns
+every test, builds the `.pyz` (the package and the licence, nothing
+else -- a test checks no log or fixture gets in) and publishes it with
+its `SHA256SUMS`. **It uses no third-party action**, not even
+`actions/checkout`: the runner's own git, python3 and `gh` are enough,
+and a dependency in the publishing path is a dependency all the same.
+Keep it that way. Nothing online runs on an ordinary push.
 
 ## What this deliberately does not do
 
@@ -790,7 +817,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 163 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 165 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestFifthAuditFindings`), and each one was regression-checked the

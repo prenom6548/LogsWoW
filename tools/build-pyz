@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+"""Build the one file a release ships: dist/logswow-<version>.pyz.
+
+    python3 tools/build-pyz
+
+A .pyz is a zip of the `logswow` package that Python runs directly --
+`python3 logswow-0.2.0.pyz report WoWCombatLog.txt` -- from any folder,
+with nothing to unpack and nothing to install. It is built with
+`zipapp`, from the standard library, like everything else here, and it
+holds only the package: no test, no fixture, no log.
+"""
+
+import os
+import shutil
+import sys
+import tempfile
+import zipapp
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+
+from logswow import __version__  # noqa: E402
+
+
+def build(target_dir=None):
+    """Write the archive and return its path."""
+    target_dir = target_dir or os.path.join(ROOT, "dist")
+    os.makedirs(target_dir, exist_ok=True)
+    target = os.path.join(target_dir, "logswow-%s.pyz" % __version__)
+    with tempfile.TemporaryDirectory() as staging:
+        shutil.copytree(os.path.join(ROOT, "logswow"), os.path.join(staging, "logswow"),
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        # Licence travels with the code, as the GPL asks.
+        shutil.copy(os.path.join(ROOT, "LICENSE"), os.path.join(staging, "LICENSE"))
+        # Written by hand rather than with zipapp's `main=`: that one
+        # drops the exit code, and `report` says 2 when it refuses.
+        with open(os.path.join(staging, "__main__.py"), "w", encoding="utf-8") as handle:
+            handle.write("import sys\n\nfrom logswow.cli import main\n\n"
+                         "sys.exit(main())\n")
+        zipapp.create_archive(staging, target, interpreter="/usr/bin/env python3",
+                              compressed=True)
+    return target
+
+
+if __name__ == "__main__":
+    print(build(sys.argv[1] if len(sys.argv) > 1 else None))

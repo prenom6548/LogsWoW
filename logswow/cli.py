@@ -24,7 +24,9 @@ from .timestamps import format_duration
 def default_log_locations():
     """Where the client usually writes, on each system it runs on.
 
-    On Linux the game runs through a Windows compatibility layer, and each
+    On Windows, Battle.net installs on whichever drive was chosen, so the
+    usual folders are tried on C: to H:. On macOS the game is native and
+    lives in /Applications. On Linux the game runs through a Windows compatibility layer, and each
     launcher keeps its own copy of drive C: Lutris under ~/Games, Steam
     (Battle.net added as a non-Steam game) under a numbered compatdata
     prefix, Bottles under its own data folder. The numbered ones are
@@ -33,9 +35,19 @@ def default_log_locations():
     retail = os.path.join("drive_c", "Program Files (x86)", "World of Warcraft",
                           "_retail_", "Logs")
     home = os.path.expanduser("~")
-    candidates = [
-        r"C:\Program Files (x86)\World of Warcraft\_retail_\Logs",
-        r"C:\Program Files\World of Warcraft\_retail_\Logs",
+    candidates = []
+    if os.name == "nt":
+        # Battle.net lets the game live on any drive, not only C:.
+        for drive in "CDEFGH":
+            candidates += [
+                drive + r":\Program Files (x86)\World of Warcraft\_retail_\Logs",
+                drive + r":\Program Files\World of Warcraft\_retail_\Logs",
+                drive + r":\World of Warcraft\_retail_\Logs",
+                drive + r":\Games\World of Warcraft\_retail_\Logs",
+            ]
+    candidates += [
+        # macOS: the game is native there, and installs in /Applications.
+        os.path.join(os.sep, "Applications", "World of Warcraft", "_retail_", "Logs"),
         os.path.join(home, "Games", "world-of-warcraft", retail),
         os.path.join(home, "Games", "battlenet", retail),
         os.path.join(home, ".wine", retail),

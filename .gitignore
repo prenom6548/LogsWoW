@@ -5,3 +5,6 @@ __pycache__/
 # and the performance of everyone who was in the group. See PROVENANCE.md.
 WoWCombatLog*.txt
 *.html
+
+# What tools/build-pyz writes; a release uploads it, the repository never holds it.
+dist/

@@ -1,7 +1,8 @@
 #!/bin/sh
 # What CLAUDE.md asks before shipping, run by git before every push.
-# No network, no service, no dependency: this repository has no CI on
-# purpose, and this is what stands in for one.
+# No network, no service, no dependency. Nothing runs online on a push;
+# only a version tag triggers a workflow (.github/workflows/release.yml),
+# and this hook is what stands in for CI on everything else.
 #
 # Install once, from the repository's root:
 #     ln -s ../../tools/pre-push .git/hooks/pre-push

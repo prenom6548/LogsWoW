@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Print one version's section of CHANGELOG.md: the notes of its release.
+
+    python3 tools/release-notes 0.2.0
+
+Exits 1 when the section is missing or empty, so that a version cannot
+be published without saying what changed in it.
+"""
+
+import os
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def notes(version, path=os.path.join(ROOT, "CHANGELOG.md")):
+    """The text under '## <version> ...', up to the next '## ' heading."""
+    lines = []
+    inside = False
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            if line.startswith("## "):
+                if inside:
+                    break
+                inside = line[3:].split()[0] == version if line[3:].split() else False
+                continue
+            if inside:
+                lines.append(line)
+    return "".join(lines).strip()
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print(__doc__)
+        sys.exit(2)
+    text = notes(sys.argv[1])
+    if not text:
+        sys.stderr.write("CHANGELOG.md n'a pas de section pour %s\n" % sys.argv[1])
+        sys.exit(1)
+    print(text)

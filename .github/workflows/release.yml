@@ -1,0 +1,61 @@
+# Publish a release when a version tag is pushed:  git tag v0.2.0 && git push origin v0.2.0
+#
+# It runs the tests, checks that the tag matches logswow.__version__, builds
+# the single-file logswow-<version>.pyz with tools/build-pyz, and publishes
+# it with its SHA256SUMS and the version's section of CHANGELOG.md.
+#
+# Nothing but what the runner already has -- git, python3 and the gh
+# command -- and no third-party action: like the package itself, nothing
+# to install and nothing to audit. It never runs on a plain push to main.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Fetch the tagged commit
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          git init -q .
+          auth=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
+          git -c "http.extraheader=AUTHORIZATION: basic $auth" \
+              fetch -q --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" "$GITHUB_REF"
+          git checkout -q FETCH_HEAD
+
+      - name: The tag must be the package's version
+        run: |
+          version=$(python3 -c "import logswow; print(logswow.__version__)")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "The tag is $GITHUB_REF_NAME but logswow/__init__.py says $version."
+            exit 1
+          fi
+
+      - name: Tests
+        run: |
+          python3 --version
+          python3 tests/run-tests.py
+
+      - name: Build the single file, and its checksum
+        run: |
+          python3 tools/build-pyz dist
+          cd dist && sha256sum -- *.pyz > SHA256SUMS && cat SHA256SUMS
+
+      - name: Release notes from CHANGELOG.md
+        run: python3 tools/release-notes "${GITHUB_REF_NAME#v}" > notes.md
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.pyz dist/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "LogsWoW ${GITHUB_REF_NAME#v}" --notes-file notes.md
