@@ -50,11 +50,12 @@ class AuraLedger:
                 return
             self.aura_open[key] = (
                 event.ts,
-                event.source.short_name or "?",
+                self._name_of(event.source) or "?",
                 event.spell_name,
                 event.aura_type or "BUFF",
-                event.dest.short_name or "?",
+                self._name_of(event.dest) or "?",
                 event.dest.is_player,
+                event.source.guid,
             )
 
     def _aura_close(self, event):
@@ -91,11 +92,12 @@ class AuraLedger:
             self._inferred_auras.add(key)
             opened = (
                 self.first_ts,
-                event.source.short_name or "?",
+                self._name_of(event.source) or "?",
                 event.spell_name,
                 event.aura_type or "BUFF",
-                event.dest.short_name or "?",
+                self._name_of(event.dest) or "?",
                 event.dest.is_player,
+                event.source.guid,
             )
             self.auras_before_the_pull += 1
         self._bank_aura(event.dest.guid, event.spell_id, opened, event.ts)
@@ -127,7 +129,8 @@ class AuraLedger:
             horizons[key] = ended
 
     def _bank_aura(self, guid, spell_id, opened, ended):
-        start, source_name, spell_name, aura_type, dest_name, dest_is_player = opened
+        (start, source_name, spell_name, aura_type, dest_name, dest_is_player,
+         source_guid) = opened
         if ended <= start:
             return
         # Only a player's *own* buffs count as that player's uptime. Routing
@@ -142,7 +145,9 @@ class AuraLedger:
                     (spell_id, spell_name, source_name, aura_type),
                     start, ended, 400,
                 )
-        caster = self._by_short_name.get(source_name)
+        # By GUID: two players sharing a name on two realms used to have
+        # the second one's auras credited to the first.
+        caster = self.players.get(source_guid)
         if caster is not None:
             self._merge_uptime(
                 caster.auras_applied, caster._applied_until,

@@ -218,7 +218,7 @@ class Player:
         "damage_to_bosses",
         "first_cast_ts", "last_cast_ts", "downtime_ms",
         "longest_gaps", "recent", "hp_fraction", "min_hp_fraction", "max_hp",
-        "active_ms", "died_at",
+        "active_ms", "died_at", "label",
     )
 
     def __init__(self, guid, name):
@@ -275,9 +275,14 @@ class Player:
         self.max_hp = 0
         self.active_ms = 0
         self.died_at = []
+        # The name the page shows: the realm-less name, made unique
+        # within the segment ("Tisane", "Tisane (2)") by SegmentAnalysis.
+        self.label = ""
 
     @property
     def short_name(self):
+        if self.label:
+            return self.label
         return self.name.split("-", 1)[0] if self.name else self.guid
 
     @property

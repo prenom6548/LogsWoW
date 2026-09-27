@@ -1925,6 +1925,128 @@ class TestFifthAuditFindings(unittest.TestCase):
         for segment in segments:
             self.assertEqual(len(segment.analysis.blocks), 1, segment.kind)
 
+    # -- names ---------------------------------------------------------------
+
+    def test_a_creature_keeps_the_part_after_its_dash_in_every_table(self):
+        """"Jeune-ne chancrecaille" was "Jeune" in 21 cells of the owner's
+        raid report: auras, healing targets and unattributed sources
+        split every name at its first dash, a player's or not."""
+        bat = self._mob(1, "Chauve-souris")[1]
+        healer = 'Player-9-00000002,"Tisane-Dalaran-EU",0x512,0x0'
+        escort = 'Creature-0-9-2-1-70009-0000000009,"Porte-etendard",0xa18,0x0'
+        segments = self._run([
+            (0, 'ENCOUNTER_START,1,"Golem",16,5,2000'),
+            (1000, 'SPELL_AURA_APPLIED,%s,%s,666,"Morsure",0x20,DEBUFF' % (bat, healer)),
+            (2000, 'SPELL_HEAL,%s,%s,555,"Vague",0x2,4000,4000,0,0,nil' % (healer, escort)),
+            (4000, 'SPELL_AURA_REMOVED,%s,%s,666,"Morsure",0x20,DEBUFF' % (bat, healer)),
+            (5000, 'ENCOUNTER_END,1,"Golem",16,5,1,5000'),
+        ])
+        analysis = segments[0].analysis
+        player = analysis.players["Player-9-00000002"]
+        self.assertEqual(list(player.healing_to), ["Porte-etendard"])
+        sources = [row[1] for row in analysis.player_uptimes(player.guid, kind="DEBUFF")]
+        self.assertEqual(sources, ["Chauve-souris"])
+
+    def test_a_player_whose_pet_struck_first_keeps_their_own_name(self):
+        """The owner's row was named after whichever unit opened it: a
+        hunter whose pet hit first appeared as the pet, in the rankings,
+        the composition and the deaths."""
+        pet_guid = "Pet-0-9-2-1-00099"
+        block = advanced_block(19, info=pet_guid)
+        block[1] = self.PLAYER_GUID  # ownerGUID
+        golem = self._mob(1, "Golem")
+        segments = self._run([
+            (0, 'ENCOUNTER_START,1,"Golem",16,5,2000'),
+            (1000, 'SWING_DAMAGE,%s,"Crocs",0x1114,0x0,%s,%s,900,1200,-1,1,0,0,0,nil,nil,nil'
+             % (pet_guid, golem[1], ",".join(block))),
+            (2000, self._hit(golem)),
+            (3000, 'ENCOUNTER_END,1,"Golem",16,5,1,3000'),
+        ])
+        player = segments[0].analysis.players[self.PLAYER_GUID]
+        self.assertEqual(player.short_name, "Ardoise")
+        self.assertEqual(player.damage_done, 5900)
+
+    def test_two_players_sharing_a_name_stay_two_people(self):
+        """Two "Tisane" on two realms: healing went into one row and the
+        second one's auras were credited to the first. The realm is never
+        shown, so the second becomes "Tisane (2)"."""
+        first = 'Player-9-00000002,"Tisane-Dalaran-EU",0x512,0x0'
+        second = 'Player-9-00000005,"Tisane-Hyjal-EU",0x514,0x0'
+        segments = self._run([
+            (0, 'ENCOUNTER_START,1,"Golem",16,5,2000'),
+            (1000, 'SPELL_HEAL,%s,%s,555,"Vague",0x2,4000,4000,0,0,nil' % (first, first)),
+            (1500, 'SPELL_HEAL,%s,%s,555,"Vague",0x2,1000,1000,0,0,nil' % (first, second)),
+            (2000, 'SPELL_CAST_SUCCESS,%s,%s,17,"Mot",0x2' % (second, first)),
+            (2000, 'SPELL_AURA_APPLIED,%s,%s,17,"Mot",0x2,BUFF' % (second, first)),
+            (3000, 'SPELL_AURA_REMOVED,%s,%s,17,"Mot",0x2,BUFF' % (second, first)),
+            (4000, 'ENCOUNTER_END,1,"Golem",16,5,1,4000'),
+        ])
+        analysis = segments[0].analysis
+        healer = analysis.players["Player-9-00000002"]
+        other = analysis.players["Player-9-00000005"]
+        self.assertEqual(healer.healing_to, {"Tisane": 4000, "Tisane (2)": 1000})
+        self.assertEqual(other.short_name, "Tisane (2)")
+        self.assertEqual(list(other.auras_applied), [(17, "Mot", "Tisane")])
+        self.assertEqual(healer.auras_applied, {})
+
+    # -- segments and output ---------------------------------------------------
+
+    def test_an_encounter_that_never_ended_does_not_swallow_the_file(self):
+        """A disconnect leaves an ENCOUNTER_START with no END. Left open,
+        it took in every later event: the next boss counted twice, and a
+        pull that lasted until the log ended."""
+        boss = self._mob(1, "Golem")
+        segments = self._run([
+            (0, 'ENCOUNTER_START,1,"Golem",16,5,2000'),
+            (60000, self._hit(boss)),
+            (120000, 'ENCOUNTER_START,1,"Golem",16,5,2000'),
+            (180000, self._hit(boss)),
+            (240000, 'ENCOUNTER_END,1,"Golem",16,5,1,120000'),
+            (300000, 'ENCOUNTER_START,2,"Autre",16,5,2000'),
+            (360000, self._hit(boss)),
+            (420000, 'ENCOUNTER_END,2,"Autre",16,5,1,120000'),
+        ])
+        lost = segments[0]
+        self.assertTrue(lost.truncated)
+        self.assertEqual(lost.duration_ms, 60000)
+        self.assertEqual(lost.analysis.total_damage, 5000)
+        self.assertEqual([s.analysis.total_damage for s in segments], [5000, 5000, 5000])
+
+    def test_the_report_never_overwrites_a_file_that_is_not_a_report(self):
+        """`-o autre-journal.txt` turned another combat log into a web
+        page and said "Rapport ecrit". Only the log being read was
+        protected."""
+        import contextlib
+        import io
+        import shutil
+        import tempfile
+
+        from logswow.cli import main
+
+        with tempfile.TemporaryDirectory() as directory:
+            other = os.path.join(directory, "autre-journal.txt")
+            shutil.copy(FIXTURE, other)
+            with contextlib.redirect_stderr(io.StringIO()) as said:
+                code = main(["report", FIXTURE, "-q", "-o", other])
+            self.assertEqual(code, 2)
+            self.assertIn("--force", said.getvalue())
+            with open(other, encoding="utf-8") as handle:
+                self.assertTrue(handle.read().startswith("9/18/2026"))
+            # A report of ours is simply replaced, and nothing is left behind.
+            page = os.path.join(directory, "rapport.html")
+            self.assertEqual(main(["report", FIXTURE, "-q", "-o", page]), 0)
+            self.assertEqual(main(["report", FIXTURE, "-q", "-o", page]), 0)
+            self.assertEqual(sorted(os.listdir(directory)), ["autre-journal.txt", "rapport.html"])
+            # --force is for the first case, never for the log itself.
+            self.assertEqual(main(["report", FIXTURE, "-q", "-o", other, "--force"]), 0)
+            log = os.path.join(directory, "journal.txt")
+            shutil.copy(FIXTURE, log)
+            with contextlib.redirect_stderr(io.StringIO()) as said:
+                self.assertEqual(main(["report", log, "-q", "-o", log, "--force"]), 2)
+            self.assertIn("journal lui-meme", said.getvalue())
+            with open(log, encoding="utf-8") as handle:
+                self.assertTrue(handle.read().startswith("9/18/2026"))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

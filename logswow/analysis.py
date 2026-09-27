@@ -101,7 +101,13 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
         if segment.kind == "encounter" and segment.name:
             self.boss_names.add(canon(segment.name))
         self._specs = {}
-        self._by_short_name = {}
+        # Players by GUID: the full name the file gives them, and the
+        # unique realm-less label the page uses. Two players can share a
+        # name on two realms, and the realm is never shown, so the second
+        # becomes "Tisane (2)" rather than merging into the first.
+        self._player_names = {}
+        self._labels = {}
+        self._label_owner = {}
         # The pooled enemy health: guid -> (current, max, last seen). Read
         # once per timeline bucket into the "pool" series.
         self._pool = {}
@@ -147,17 +153,56 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
             guid = owner
         player = self.players.get(guid)
         if player is None:
-            name = actor.name
-            if owner is not None:
-                owner_player = self.players.get(owner)
-                name = owner_player.name if owner_player else name
+            # Never the pet's own name: a hunter whose pet struck first
+            # used to get a row called after the pet, in the rankings,
+            # the composition and the deaths alike. The owner's name is
+            # whatever the file has said about that GUID; if it has said
+            # nothing yet, `_remember_player` fills it in when it does.
+            if owner is None:
+                name = actor.name
+            else:
+                name = self._player_names.get(guid, "")
             player = Player(guid, name)
+            player.label = self._labels.get(guid, "")
             player.spec_id = self._specs.get(guid, 0)
             self.players[guid] = player
-            # An index rather than a scan: _bank_aura asks this once per
-            # aura, and a raid night has millions of auras.
-            self._by_short_name.setdefault(player.short_name, player)
         return player
+
+    def _remember_player(self, actor):
+        """Learn a player's name and label the first time the file names them."""
+        guid = actor.guid
+        if not guid.startswith("Player-") or guid in self._labels:
+            return
+        name = actor.name
+        if not name or name == "nil" or len(self._labels) >= 5000:
+            return
+        base = name.split("-", 1)[0]
+        label, number = base, 1
+        while label in self._label_owner:
+            number += 1
+            label = "%s (%d)" % (base, number)
+        self._labels[guid] = label
+        self._label_owner[label] = guid
+        self._player_names[guid] = name
+        player = self.players.get(guid)
+        if player is not None:
+            if not player.name:
+                player.name = name
+            player.label = label
+
+    def _name_of(self, actor):
+        """The one way a unit's name is written down for the page.
+
+        A player: the unique realm-less label. Anything else: its whole
+        name -- "Chauve-souris" split at its dash came out as "Chauve",
+        and on the owner's raid a creature appeared as "Jeune" in 21
+        cells. Only a player's name carries a realm to strip.
+        """
+        if actor.guid.startswith("Player-"):
+            label = self._labels.get(actor.guid)
+            if label:
+                return label
+        return actor.display_name
 
     def _enemy(self, actor):
         """The aggregate for everything sharing this unit's name."""
@@ -212,6 +257,8 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
             self.first_ts = event.ts
         self.last_ts = event.ts
         self._learn_owner(event)
+        self._remember_player(event.source)
+        self._remember_player(event.dest)
 
         kind = event.suffix_kind
         handler = self._BY_SUFFIX.get(kind)
@@ -375,7 +422,7 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
                 player = self._player(shield)
                 player.absorb_done += amount
                 _bucket(player.absorb_by_ability, spell_id, spell_name).add(
-                    amount, False, event.dest.display_name)
+                    amount, False, self._name_of(event.dest))
 
     def _feed_damage(self, event):
         """One hit: whose ledger it belongs to depends on both ends."""
@@ -400,7 +447,7 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
     def _bank_orphan(self, event, amount):
         """Friendly damage that belongs to no player the file names."""
         self.orphan_damage += amount
-        name = event.source.short_name or event.source.guid
+        name = self._name_of(event.source) or event.source.guid
         if not name or name == "nil":
             name = "source non nommee par le journal"
         if name in self.orphan_sources or len(self.orphan_sources) < 30:
@@ -411,7 +458,7 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
         player = self._player(event.source)
         player.damage_done += amount
         ability = _bucket(player.damage_by_ability, event.spell_id, event.spell_name)
-        ability.add(amount, event.is_critical, event.dest.display_name,
+        ability.add(amount, event.is_critical, self._name_of(event.dest),
                     max(0, event.overkill))
         self.total_damage += amount
         self._enemy_damage[event.dest.guid] = (
@@ -470,7 +517,7 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
         # for a hit absorbed *entirely*, which the client records as
         # a MISSED with no damage event to carry an absorbed field.
         ability = _bucket(player.taken_by_ability, event.spell_id, event.spell_name)
-        ability.add(amount, False, event.source.display_name)
+        ability.add(amount, False, self._name_of(event.source))
         raid_ability = _bucket(self.enemy_damage_by_ability, event.spell_id, event.spell_name)
         # Count the owner, not the pet: "2 players hit" when only one
         # player is present is a pet being counted as a person.
@@ -478,7 +525,7 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
         player.recent.append(
             (
                 event.ts,
-                event.source.display_name,
+                self._name_of(event.source),
                 event.spell_name,
                 -amount,
                 self._hp_of(event),
@@ -581,13 +628,13 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
             ability.add(
                 effective,
                 event.is_critical,
-                event.dest.display_name,
+                self._name_of(event.dest),
                 overheal=event.overhealing,
             )
             self.total_healing += effective
             # Who the healing actually went to. For a healer this is most
             # of the story, and the file has it on every line.
-            target = event.dest.name.split("-", 1)[0] if event.dest.name else "?"
+            target = self._name_of(event.dest) or "?"
             if effective or event.overhealing:
                 current = player.healing_to.get(target)
                 if current is None and len(player.healing_to) >= 60:
@@ -602,7 +649,7 @@ class SegmentAnalysis(AuraLedger, TimelineLedger):
                 target.recent.append(
                     (
                         event.ts,
-                        event.source.display_name,
+                        self._name_of(event.source),
                         event.spell_name,
                         effective,
                         self._hp_of(event),

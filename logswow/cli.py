@@ -111,6 +111,39 @@ def select_segments(segments, only):
     return chosen
 
 
+def _is_our_report(path):
+    """True when the file at `path` is a page this program wrote."""
+    try:
+        with open(path, "rb") as handle:
+            head = handle.read(512)
+    except OSError:
+        return False
+    return head.startswith(b"<!doctype html>") and b"<title>LogsWoW" in head
+
+
+def _refuse_to_overwrite(out, log, force):
+    """Why the report must not be written at `out`, or None.
+
+    `report journal.txt -o journal.txt` wrote the report over the log it
+    was made from, and that refusal can never be forced: a combat log
+    cannot be recovered. The 2026-09-27 audit then found the same thing
+    one step away -- `-o autre-journal.txt` turned *another* log into a
+    web page and said "Rapport ecrit". Any existing file that is not a
+    report of ours is now refused too, unless --force says it is meant.
+    """
+    if not os.path.exists(out):
+        return None
+    if os.path.samefile(out, log):
+        return ("Refus d'ecrire le rapport par-dessus le journal lui-meme (%s). "
+                "Choisissez un autre nom avec -o.\n" % out)
+    if os.path.isdir(out):
+        return "%s est un dossier : donnez un nom de fichier avec -o.\n" % out
+    if not force and not _is_our_report(out):
+        return ("%s existe et n'est pas un rapport LogsWoW : refus de l'ecraser. "
+                "Choisissez un autre nom, ou ajoutez --force si c'est voulu.\n" % out)
+    return None
+
+
 def _pull_gap_ms(args):
     seconds = getattr(args, "pull_gap", None)
     return None if seconds is None else int(seconds * 1000)
@@ -134,14 +167,9 @@ def command_report(args):
         )
         return 2
     out = args.out or os.path.splitext(args.log)[0] + ".html"
-    if os.path.exists(out) and os.path.samefile(out, args.log):
-        # `report journal.txt -o journal.txt` wrote the report over the
-        # log it was made from. A combat log cannot be recovered, and the
-        # command had already destroyed one by the time it said "ecrit".
-        sys.stderr.write(
-            "Refus d'ecrire le rapport par-dessus le journal lui-meme (%s). "
-            "Choisissez un autre nom avec -o.\n" % out
-        )
+    refusal = _refuse_to_overwrite(out, args.log, args.force)
+    if refusal:
+        sys.stderr.write(refusal)
         return 2
     try:
         ReportWriter(log, chosen, out, wowhead=args.wowhead).write()
@@ -253,6 +281,10 @@ def build_parser():
 
     report = common(subparsers.add_parser("report", help="produit le rapport HTML"))
     report.add_argument("-o", "--out", default=None, help="fichier de sortie (.html)")
+    report.add_argument(
+        "--force", action="store_true",
+        help="ecraser le fichier de sortie meme s'il n'est pas un rapport LogsWoW "
+             "(jamais le journal lu)")
     report.add_argument(
         "--only",
         default=None,

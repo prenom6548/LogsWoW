@@ -125,8 +125,17 @@ class ReportWriter(TimelineMixin, PanelsMixin):
         for segment in self.segments:
             parts.append(self._segment(segment))
         parts.append(self._footer())
-        with open(self.out_path, "w", encoding="utf-8") as handle:
-            handle.write("".join(parts))
+        # Written beside the target and moved into place in one step: a
+        # full disk or an interrupt halfway leaves the previous report
+        # whole, never a truncated page in its place.
+        partial = self.out_path + ".partiel"
+        try:
+            with open(partial, "w", encoding="utf-8") as handle:
+                handle.write("".join(parts))
+            os.replace(partial, self.out_path)
+        finally:
+            if os.path.exists(partial):
+                os.remove(partial)
         return self.out_path
 
     # -- page ------------------------------------------------------------

@@ -119,12 +119,21 @@ class Splitter:
         self._last_ts = None
 
     def feed(self, event):
+        """Open, feed and close whatever this event concerns."""
         subevent = event.subevent
+        previous_ts = self._last_ts
         if event.ts is not None:
             self._last_ts = event.ts
         if subevent == "ENCOUNTER_START":
+            # A start while an encounter is still open means its END never
+            # came -- a disconnect, a crash. Left open, it would swallow
+            # the rest of the file: every later boss counted twice, and a
+            # pull that lasts until the log ends.
+            self._abandon(("encounter",), previous_ts)
             self._open_encounter(event)
         elif subevent == "CHALLENGE_MODE_START":
+            # A new key cannot start inside another one.
+            self._abandon(("encounter", "keystone"), previous_ts)
             self._open_keystone(event)
 
         if self._active:
@@ -212,6 +221,15 @@ class Splitter:
             segment.success = bool(as_int(fields[2], 0))
         if len(fields) > 4:
             segment.reported_duration_ms = as_int(fields[4], 0) or None
+
+    def _abandon(self, kinds, end_ts):
+        """Close, as truncated, the open segments of these kinds."""
+        for segment in [s for s in self._active if s.kind in kinds]:
+            self._active.remove(segment)
+            segment.truncated = True
+            segment.end_ts = max(segment.start_ts, end_ts or segment.start_ts)
+            if segment.analysis is not None:
+                segment.analysis.finish(segment)
 
     # -- the no-marker case -----------------------------------------------
 
