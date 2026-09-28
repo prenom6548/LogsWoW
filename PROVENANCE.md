@@ -3,7 +3,11 @@
 Where everything in this repository comes from, to preempt any copyright
 question. The git history, with its `Co-Authored-By` trailers and session
 links, is the primary record; this file is the human-readable summary. It
-is documentation, not legal advice.
+is documentation, not legal advice. That history was rewritten once, on
+2026-09-28, by the owner, to remove a real player's identifier and
+character name from its first commits: every commit hash from before
+that date changed, and nothing about authorship did (messages, trailers,
+authors and dates were kept).
 
 ## Authorship
 

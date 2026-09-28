@@ -1101,11 +1101,23 @@ Checked with the snapshot on the three logs: no total moved; only death
 chains (raid 5, dungeon 2), the removed attributes and page hashes did.
 Each fix has a test in `TestSixthAuditFindings` that fails without it.
 
-Recorded and **left to the owner**, since each is an outward or
-irreversible act: an early commit (bb6fddb) still holds a real player
-GUID and character name in the public history, and only a history
-rewrite removes it; a merged `claude/...` branch lingers on the remote;
-0.4.0 was never published. The release workflow's tag path did not
+Left to the owner, since each is an outward or irreversible act, and
+what became of them:
+
+- **The public history held a real player GUID and character name** (the
+  first commit, 18/09, until the 27/09 fix). The owner rewrote it on
+  2026-09-28 with `git filter-repo --replace-text`, from their own
+  machine (a session cannot push tags), replacing both with the values
+  the 27/09 fix had used, and force-pushed `main` and every tag. Every
+  commit hash before that date changed; the tree of `main` did not (the
+  tip was checked identical, 34 commits, zero occurrences left). A hash
+  quoted anywhere from before then no longer exists. The `.pyz` of
+  0.2.0, 0.3.0 and 0.3.1 carried the name in a docstring; clean ones were
+  rebuilt from the rewritten tags, to replace the published files.
+- The merged `claude/...` branch is gone from the remote.
+- 0.4.0 was never published on its own; its window shipped with 0.5.0.
+
+The release workflow's tag path did not
 check that the tagged commit is on `main`, as the button's path did; it
 does now (checked against a local repository: a commit on `main`
 accepted, one on a side branch refused).

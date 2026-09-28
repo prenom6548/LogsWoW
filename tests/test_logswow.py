@@ -2215,7 +2215,11 @@ class TestWhatTheAuditLeftUntested(unittest.TestCase):
                 os.makedirs(folder)
             with open(os.path.join(steam, "WoWCombatLog.txt"), "w") as handle:
                 handle.write("x")
-            with mock.patch.dict(os.environ, {"HOME": home}):
+            # The machine's own mounted disks are left out: on a player's
+            # computer with the game on a second disk, `where` rightly
+            # finds it, and this test is about the launchers only.
+            with mock.patch.dict(os.environ, {"HOME": home}), \
+                    mock.patch("logswow.cli._on_other_disks", return_value=[]):
                 found = default_log_locations()
                 code, out, _err = self._main(["where"])
         self.assertEqual(sorted(found), sorted([lutris, steam]))
