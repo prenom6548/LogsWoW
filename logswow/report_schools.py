@@ -15,6 +15,7 @@ every share is also printed as text.
 """
 
 from . import fmt
+from .i18n import N_, _
 from . import schools
 
 SCHOOL_CSS = """
@@ -35,8 +36,8 @@ td.sbc{width:24%}
 .schools td.n{color:var(--ink)}
 """
 
-LABELS = {"physique": "Physique", "magique": "Magique", "mixte": "Mixte"}
-SHORT = {"physique": "Phys.", "magique": "Mag.", "mixte": "Mixte"}
+LABELS = {"physique": N_("Physique"), "magique": N_("Magique"), "mixte": N_("Mixte")}
+SHORT = {"physique": N_("Phys."), "magique": N_("Mag."), "mixte": N_("Mixte")}
 
 
 def shares(parts):
@@ -78,25 +79,25 @@ class SchoolsMixin:
                  if k != "mixte" or taken.get(k) or done.get(k)
                  or any(schools.by_kind(b.taken_by_school).get(k)
                         or schools.by_kind(b.done_by_school).get(k) for b in analysis.blocks)]
-        legend = "".join("<span class='sw k-%s'></span>%s" % (k, LABELS[k]) for k in kinds)
-        heads = "".join("<th class=n>%s</th>" % LABELS[k] for k in kinds)
+        legend = "".join("<span class='sw k-%s'></span>%s" % (k, _(LABELS[k])) for k in kinds)
+        heads = "".join("<th class=n>%s</th>" % _(LABELS[k]) for k in kinds)
         rows = "".join(
             "<tr><td class=name>%s</td>%s</tr>" % (title, self._school_cells(parts, kinds))
-            for title, parts in (("Subis", taken), ("Infligés", done)) if sum(parts.values()))
+            for title, parts in ((_("Subis"), taken), (_("Infligés"), done)) if sum(parts.values()))
         detail = "".join(
-            "<p class=dim style='font-size:12.5px;margin:6px 0 0'><b>%s par école</b>%s: %s</p>"
+            _("<p class=dim style='font-size:12.5px;margin:6px 0 0'><b>%s par école</b>%s: %s</p>")
             % (title, fmt.NBSP, _by_school(ledger))
-            for title, ledger in (("Subis", analysis.taken_by_school),
-                                  ("Infligés", analysis.done_by_school)) if ledger)
+            for title, ledger in ((_("Subis"), analysis.taken_by_school),
+                                  (_("Infligés"), analysis.done_by_school)) if ledger)
         return (
-            "<h3>Physique ou magique</h3><div class='card schools'>"
-            "<p style='margin:0 0 8px;font-size:12.5px'>%s</p>"
-            "<table><tr><th></th><th>Répartition</th>%s</tr>%s</table>%s%s"
-            "<p class=dim style='margin:10px 0 0;font-size:12px'>L'école de chaque coup est "
-            "celle que le journal écrit sur la ligne. « Mixte »%s: physique et magique à la "
-            "fois (Ombre-frappe, Chaos...). Comme dans le reste du rapport, un coup qu'un "
-            "bouclier ennemi a mangé compte dans les dégâts infligés, et la part qu'un "
-            "bouclier du groupe a mangée ne compte pas dans les dégâts subis.</p></div>"
+            _("<h3>Physique ou magique</h3><div class='card schools'>"
+              "<p style='margin:0 0 8px;font-size:12.5px'>%s</p>"
+              "<table><tr><th></th><th>Répartition</th>%s</tr>%s</table>%s%s"
+              "<p class=dim style='margin:10px 0 0;font-size:12px'>L'école de chaque coup est "
+              "celle que le journal écrit sur la ligne. « Mixte »%s: physique et magique à la "
+              "fois (Ombre-frappe, Chaos...). Comme dans le reste du rapport, un coup qu'un "
+              "bouclier ennemi a mangé compte dans les dégâts infligés, et la part qu'un "
+              "bouclier du groupe a mangée ne compte pas dans les dégâts subis.</p></div>")
             % (legend, heads, rows, detail, self._schools_by_pull(analysis, kinds), fmt.NBSP)
         )
 
@@ -108,7 +109,7 @@ class SchoolsMixin:
         percent = shares(parts)
         bar = "".join(
             "<span class='k-%s' style='width:%.2f%%' title='%s %s'></span>"
-            % (k, 100.0 * parts[k] / total, LABELS[k], _cell(percent[k], parts[k]))
+            % (k, 100.0 * parts[k] / total, _(LABELS[k]), _cell(percent[k], parts[k]))
             for k in kinds if parts[k]) if total else ""
         return "<td class=sbc><div class=sb>%s</div></td>%s" % (bar, "".join(
             "<td class=n>%s</td>" % _cell(percent.get(k, 0), parts.get(k, 0)) for k in kinds))
@@ -124,11 +125,11 @@ class SchoolsMixin:
                 % (index, label,
                    self._school_cells(schools.by_kind(block.taken_by_school), kinds),
                    self._school_cells(schools.by_kind(block.done_by_school), kinds)))
-        heads = "".join("<th class=n>%s</th>" % SHORT[k] for k in kinds)
+        heads = "".join("<th class=n>%s</th>" % _(SHORT[k]) for k in kinds)
         return (
-            "<h3 style='margin-top:18px'>Pull par pull</h3><table>"
-            "<tr><th class=n>#</th><th>Ce qui a été engagé</th><th>Subis</th>%s"
-            "<th>Infligés</th>%s</tr>%s</table>" % (heads, heads, "".join(rows)))
+            _("<h3 style='margin-top:18px'>Pull par pull</h3><table>"
+              "<tr><th class=n>#</th><th>Ce qui a été engagé</th><th>Subis</th>%s"
+              "<th>Infligés</th>%s</tr>%s</table>") % (heads, heads, "".join(rows)))
 
 
 def _by_school(ledger):

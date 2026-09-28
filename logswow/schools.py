@@ -13,9 +13,11 @@ A mask with the physical bit and another one is neither physical nor
 magic, and is counted apart as "mixte" rather than forced into either.
 """
 
+from .i18n import N_, _
+
 PHYSICAL = 1
-NAMES = ((1, "Physique"), (2, "Sacré"), (4, "Feu"), (8, "Nature"), (16, "Givre"),
-         (32, "Ombre"), (64, "Arcane"))
+NAMES = ((1, N_("Physique")), (2, N_("Sacré")), (4, N_("Feu")), (8, N_("Nature")),
+         (16, N_("Givre")), (32, N_("Ombre")), (64, N_("Arcane")))
 KINDS = ("physique", "magique", "mixte")
 
 
@@ -30,8 +32,8 @@ def kind(mask):
 
 def name(mask):
     """'Ombre', 'Ombre + Feu' -- the schools a mask holds, in French."""
-    parts = [label for bit, label in NAMES if mask & bit]
-    return " + ".join(parts) if parts and 0 < mask <= 127 else "école inconnue"
+    parts = [_(label) for bit, label in NAMES if mask & bit]
+    return " + ".join(parts) if parts and 0 < mask <= 127 else _("école inconnue")
 
 
 def by_kind(by_school):

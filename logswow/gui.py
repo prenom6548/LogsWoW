@@ -37,8 +37,9 @@ import time
 import traceback
 import webbrowser
 
-from . import __version__
+from . import __version__, fmt
 from .analysis import PULL_GAP_MS
+from .i18n import N_, _, language
 from .cli import (Cancelled, _build, _refuse_folder, _refuse_to_overwrite,
                   default_log_locations)
 from .report import ReportWriter
@@ -52,7 +53,7 @@ BYTES_PER_LINE = 310
 
 # What to type when the toolkit itself is missing, by system. The
 # message names the command rather than a web page to read.
-TK_MISSING = (
+TK_MISSING = N_(
     "La fenêtre de LogsWoW a besoin de Tkinter, qui fait partie de Python mais\n"
     "que certaines distributions Linux livrent à part. Pour l'installer :\n"
     "  Linux Mint, Ubuntu, Debian : sudo apt install python3-tk\n"
@@ -91,11 +92,15 @@ def recent_logs(locations=None, limit=40):
 
 
 def file_size(size):
-    """1234567 -> '1,2 Mo', in the units a French reader expects."""
-    for unit, scale in (("Go", 1e9), ("Mo", 1e6), ("Ko", 1e3)):
+    """1234567 -> '1,2 Mo', in the units a French reader expects; '1.2 MB'."""
+    french = language() == "fr"
+    units = (("Go", 1e9), ("Mo", 1e6), ("Ko", 1e3)) if french else (
+        ("GB", 1e9), ("MB", 1e6), ("KB", 1e3))
+    for unit, scale in units:
         if size >= scale:
-            return ("%.1f %s" % (size / scale, unit)).replace(".", ",")
-    return "%d o" % size
+            text = "%.1f %s" % (size / scale, unit)
+            return text.replace(".", ",") if french else text
+    return ("%d o" if french else "%d B") % size
 
 
 def read_share(lines, size):
@@ -110,17 +115,17 @@ def fight_rows(segments):
     return [
         (segment.index, segment.label,
          format_duration(segment.analysis.duration_ms),
-         "{:,}".format(segment.analysis.total_damage).replace(",", " "),
-         len(segment.analysis.deaths), segment.outcome)
+         fmt.number(segment.analysis.total_damage),
+         len(segment.analysis.deaths), _(segment.outcome))
         for segment in segments
     ]
 
 
 # The three presentations of report_layouts.py, as the window names them.
 LAYOUT_CHOICES = (
-    ("onglets", "Onglets (un fichier)"),
-    ("pages", "Pages (un dossier)"),
-    ("longue", "Une seule longue page"),
+    ("onglets", N_("Onglets (un fichier)")),
+    ("pages", N_("Pages (un dossier)")),
+    ("longue", N_("Une seule longue page")),
 )
 
 
@@ -154,7 +159,7 @@ def write_report(log, chosen, out, log_path, cast_order=True, layout="onglets"):
     try:
         ReportWriter(log, chosen, out, cast_order=cast_order, layout=layout).write()
     except OSError as error:
-        return "Impossible d'écrire %s : %s" % (out, error.strerror or error)
+        return _("Impossible d'écrire %s : %s") % (out, error.strerror or error)
     return None
 
 
@@ -191,7 +196,7 @@ def run():
         import tkinter
     except ImportError:
         if sys.stderr is not None:          # None when started by pythonw (a .pyzw)
-            sys.stderr.write(TK_MISSING + "\n")
+            sys.stderr.write(_(TK_MISSING) + "\n")
         return 3
     try:
         root = tkinter.Tk()
@@ -237,10 +242,10 @@ class App:
         self._journal_box(outer).grid(row=0, column=0, sticky="nsew")
         self._fights_box(outer).grid(row=1, column=0, sticky="nsew", pady=(10, 0))
         self._report_box(outer).grid(row=2, column=0, sticky="ew", pady=(10, 0))
-        self.status = tk.StringVar(value="Choisissez un journal, puis « Lire ce journal ».")
+        self.status = tk.StringVar(value=_("Choisissez un journal, puis « Lire ce journal »."))
         ttk.Label(outer, textvariable=self.status, anchor="w").grid(
             row=3, column=0, sticky="ew", pady=(10, 0))
-        ttk.Label(outer, text="Tout se passe sur cet ordinateur : aucune donnée n'est envoyée.",
+        ttk.Label(outer, text=_("Tout se passe sur cet ordinateur : aucune donnée n'est envoyée."),
                   foreground="#666").grid(row=4, column=0, sticky="w")
 
         self.refresh_logs()
@@ -251,11 +256,11 @@ class App:
 
     def _journal_box(self, parent):
         tk, ttk = self.tk, self.ttk
-        box = ttk.LabelFrame(parent, text=" 1. Le journal ", padding=8)
+        box = ttk.LabelFrame(parent, text=_(" 1. Le journal "), padding=8)
         box.columnconfigure(0, weight=1)
         box.rowconfigure(0, weight=1)
-        self.logs = self._table(box, (("file", "Fichier", 250), ("date", "Date", 130),
-                                      ("size", "Taille", 80), ("folder", "Dossier", 260)),
+        self.logs = self._table(box, (("file", _("Fichier"), 250), ("date", _("Date"), 130),
+                                      ("size", _("Taille"), 80), ("folder", _("Dossier"), 260)),
                                 height=6, select="browse")
         self.logs.master.grid(row=0, column=0, columnspan=2, sticky="nsew")
         self.logs.bind("<Double-1>", lambda _event: self.read_selected())
@@ -263,66 +268,66 @@ class App:
 
         line = ttk.Frame(box)
         line.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        self.choose_button = ttk.Button(line, text="Choisir un autre fichier…",
+        self.choose_button = ttk.Button(line, text=_("Choisir un autre fichier…"),
                                         command=self.choose_file)
         self.choose_button.pack(side="left")
-        ttk.Button(line, text="Actualiser la liste", command=self.refresh_logs).pack(
+        ttk.Button(line, text=_("Actualiser la liste"), command=self.refresh_logs).pack(
             side="left", padx=(6, 0))
-        self.read_button = ttk.Button(line, text="Lire ce journal", style="Accent.TButton",
+        self.read_button = ttk.Button(line, text=_("Lire ce journal"), style="Accent.TButton",
                                       command=self.read_selected)
         self.read_button.pack(side="right")
         self.gap = tk.StringVar(value=str(PULL_GAP_MS // 1000))
         ttk.Label(line, text=" s").pack(side="right", padx=(0, 12))
         ttk.Spinbox(line, from_=1, to=60, width=4, textvariable=self.gap).pack(side="right")
-        ttk.Label(line, text="Silence entre deux pulls : ").pack(side="right")
+        ttk.Label(line, text=_("Silence entre deux pulls : ")).pack(side="right")
 
         progress = ttk.Frame(box)
         progress.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         progress.columnconfigure(0, weight=1)
         self.bar = ttk.Progressbar(progress, maximum=1000)
         self.bar.grid(row=0, column=0, sticky="ew")
-        self.cancel_button = ttk.Button(progress, text="Annuler", command=self.cancel.set)
+        self.cancel_button = ttk.Button(progress, text=_("Annuler"), command=self.cancel.set)
         self.cancel_button.grid(row=0, column=1, padx=(6, 0))
         return box
 
     def _fights_box(self, parent):
         ttk = self.ttk
-        box = ttk.LabelFrame(parent, text=" 2. Les combats ", padding=8)
+        box = ttk.LabelFrame(parent, text=_(" 2. Les combats "), padding=8)
         box.columnconfigure(0, weight=1)
         box.rowconfigure(0, weight=1)
-        self.fights = self._table(box, (("n", "#", 40), ("fight", "Combat", 330),
-                                        ("time", "Durée", 70), ("damage", "Dégâts", 120),
-                                        ("deaths", "Morts", 60), ("outcome", "Issue", 110)),
+        self.fights = self._table(box, (("n", "#", 40), ("fight", _("Combat"), 330),
+                                        ("time", _("Durée"), 70), ("damage", _("Dégâts"), 120),
+                                        ("deaths", _("Morts"), 60), ("outcome", _("Issue"), 110)),
                                   height=8, select="extended")
         self.fights.master.grid(row=0, column=0, sticky="nsew")
         self.fights.bind("<<TreeviewSelect>>", lambda _event: self._update_buttons())
         line = ttk.Frame(box)
         line.grid(row=1, column=0, sticky="ew", pady=(8, 0))
-        ttk.Button(line, text="Tout sélectionner", command=self.select_all).pack(side="left")
+        ttk.Button(line, text=_("Tout sélectionner"), command=self.select_all).pack(side="left")
         self.chosen_label = ttk.Label(line, text="")
         self.chosen_label.pack(side="left", padx=(12, 0))
         return box
 
     def _report_box(self, parent):
         tk, ttk = self.tk, self.ttk
-        box = ttk.LabelFrame(parent, text=" 3. Le rapport ", padding=8)
+        box = ttk.LabelFrame(parent, text=_(" 3. Le rapport "), padding=8)
         self.cast_order = tk.BooleanVar(value=True)
         ttk.Checkbutton(box, variable=self.cast_order,
-                        text="Ordre des sorts de chaque joueur (la page est environ "
-                             "deux fois plus lourde)").pack(anchor="w")
+                        text=_("Ordre des sorts de chaque joueur (la page est environ "
+                               "deux fois plus lourde)")).pack(anchor="w")
         choice = ttk.Frame(box)
         choice.pack(anchor="w", pady=(6, 0))
-        ttk.Label(choice, text="Présentation :").pack(side="left")
+        ttk.Label(choice, text=_("Présentation :")).pack(side="left")
         self.layout = tk.StringVar(value="onglets")
         for value, text in LAYOUT_CHOICES:
-            ttk.Radiobutton(choice, text=text, value=value,
+            ttk.Radiobutton(choice, text=_(text), value=value,
                             variable=self.layout).pack(side="left", padx=(10, 0))
         line = ttk.Frame(box)
         line.pack(fill="x", pady=(8, 0))
-        self.write_button = ttk.Button(line, text="Créer le rapport et l'ouvrir",
+        self.write_button = ttk.Button(line, text=_("Créer le rapport et l'ouvrir"),
                                        style="Accent.TButton", command=self.write_selected)
         self.write_button.pack(side="left")
-        self.folder_button = ttk.Button(line, text="Ouvrir le dossier du rapport",
+        self.folder_button = ttk.Button(line, text=_("Ouvrir le dossier du rapport"),
                                         command=lambda: open_folder(self.last_report))
         self.folder_button.pack(side="left", padx=(6, 0))
         return box
@@ -350,14 +355,14 @@ class App:
         entries = recent_logs(self.locations)
         for path, size, mtime in entries:
             self.logs.insert("", "end", iid=path, values=(
-                os.path.basename(path), time.strftime("%d/%m/%Y %H:%M", time.localtime(mtime)),
+                os.path.basename(path), time.strftime(_("%d/%m/%Y %H:%M"), time.localtime(mtime)),
                 file_size(size), os.path.dirname(path)))
         if entries:
             self.logs.selection_set(entries[0][0])
             self.logs.see(entries[0][0])
         else:
-            self.status.set("Aucun journal trouvé aux emplacements habituels : "
-                            "« Choisir un autre fichier… » pour l'indiquer.")
+            self.status.set(_("Aucun journal trouvé aux emplacements habituels : "
+                              "« Choisir un autre fichier… » pour l'indiquer."))
 
     def choose_file(self):
         # A second read started while one runs would hand the window the
@@ -369,9 +374,9 @@ class App:
         start = next(iter(default_log_locations() if self.locations is None
                           else self.locations), os.path.expanduser("~"))
         path = filedialog.askopenfilename(
-            parent=self.root, title="Choisir un journal de combat", initialdir=start,
-            filetypes=(("Journaux de combat", "WoWCombatLog*.txt"),
-                       ("Fichiers texte", "*.txt"), ("Tous les fichiers", "*")))
+            parent=self.root, title=_("Choisir un journal de combat"), initialdir=start,
+            filetypes=((_("Journaux de combat"), "WoWCombatLog*.txt"),
+                       (_("Fichiers texte"), "*.txt"), (_("Tous les fichiers"), "*")))
         if path:
             if not self.logs.exists(path):
                 size = os.path.getsize(path) if os.path.exists(path) else 0
@@ -396,7 +401,7 @@ class App:
         self.log = self.segments = None
         self.log_path = path
         self.cancel.clear()
-        self._start("Lecture de %s…" % os.path.basename(path))
+        self._start(_("Lecture de %s…") % os.path.basename(path))
         size = os.path.getsize(path) if os.path.exists(path) else 0
 
         def work():
@@ -409,10 +414,10 @@ class App:
             except Cancelled:
                 self.messages.put(("cancelled",))
             except OSError as error:
-                self.messages.put(("error", "Impossible de lire %s : %s"
+                self.messages.put(("error", _("Impossible de lire %s : %s")
                                    % (path, error.strerror or error)))
             except Exception:       # noqa: BLE001 -- shown to the reader, not swallowed
-                self.messages.put(("error", "Erreur inattendue en lisant le journal :\n\n"
+                self.messages.put(("error", _("Erreur inattendue en lisant le journal :\n\n")
                                    + traceback.format_exc()))
 
         threading.Thread(target=work, daemon=True).start()
@@ -435,21 +440,20 @@ class App:
         if _refusal(out, self.log_path, layout) or not _writable(out):
             if layout == "pages":
                 parent = filedialog.askdirectory(
-                    parent=self.root, title="Dans quel dossier écrire les pages ?",
+                    parent=self.root, title=_("Dans quel dossier écrire les pages ?"),
                     initialdir=os.path.expanduser("~"))
                 out = os.path.join(parent, os.path.basename(out)) if parent else ""
             else:
                 out = filedialog.asksaveasfilename(
-                    parent=self.root, title="Où écrire le rapport ?",
+                    parent=self.root, title=_("Où écrire le rapport ?"),
                     initialdir=os.path.expanduser("~"), initialfile=os.path.basename(out),
-                    defaultextension=".html", filetypes=(("Page web", "*.html"),))
+                    defaultextension=".html", filetypes=((_("Page web"), "*.html"),))
             if not out:
                 return
         # Captured now: the thread runs later, and the log it must never
         # overwrite is the one these fights were read from.
         log, log_path, cast_order = self.log, self.log_path, self.cast_order.get()
-        plural = "s" if len(chosen) > 1 else ""
-        self._start("Écriture du rapport (%d combat%s)…" % (len(chosen), plural))
+        self._start(_("Écriture du rapport (%s)…") % fmt.plural(len(chosen), "combat"))
         self.bar.configure(mode="indeterminate")
         self.bar.start(12)
 
@@ -457,7 +461,8 @@ class App:
             try:
                 reason = write_report(log, chosen, out, log_path, cast_order, layout)
             except Exception:       # noqa: BLE001 -- shown to the reader, not swallowed
-                reason = "Erreur inattendue en écrivant le rapport :\n\n" + traceback.format_exc()
+                reason = (_("Erreur inattendue en écrivant le rapport :\n\n")
+                          + traceback.format_exc())
             self.messages.put(("written", report_entry(out, layout), reason))
 
         threading.Thread(target=work, daemon=True).start()
@@ -480,7 +485,7 @@ class App:
         if kind == "progress":
             _kind, lines, size = message
             self.bar["value"] = 1000 * read_share(lines, size)
-            self.status.set("Lecture… %s lignes lues" % "{:,}".format(lines).replace(",", " "))
+            self.status.set(_("Lecture… %s lignes lues") % fmt.number(lines))
         elif kind == "read":
             _kind, log, segments, elapsed = message
             self._stop()
@@ -489,30 +494,29 @@ class App:
                 self.fights.insert("", "end", iid=str(row[0]), values=row)
             self.select_all()
             if not segments:
-                self.status.set("Aucun combat trouvé dans ce fichier : il est peut-être vide, "
-                                "ou /combatlog n'était pas lancé.")
+                self.status.set(_("Aucun combat trouvé dans ce fichier : il est peut-être vide, "
+                                  "ou /combatlog n'était pas lancé."))
             else:
                 problems = log.problems.total
-                self.status.set("%d combat%s, %s lignes lues en %.0f s%s." % (
-                    len(segments), "s" if len(segments) > 1 else "",
-                    "{:,}".format(log.line_count).replace(",", " "), elapsed,
-                    ", %d non comprises" % problems if problems else ""))
+                self.status.set(_("%s, %s lignes lues en %.0f s%s.") % (
+                    fmt.plural(len(segments), "combat"), fmt.number(log.line_count), elapsed,
+                    _(", %d non comprises") % problems if problems else ""))
         elif kind == "cancelled":
             self._stop()
-            self.status.set("Lecture annulée.")
+            self.status.set(_("Lecture annulée."))
         elif kind == "error":
             self._stop()
-            self.status.set("La lecture a échoué.")
+            self.status.set(_("La lecture a échoué."))
             messagebox.showerror("LogsWoW", message[1], parent=self.root)
         elif kind == "written":
             _kind, out, reason = message
             self._stop()
             if reason:
-                self.status.set("Le rapport n'a pas été écrit.")
+                self.status.set(_("Le rapport n'a pas été écrit."))
                 messagebox.showerror("LogsWoW", reason, parent=self.root)
                 return
             self.last_report = out
-            self.status.set("Rapport écrit : %s" % out)
+            self.status.set(_("Rapport écrit : %s") % out)
             open_in_browser(out)
         self._update_buttons()
 
@@ -541,7 +545,7 @@ class App:
         count = len(self.fights.selection())
         total = len(self.fights.get_children())
         self.chosen_label.configure(
-            text="%d combat%s sur %d dans le rapport" % (count, "s" if count > 1 else "", total)
+            text=_("%s sur %d dans le rapport") % (fmt.plural(count, "combat"), total)
             if total else "")
 
 

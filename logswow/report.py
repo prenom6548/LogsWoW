@@ -18,6 +18,7 @@ from . import __version__
 from . import fmt
 from .fmt import NBSP
 from .fmt import bar_row as _bar_row
+from .i18n import _, language, spell_label
 from .specs import label_of
 from .timestamps import format_duration
 from .report_casts import CastOrderMixin, chip_rules
@@ -103,18 +104,18 @@ def _boss_pill(outcome):
     the kill on the same boss wore the same badge.
     """
     if outcome:
-        return "<span class='pill ok'>boss &middot; réussite</span>"
+        return _("<span class='pill ok'>boss &middot; réussite</span>")
     if outcome is False:
-        return "<span class='pill ko'>boss &middot; échec</span>"
+        return _("<span class='pill ko'>boss &middot; échec</span>")
     return "<span class='pill'>boss</span>"
 
 
 def _council_note(names):
     if not names:
         return ""
-    return (" %s%s: aucune unité ne porte le nom de la rencontre (un conseil, "
-            "par exemple), donc tous les dégâts infligés pendant sa durée sont "
-            "comptés sur le boss." % (", ".join(fmt.esc(name) for name in names), NBSP))
+    return (_(" %s%s: aucune unité ne porte le nom de la rencontre (un conseil, "
+              "par exemple), donc tous les dégâts infligés pendant sa durée sont "
+              "comptés sur le boss.") % (", ".join(fmt.esc(name) for name in names), NBSP))
 
 
 class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, LayoutsMixin):
@@ -162,10 +163,10 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         # `class=wrap` stays unquoted: the long page is the same bytes as before.
         wrap = "class=wrap" if wrap_class == "wrap" else "class='%s'" % wrap_class
         return (
-            "<!doctype html><html lang=fr><head><meta charset=utf-8>"
+            "<!doctype html><html lang=%s><head><meta charset=utf-8>"
             '<meta name=viewport content="width=device-width,initial-scale=1">'
             "<title>LogsWoW — %s</title><style>%s%s%s</style></head><body><div %s>"
-            % (fmt.esc(os.path.basename(self.log.path)), CSS + SCHOOL_CSS,
+            % (language(), fmt.esc(os.path.basename(self.log.path)), CSS + SCHOOL_CSS,
                chip_rules(self._spell_ids) if self._spell_ids else "", extra_css, wrap)
         )
 
@@ -183,7 +184,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 "<td class=n>%s</td><td class=n>%s</td><td class=n>%d</td></tr>"
                 % (
                     name,
-                    "<span class='pill %s'>%s</span>" % (css, fmt.esc(outcome)) if outcome else "",
+                    ("<span class='pill %s'>%s</span>" % (css, fmt.esc(_(outcome)))
+                     if outcome else ""),
                     format_duration(analysis.duration_ms),
                     fmt.compact(analysis.total_damage),
                     fmt.compact(analysis.total_healing),
@@ -194,23 +196,23 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
             )
         if not rows:
             rows.append(
-                "<tr><td colspan=7 class=dim>Aucun combat délimité dans ce fichier.</td></tr>"
+                _("<tr><td colspan=7 class=dim>Aucun combat délimité dans ce fichier.</td></tr>")
             )
 
-        generated = datetime.now().strftime("%d/%m/%Y %H:%M")
+        generated = datetime.now().strftime(_("%d/%m/%Y %H:%M"))
         return (
-            "<h1>Rapport de combat</h1>"
-            "<p class=sub>%s &middot; %s lignes, %s événements &middot; généré le %s "
-            "par LogsWoW %s</p>"
-            "<div class=note><b>Tout est resté sur cette machine.</b> Ce rapport a été "
-            "produit en lisant le fichier de journal directement&nbsp;: aucun envoi, "
-            "aucun compte, aucune connexion. La page est autonome, elle s'ouvre hors ligne.</div>"
-            "<div class=grid>%s</div>"
-            "<h2>Combats</h2><div class=card><table>"
-            "<tr><th>Combat</th><th class=n>Durée</th><th class=n>Dégâts</th>"
-            "<th class=n>Soins</th><th class=n>Pulls</th><th class=n>Joueurs</th>"
-            "<th class=n>Morts</th></tr>"
-            "%s</table></div>"
+            _("<h1>Rapport de combat</h1>"
+              "<p class=sub>%s &middot; %s lignes, %s événements &middot; généré le %s "
+              "par LogsWoW %s</p>"
+              "<div class=note><b>Tout est resté sur cette machine.</b> Ce rapport a été "
+              "produit en lisant le fichier de journal directement&nbsp;: aucun envoi, "
+              "aucun compte, aucune connexion. La page est autonome, elle s'ouvre hors ligne.</div>"
+              "<div class=grid>%s</div>"
+              "<h2>Combats</h2><div class=card><table>"
+              "<tr><th>Combat</th><th class=n>Durée</th><th class=n>Dégâts</th>"
+              "<th class=n>Soins</th><th class=n>Pulls</th><th class=n>Joueurs</th>"
+              "<th class=n>Morts</th></tr>"
+              "%s</table></div>")
             % (
                 fmt.esc(os.path.basename(self.log.path)),
                 fmt.number(self.log.line_count),
@@ -245,13 +247,13 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         late = sum(1 for segment in keys if segment.success is False)
         wipes = sum(1 for success, fought in pulls.values() if success is False and fought)
         cells = [
-            ("Taille du fichier", "%s Mo" % round(self.log.size_bytes / 1048576.0, 1)),
-            ("Durée couverte", format_duration(self.log.duration_ms)),
-            ("Pulls de boss", str(len(pulls))),
-            ("Wipes de boss", str(wipes)),
-            ("Clés mythiques", str(len(keys))),
-            ("Clés hors des temps", str(late)),
-            ("Lignes incomprises", fmt.number(self.log.problems.total)),
+            (_("Taille du fichier"), "%s Mo" % round(self.log.size_bytes / 1048576.0, 1)),
+            (_("Durée couverte"), format_duration(self.log.duration_ms)),
+            (_("Pulls de boss"), str(len(pulls))),
+            (_("Wipes de boss"), str(wipes)),
+            (_("Clés mythiques"), str(len(keys))),
+            (_("Clés hors des temps"), str(late)),
+            (_("Lignes incomprises"), fmt.number(self.log.problems.total)),
         ]
         return "".join(
             "<div class=stat><b>%s</b><span>%s</span></div>" % (fmt.esc(value), fmt.esc(label))
@@ -266,18 +268,18 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         outcome = segment.outcome
         css = "ok" if segment.success else ("ko" if segment.is_wipe else "")
         head = (
-            "<h2 id='s%d'>%s%s</h2><p class=sub>%s &middot; %s &middot; "
-            "%s de dégâts, %s de soins &middot; %s%s</p>"
+            _("<h2 id='s%d'>%s%s</h2><p class=sub>%s &middot; %s &middot; "
+              "%s de dégâts, %s de soins &middot; %s%s</p>")
             % (
                 segment.index,
                 fmt.esc(segment.label),
-                "<span class='pill %s'>%s</span>" % (css, fmt.esc(outcome)) if outcome else "",
+                "<span class='pill %s'>%s</span>" % (css, fmt.esc(_(outcome))) if outcome else "",
                 format_duration(analysis.duration_ms),
                 fmt.plural(len(analysis.participants()), "joueur"),
                 fmt.compact(analysis.total_damage),
                 fmt.compact(analysis.total_healing),
                 fmt.plural(len(analysis.deaths), "mort"),
-                " &middot; journal interrompu" if segment.truncated else "",
+                _(" &middot; journal interrompu") if segment.truncated else "",
             )
         )
         return head, self._sections(analysis, seconds)
@@ -291,8 +293,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         parts["pulls"] = self._pulls(analysis)
         parts["schools"] = self._schools(analysis)
         parts["rankings"] = "<div class=cols>%s%s</div>" % (
-            self._ranking(analysis, "damage_done", "Dégâts infligés", "DPS"),
-            self._ranking(analysis, "healing_done", "Soins effectifs", "HPS"))
+            self._ranking(analysis, "damage_done", _("Dégâts infligés"), "DPS"),
+            self._ranking(analysis, "healing_done", _("Soins effectifs"), "HPS"))
         parts["taken"] = self._taken(analysis)
         parts["enemy_casts"] = self._enemy_casts(analysis)
         parts["deaths"] = self._deaths(analysis)
@@ -320,11 +322,11 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         names = ", ".join("%s (%s)" % (fmt.esc(name), fmt.compact(value))
                           for name, value in ranked[:4])
         return (
-            "<div class=note><b>%s de dégâts ne sont comptés pour personne.</b> "
-            "Ils viennent d'unités alliées qui n'appartiennent à aucun joueur "
-            "nommé par le journal%s: %s. Faute de savoir à qui les attribuer, "
-            "ils ne sont ni dans le total ci-dessus ni dans la ligne d'un "
-            "joueur.</div>"
+            _("<div class=note><b>%s de dégâts ne sont comptés pour personne.</b> "
+              "Ils viennent d'unités alliées qui n'appartiennent à aucun joueur "
+              "nommé par le journal%s: %s. Faute de savoir à qui les attribuer, "
+              "ils ne sont ni dans le total ci-dessus ni dans la ligne d'un "
+              "joueur.</div>")
             % (fmt.compact(dropped), NBSP, names)
         )
 
@@ -366,26 +368,26 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                     ("<span class=dim>0</span>" if not block.deaths else str(block.deaths)),
                 )
             )
-        boss_heads = ("<th class=n>sur le boss</th><th class=n>sur les trash</th>"
+        boss_heads = (_("<th class=n>sur le boss</th><th class=n>sur les trash</th>")
                       if any_boss else "")
         return (
-            "<h3>%s</h3><div class=card><table>"
-            "<tr><th class=n>#</th><th class=n>Début</th><th class=n>Durée</th>"
-            "<th>Ce qui a été engagé</th><th class=n>Dégâts</th>%s"
-            "<th class=n>Subis</th><th class=n>Morts</th></tr>%s</table>"
-            "<p class=dim style='margin:10px 0 0;font-size:12px'>Un pull se termine "
-            "quand le groupe passe plus de %s sans infliger ni subir de dégâts. "
-            "Un groupe qui enchaîne les packs sans pause les verra donc regroupés%s: "
-            "<code>--pull-gap</code> change ce seuil, sauf à l'intérieur d'une "
-            "rencontre de boss, qui reste toujours un seul pull.%s%s</p></div>"
+            _("<h3>%s</h3><div class=card><table>"
+              "<tr><th class=n>#</th><th class=n>Début</th><th class=n>Durée</th>"
+              "<th>Ce qui a été engagé</th><th class=n>Dégâts</th>%s"
+              "<th class=n>Subis</th><th class=n>Morts</th></tr>%s</table>"
+              "<p class=dim style='margin:10px 0 0;font-size:12px'>Un pull se termine "
+              "quand le groupe passe plus de %s sans infliger ni subir de dégâts. "
+              "Un groupe qui enchaîne les packs sans pause les verra donc regroupés%s: "
+              "<code>--pull-gap</code> change ce seuil, sauf à l'intérieur d'une "
+              "rencontre de boss, qui reste toujours un seul pull.%s%s</p></div>")
             % (
                 fmt.plural(len(analysis.blocks), "pull"),
                 boss_heads,
                 "".join(rows),
                 "%d%ss" % (analysis.pull_gap_ms / 1000, NBSP),
                 NBSP,
-                (" %s écarté%s, trop petits pour compter (moins d'un millième "
-                 "des dégâts de la course)."
+                (_(" %s écarté%s, trop petits pour compter (moins d'un millième "
+                   "des dégâts de la course).")
                  % (analysis.dropped_pulls,
                     "s" if analysis.dropped_pulls > 1 else ""))
                 if analysis.dropped_pulls else "",
@@ -410,7 +412,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         for player, value, rate in rows:
             extra = ""
             if healing and player.overheal_rate:
-                extra = (" <span class=dim>(%s de surguérison)</span>"
+                extra = (_(" <span class=dim>(%s de surguérison)</span>")
                          % fmt.percent(player.overheal_rate))
             cells = [
                 _bar_row(
@@ -427,26 +429,26 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                              % fmt.compact(value + player.absorb_done))
             cells.append("<td class=n>%s</td>" % fmt.compact(rate))
             lines.append("<tr>%s</tr>" % "".join(cells))
-        heads = "<th>Joueur</th><th class=n>Total</th>"
+        heads = _("<th>Joueur</th><th class=n>Total</th>")
         if absorbs:
-            heads += "<th class=n>Absorbé</th><th class=n>Somme</th>"
+            heads += _("<th class=n>Absorbé</th><th class=n>Somme</th>")
         heads += "<th class=n>%s</th>" % fmt.esc(rate_label)
         note = ""
         if absorbs:
-            note = ("<p class=dim style='margin:10px 0 0;font-size:12px'>"
-                    "Un bouclier n'est pas un soin dans le journal%s: il "
-                    "empêche des dégâts au lieu d'en rendre. Les deux sont "
-                    "donc comptés à part, et additionnés dans la colonne "
-                    "<b>Somme</b> — c'est ce total-là que les sites en ligne "
-                    "appellent \u00ab soins \u00bb.</p>" % NBSP)
+            note = (_("<p class=dim style='margin:10px 0 0;font-size:12px'>"
+                      "Un bouclier n'est pas un soin dans le journal%s: il "
+                      "empêche des dégâts au lieu d'en rendre. Les deux sont "
+                      "donc comptés à part, et additionnés dans la colonne "
+                      "<b>Somme</b> — c'est ce total-là que les sites en ligne "
+                      "appellent \u00ab soins \u00bb.</p>") % NBSP)
         moved = sum(player.moved_health for player, _v, _r in rows) if healing else 0
         if moved:
-            note += ("<p class=dim style='margin:6px 0 0;font-size:12px'>"
-                     "Le Lien d'esprit ne soigne pas%s: il prend de la santé aux "
-                     "joueurs les plus hauts pour la donner aux plus bas. Les %s "
-                     "qu'il a pris sont déduits des soins de son poseur, comme sur "
-                     "Warcraft Logs, et ne comptent dans les dégâts subis de "
-                     "personne.</p>" % (NBSP, fmt.compact(moved)))
+            note += (_("<p class=dim style='margin:6px 0 0;font-size:12px'>"
+                       "Le Lien d'esprit ne soigne pas%s: il prend de la santé aux "
+                       "joueurs les plus hauts pour la donner aux plus bas. Les %s "
+                       "qu'il a pris sont déduits des soins de son poseur, comme sur "
+                       "Warcraft Logs, et ne comptent dans les dégâts subis de "
+                       "personne.</p>") % (NBSP, fmt.compact(moved)))
         return (
             "<div><h3>%s</h3><div class=card><table>"
             "<tr>%s</tr>%s</table>%s</div></div>"
@@ -477,15 +479,15 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 )
             )
         return (
-            "<h3>Ce qui a fait mal au groupe</h3><div class=card><table>"
-            "<tr><th>Capacité</th><th class=n>Dégâts</th><th class=n>Coups</th>"
-            "<th class=n>Joueurs touchés</th></tr>%s</table>%s"
-            "<p class=dim style='margin:10px 0 0;font-size:12px'>Le fichier dit qui a été "
-            "touché et combien. Il ne dit pas si le coup était évitable&nbsp;: cela demande "
-            "de connaître le boss, ce que cet outil ne prétend pas savoir.</p></div>"
+            _("<h3>Ce qui a fait mal au groupe</h3><div class=card><table>"
+              "<tr><th>Capacité</th><th class=n>Dégâts</th><th class=n>Coups</th>"
+              "<th class=n>Joueurs touchés</th></tr>%s</table>%s"
+              "<p class=dim style='margin:10px 0 0;font-size:12px'>Le fichier dit qui a été "
+              "touché et combien. Il ne dit pas si le coup était évitable&nbsp;: cela demande "
+              "de connaître le boss, ce que cet outil ne prétend pas savoir.</p></div>")
             % ("".join(lines), (
-                "<p class=dim style='margin:8px 0 0;font-size:12.5px'>Et %s de plus, "
-                "%s de dégâts en tout.</p>"
+                _("<p class=dim style='margin:8px 0 0;font-size:12.5px'>Et %s de plus, "
+                  "%s de dégâts en tout.</p>")
                 % (fmt.plural(len(rest), "capacité"), fmt.compact(sum(a.total for a in rest))))
                if rest else "")
         )
@@ -507,7 +509,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 # The log marks the hit that killed with a positive
                 # overkill; every other hit writes -1. An instant kill
                 # carries no amount at all (see `_feed_instakill`).
-                mark = " <b>coup fatal</b>" if overkill > 0 else ""
+                mark = _(" <b>coup fatal</b>") if overkill > 0 else ""
                 chain.append(
                     "<li><span class=dim>%s</span> <span class=%s>%s%s</span> "
                     "%s <span class=dim>%s</span>%s%s</li>"
@@ -515,8 +517,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                         format_duration(ts - start),
                         css,
                         "+" if delta > 0 else "",
-                        fmt.number(abs(delta)) if delta else "mort instantanée",
-                        fmt.esc(spell or "Attaque"),
+                        fmt.number(abs(delta)) if delta else _("mort instantanée"),
+                        fmt.esc(spell_label(spell)),
                         fmt.esc(source or ""),
                         hp,
                         mark,
@@ -528,8 +530,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 % (
                     fmt.esc(death["player"]),
                     format_duration(death["ts"] - start),
-                    fmt.esc(death["killing_blow"] or "cause non écrite dans le journal"),
-                    "".join(chain) or "<li class=dim>Rien avant la mort dans le journal.</li>",
+                    fmt.esc(death["killing_blow"] or _("cause non écrite dans le journal")),
+                    "".join(chain) or _("<li class=dim>Rien avant la mort dans le journal.</li>"),
                 )
             )
         return "<h3>%s</h3>%s" % (fmt.plural(len(analysis.deaths), "mort"), "".join(blocks))
@@ -552,10 +554,10 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 % (fmt.esc(label), names)
             )
         return (
-            "<h3>Composition du groupe</h3><div class=card><table>%s</table>%s"
-            "<p class=dim style='margin:10px 0 0;font-size:12px'>Le rôle vient de la "
-            "spécialisation que le client écrit au début du combat. Une spécialisation "
-            "que cet outil ne connaît pas est affichée par son numéro.</p></div>"
+            _("<h3>Composition du groupe</h3><div class=card><table>%s</table>%s"
+              "<p class=dim style='margin:10px 0 0;font-size:12px'>Le rôle vient de la "
+              "spécialisation que le client écrit au début du combat. Une spécialisation "
+              "que cet outil ne connaît pas est affichée par son numéro.</p></div>")
             % ("".join(rows), self._bystanders(analysis))
         )
 
@@ -566,8 +568,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         if not present:
             return ""
         return (
-            "<p style='margin:10px 0 0;font-size:12.5px'>Aussi présents dans le journal, "
-            "sans prendre part au combat (ni dégâts, ni soins, ni coups reçus)%s: %s.</p>"
+            _("<p style='margin:10px 0 0;font-size:12.5px'>Aussi présents dans le journal, "
+              "sans prendre part au combat (ni dégâts, ni soins, ni coups reçus)%s: %s.</p>")
             % (NBSP, ", ".join(
                 "<span class=name>%s</span> <span class=dim>(%s)</span>"
                 % (fmt.esc(player.short_name), fmt.plural(player.casts, "sort"))
@@ -580,19 +582,19 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         problems = self.log.problems
         unknown = ", ".join(sorted(problems.unknown_subevents)) or "aucun"
         return (
-            "<footer>LogsWoW %s &middot; lecture locale de <code>%s</code><br>"
-            "Disposition détectée dans ce fichier&nbsp;: bloc avancé de %d champs, "
-            "champ de dégâts bruts %s, champ hideCaster %s. "
-            "Lignes non comprises&nbsp;: %s. Événements inconnus&nbsp;: %s.<br>"
-            "Licence AGPL-3.0 ou ultérieure&nbsp;; code source&nbsp;: "
-            "github.com/prenom6548/LogsWoW. Aucune donnée ne quitte cette machine."
-            "</footer></div></body></html>"
+            _("<footer>LogsWoW %s &middot; lecture locale de <code>%s</code><br>"
+              "Disposition détectée dans ce fichier&nbsp;: bloc avancé de %d champs, "
+              "champ de dégâts bruts %s, champ hideCaster %s. "
+              "Lignes non comprises&nbsp;: %s. Événements inconnus&nbsp;: %s.<br>"
+              "Licence AGPL-3.0 ou ultérieure&nbsp;; code source&nbsp;: "
+              "github.com/prenom6548/LogsWoW. Aucune donnée ne quitte cette machine."
+              "</footer></div></body></html>")
             % (
                 __version__,
                 fmt.esc(os.path.basename(self.log.path)),
                 self.log.layout.advanced_width,
-                "présent" if self.log.layout.has_base_amount else "absent",
-                "présent" if self.log.layout.hide_caster else "absent",
+                _("présent") if self.log.layout.has_base_amount else "absent",
+                _("présent") if self.log.layout.hide_caster else "absent",
                 fmt.number(problems.total),
                 fmt.esc(unknown),
             )

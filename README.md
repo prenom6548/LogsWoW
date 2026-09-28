@@ -1,5 +1,7 @@
 # LogsWoW
 
+*English version: [README.en.md](README.en.md)*
+
 Lire ses propres journaux de combat de World of Warcraft, **sur sa
 machine**, sans compte, sans envoi, sans connexion.
 
@@ -31,12 +33,19 @@ déjà là ; sous Linux Mint, Ubuntu et Debian, elle s'installe une fois avec
 `sudo apt install python3-tk` (la fenêtre le dit elle-même si elle
 manque). Les commandes n'en ont pas besoin.
 
+**Français ou anglais.** La fenêtre, les commandes et le rapport parlent
+la langue de votre machine : français sur une machine en français,
+anglais sur toutes les autres. `--langue fr` ou `--langue en` impose
+l'une ou l'autre, et la variable d'environnement `LOGSWOW_LANGUE` fixe
+un choix une fois pour toutes. Les noms de sorts, de boss et de joueurs
+restent ceux du journal, dans la langue de votre client de jeu.
+
 ## Ce qu'il faut avant
 
 **La marche à suivre pas à pas, pour Windows, Linux (dont Linux Mint) et
 macOS, est dans [`INSTALL.md`](INSTALL.md).** Chaque version publiée
 fournit un fichier unique, `logswow-<version>.pyz`, qui se lance tel quel :
-`python3 logswow-0.8.1.pyz report WoWCombatLog.txt`.
+`python3 logswow-0.9.0.pyz report WoWCombatLog.txt`.
 
 Rien à installer. Python 3.8 ou plus récent, et c'est tout : pas de
 `pip install`, aucune dépendance, aucun réseau. Le paquet se copie ou se
@@ -72,6 +81,7 @@ python3 -m logswow where
 | `list FICHIER` | liste les combats du fichier, une ligne chacun |
 | `diagnose FICHIER` | montre ce que le lecteur a compris, et ce qu'il n'a pas compris |
 | `where` | cherche le dossier `Logs` du jeu |
+| *(toutes)* | `--langue fr\|en\|auto` la langue de l'interface et du rapport |
 
 **Lancez `diagnose` en premier** après chaque mise à jour du jeu. Il
 affiche la disposition des champs telle qu'elle a été *mesurée dans
@@ -252,7 +262,7 @@ python3 tools/check-invariants.py WoWCombatLog.txt
 ln -s ../../tools/pre-push .git/hooks/pre-push     # une fois, pour les contributeurs
 ```
 
-Les tests, 228, tournent sans dépendance ni réseau sur
+Les tests, 237, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 
@@ -277,7 +287,7 @@ avec les notes de la version. Elle n'utilise que ce que la machine de
 GitHub possède déjà, sans aucune action tierce.
 
 Ce qui change d'une version à l'autre est dans
-[`CHANGELOG.md`](CHANGELOG.md) ; le détail technique, daté et chiffré, dans
+[`CHANGELOG.md`](CHANGELOG.md) (en anglais : [`CHANGELOG.en.md`](CHANGELOG.en.md)) ; le détail technique, daté et chiffré, dans
 les sections datées de `CLAUDE.md`.
 
 Le journal est lu tel que le jeu l'écrit, avec ses fins de ligne

@@ -14,6 +14,7 @@ matches how anyone reads a dungeon run -- the whole key, and each boss
 within it.
 """
 
+from .i18n import N_, _
 from .tokenize import as_int
 
 # Lines that mean somebody fought: a hit, or a swing that missed. An
@@ -25,26 +26,26 @@ FIGHT_KINDS = frozenset({"_DAMAGE", "_DAMAGE_LANDED", "_MISSED", "_SHIELD", "_SP
 # Difficulty ids, as the client writes them. Anything unlisted is shown
 # by number rather than guessed at.
 DIFFICULTY_NAMES = {
-    1: "Normal",
-    2: "Héroïque",
-    3: "10 joueurs",
-    4: "25 joueurs",
-    5: "10 héroïque",
-    6: "25 héroïque",
-    7: "Raid Recherche",
-    8: "Mythique+",
-    9: "40 joueurs",
-    11: "Héroïque scénario",
-    12: "Normal scénario",
-    14: "Normal",
-    15: "Héroïque",
-    16: "Mythique",
-    17: "Raid Recherche",
-    23: "Mythique",
-    24: "Marche du temps",
-    33: "Marche du temps",
-    151: "Raid Recherche",
-    167: "Torghast",
+    1: N_("Normal"),
+    2: N_("Héroïque"),
+    3: N_("10 joueurs"),
+    4: N_("25 joueurs"),
+    5: N_("10 héroïque"),
+    6: N_("25 héroïque"),
+    7: N_("Raid Recherche"),
+    8: N_("Mythique+"),
+    9: N_("40 joueurs"),
+    11: N_("Héroïque scénario"),
+    12: N_("Normal scénario"),
+    14: N_("Normal"),
+    15: N_("Héroïque"),
+    16: N_("Mythique"),
+    17: N_("Raid Recherche"),
+    23: N_("Mythique"),
+    24: N_("Marche du temps"),
+    33: N_("Marche du temps"),
+    151: N_("Raid Recherche"),
+    167: N_("Torghast"),
 }
 
 
@@ -63,7 +64,9 @@ def difficulty_name(difficulty_id):
     """A difficulty id as the reader says it, or its number when unknown."""
     if not difficulty_id:
         return ""
-    return DIFFICULTY_NAMES.get(difficulty_id, "difficulté %d" % difficulty_id)
+    if difficulty_id in DIFFICULTY_NAMES:
+        return _(DIFFICULTY_NAMES[difficulty_id])
+    return _("difficulté %d") % difficulty_id
 
 
 class Segment:
@@ -109,16 +112,16 @@ class Segment:
 
     @property
     def outcome(self):
-        """The result in the reader's words: reussite, echec, sans combat, interrompu..."""
+        """The result, in French: réussite, échec, sans combat, interrompu... (see `_()`)."""
         if self.kind == "session":
             return ""
         if self.never_fought and not self.truncated:
-            return "sans combat"
+            return N_("sans combat")
         if self.success is None:
-            return "interrompu"
+            return N_("interrompu")
         if self.kind == "keystone":
-            return "dans les temps" if self.success else "hors des temps"
-        return "réussite" if self.success else "échec"
+            return N_("dans les temps") if self.success else N_("hors des temps")
+        return N_("réussite") if self.success else N_("échec")
 
     @property
     def label(self):
@@ -201,7 +204,7 @@ class Splitter:
     def _open_encounter(self, event):
         # ENCOUNTER_START,encounterID,encounterName,difficultyID,groupSize,instanceID
         fields = event.fields
-        name = _text(fields, 2, "Rencontre")
+        name = _text(fields, 2, _("Rencontre"))
         segment = self._new("encounter", name, event.ts)
         segment.encounter_id = as_int(fields[1] if len(fields) > 1 else 0)
         segment.difficulty_id = as_int(fields[3] if len(fields) > 3 else 0)
@@ -214,7 +217,7 @@ class Splitter:
     def _open_keystone(self, event):
         # CHALLENGE_MODE_START,zoneName,instanceID,challengeModeID,keystoneLevel,[affixes]
         fields = event.fields
-        name = _text(fields, 1, "Donjon")
+        name = _text(fields, 1, _("Donjon"))
         segment = self._new("keystone", name, event.ts)
         segment.instance_id = as_int(fields[2] if len(fields) > 2 else 0)
         segment.key_level = as_int(fields[4] if len(fields) > 4 else 0)
@@ -278,7 +281,7 @@ class Splitter:
         be one huge segment of corridor trash that nobody asked about.
         """
         if self._fallback is None:
-            self._fallback = self._new("session", "Session complète", event.ts)
+            self._fallback = self._new("session", _("Session complète"), event.ts)
         if self._fallback.analysis is not None:
             self._fallback.analysis.feed(event)
         self._fallback.end_ts = event.ts

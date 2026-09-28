@@ -22,6 +22,7 @@ reason this project already had:
 import re
 
 from . import fmt
+from .i18n import _
 from .castorder import (TRIGGER_FASTER_THAN_MS, TRIGGER_MAX_MEDIAN_GAP_MS, TRIGGER_MIN_CASTS,
                         TRIGGER_SHARE, split_by_pull)
 from .timestamps import format_duration
@@ -108,12 +109,12 @@ class CastOrderMixin:
             self._cast_pull(position, block, casts, player, start, analysis)
             for position, (block, casts) in enumerate(
                 split_by_pull(player.cast_log, analysis.blocks, analysis.pull_gap_ms), start=1))
-        cut = ("<p class=dim style='font-size:12px'>Séquence coupée après %s sorts.</p>"
+        cut = (_("<p class=dim style='font-size:12px'>Séquence coupée après %s sorts.</p>")
                % fmt.number(len(player.cast_log))) if player.cast_log_full else ""
         return (
-            "<details class=co><summary>Ordre des sorts, pull par pull "
-            "<span class=dim>&middot; %s</span></summary><div class=cobody>%s%s"
-            "<div class=pulls>%s%s</div></div></details>"
+            _("<details class=co><summary>Ordre des sorts, pull par pull "
+              "<span class=dim>&middot; %s</span></summary><div class=cobody>%s%s"
+              "<div class=pulls>%s%s</div></div></details>")
             % (fmt.plural(len(player.cast_log), "sort"), boxes,
                self._cast_legend(uid, spells, player), pulls, cut)
         )
@@ -130,40 +131,40 @@ class CastOrderMixin:
                 % (uid, spell_id, spell_id, self._chip(spell_id, name, None, key, False),
                    fmt.esc(name), count))
         titles = (
-            ("lances", "Lancés"),
-            ("declenches", "Probablement déclenchés automatiquement (masqués)"),
-            ("invocations", "Lancés par ses invocations"),
+            ("lances", _("Lancés")),
+            ("declenches", _("Probablement déclenchés automatiquement (masqués)")),
+            ("invocations", _("Lancés par ses invocations")),
         )
         body = "".join(
             "<div class=grp><b>%s</b>%s</div>" % (title, "".join(groups[key]))
             for key, title in titles if groups[key])
         note = ""
         if groups["declenches"]:
-            note = ("<p class=dim style='font-size:12px;margin:4px 0 0'>Le journal écrit "
-                    "de la même façon un sort appuyé et un sort que le jeu déclenche seul. "
-                    "Sont lus comme déclenchés, parmi les sorts lancés au moins %d fois dans "
-                    "ce combat sans jamais coûter de ressource%s: ceux qui, à %d%s%% au moins, "
-                    "partent en même temps qu'un sort payé, avec un écart médian de %d "
-                    "secondes au plus entre deux lancers%s; ceux dont l'écart médian est sous "
-                    "%s%ss, plus vite qu'aucun bouton%s; et la seconde copie d'un "
-                    "sort que le journal écrit deux fois, sous le "
-                    "même nom, au même instant. C'est une lecture du fichier%s: cliquez pour "
-                    "les afficher.</p>"
+            note = (_("<p class=dim style='font-size:12px;margin:4px 0 0'>Le journal écrit "
+                      "de la même façon un sort appuyé et un sort que le jeu déclenche seul. "
+                      "Sont lus comme déclenchés, parmi les sorts lancés au moins %d fois dans "
+                      "ce combat sans jamais coûter de ressource%s: ceux qui, à %d%s%% au moins, "
+                      "partent en même temps qu'un sort payé, avec un écart médian de %d "
+                      "secondes au plus entre deux lancers%s; ceux dont l'écart médian est sous "
+                      "%s%ss, plus vite qu'aucun bouton%s; et la seconde copie d'un "
+                      "sort que le journal écrit deux fois, sous le "
+                      "même nom, au même instant. C'est une lecture du fichier%s: cliquez pour "
+                      "les afficher.</p>")
                     % (TRIGGER_MIN_CASTS, fmt.NBSP, round(TRIGGER_SHARE * 100), fmt.NBSP,
                        TRIGGER_MAX_MEDIAN_GAP_MS // 1000, fmt.NBSP,
-                       ("%g" % (TRIGGER_FASTER_THAN_MS / 1000.0)).replace(".", ","),
+                       fmt.decimal(TRIGGER_FASTER_THAN_MS / 1000.0),
                        fmt.NBSP, fmt.NBSP, fmt.NBSP))
-        return ("<div class=legend><p class=dim style='font-size:12px;margin:0'>Cliquez sur "
-                "un sort pour le masquer ou l'afficher.</p>%s%s</div>" % (body, note))
+        return (_("<div class=legend><p class=dim style='font-size:12px;margin:0'>Cliquez sur "
+                  "un sort pour le masquer ou l'afficher.</p>%s%s</div>") % (body, note))
 
     def _cast_pull(self, position, block, casts, player, start, analysis):
         if block is None:
             if not casts:
                 return ""
-            title = "Entre les pulls"
+            title = _("Entre les pulls")
             span = fmt.plural(len(casts), "sort")
         else:
-            title = "Pull %02d &mdash; %s" % (position, self._pull_what(block, analysis))
+            title = _("Pull %02d &mdash; %s") % (position, self._pull_what(block, analysis))
             span = "%s&ndash;%s &middot; %s" % (
                 format_duration(block.start_ts - start), format_duration(block.end_ts - start),
                 fmt.plural(len(casts), "sort"))
@@ -174,18 +175,18 @@ class CastOrderMixin:
                        True)
             for ts, spell_id, name, _paid, from_pet in casts)
         return ("<div class=pull><h4>%s <span>%s</span></h4><div class=seq>%s</div></div>"
-                % (title, span, chips or "<p class=dim style='line-height:1.5;margin:0'>"
-                   "Aucun sort pendant ce pull.</p>"))
+                % (title, span, chips or _("<p class=dim style='line-height:1.5;margin:0'>"
+                                           "Aucun sort pendant ce pull.</p>")))
 
     @staticmethod
     def _pull_what(block, analysis):
         """'Mchimba l'Embaumeur, échec' or 'trash (33 ennemis)'."""
         if block.has_boss(analysis.boss_names):
             outcome = block.outcome
-            word = ", réussite" if outcome else (", échec" if outcome is False else "")
+            word = _(", réussite") if outcome else (_(", échec") if outcome is False else "")
             return fmt.esc(block.boss_label(analysis.boss_names) or "boss") + word
         count = sum(len(guids) for guids in block.enemies.values())
-        return "trash (%s)" % fmt.plural(count, "ennemi")
+        return _("trash (%s)") % fmt.plural(count, "ennemi")
 
     def _chip(self, spell_id, name, at_ms, group, linked):
         """One coloured chip; a link to Wowhead when the page has links."""

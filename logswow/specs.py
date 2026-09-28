@@ -13,6 +13,8 @@ that entry is measured and which part is theirs. The next unknown id gets
 the same treatment: "spe 1481", and no invented name.
 """
 
+from .i18n import _, language, spec_names
+
 TANK = "tank"
 HEAL = "soigneur"
 DPS = "dps"
@@ -94,6 +96,17 @@ def role_of(spec_id):
 
 
 def label_of(spec_id):
-    """'Moine Maître brasseur', or 'spe 1480' for one this table lacks."""
+    """'Moine Maître brasseur', or 'spe 1480' for one this table lacks.
+
+    In the reader's language: English puts the specialization first,
+    'Brewmaster Monk'.
+    """
+    if spec_id and spec_id not in SPECS:
+        return _("spe %d") % spec_id
     class_name, spec_name, _role = describe(spec_id)
-    return (" ".join(piece for piece in (class_name, spec_name) if piece)).strip()
+    pieces = (class_name, spec_name)
+    if language() != "fr":
+        # By id, not by word: French calls two different specializations
+        # "Dévastation" (a Demon Hunter's Havoc, an Evoker's Devastation).
+        pieces = spec_names(spec_id, pieces)[::-1]
+    return (" ".join(piece for piece in pieces if piece)).strip()

@@ -25,6 +25,7 @@ client, without the baseAmount field, shifts every offset by one and is
 read correctly without changing a line of this module.
 """
 
+from .i18n import N_, _
 from .tokenize import as_bool, as_int, looks_like_guid
 
 # What the documentation describes, used only until the file says better.
@@ -34,8 +35,8 @@ DEFAULT_ADVANCED_WIDTH = 19
 # `diagnose`, so they are in French like the rest of the interface;
 # UNKNOWN_SUBEVENT is also a sentinel the reader compares against, so it
 # is a constant rather than a repeated literal.
-UNKNOWN_SUBEVENT = "événement inconnu"
-MISSING_BASE_FIELDS = "champs de base manquants"
+UNKNOWN_SUBEVENT = N_("événement inconnu")
+MISSING_BASE_FIELDS = N_("champs de base manquants")
 
 _PREFIXES = (
     ("SPELL_PERIODIC", 3),
@@ -574,7 +575,7 @@ def resolve_layout(remainder, prefix_n, suffix_counts, advanced_width):
             remainder,
             None,
             [],
-            "ligne trop courte : %d champs pour un préfixe de %d"
+            _("ligne trop courte : %d champs pour un préfixe de %d")
             % (len(remainder), prefix_n),
         )
     prefix = remainder[:prefix_n]
@@ -587,8 +588,8 @@ def resolve_layout(remainder, prefix_n, suffix_counts, advanced_width):
         if available == count:
             return prefix, None, rest, None
 
-    note = ("nombre de champs inattendu : %d après le préfixe, attendu %s, "
-            "ou cela +%d") % (
+    note = _("nombre de champs inattendu : %d après le préfixe, attendu %s, "
+             "ou cela +%d") % (
         available,
         " / ".join(str(count) for count in suffix_counts) or "0",
         advanced_width,

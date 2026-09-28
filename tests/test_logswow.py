@@ -26,6 +26,10 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
+# Every test reads French, on any machine: "auto" would otherwise follow
+# the machine's language, and the release runner's is English. The tests
+# of other languages ask for theirs and put French back.
+os.environ["LOGSWOW_LANGUE"] = "fr"
 
 from logswow.analysis import SegmentAnalysis  # noqa: E402
 from logswow.cli import main as cli_main  # noqa: E402
@@ -3399,6 +3403,171 @@ class TestSixthAuditFindings(unittest.TestCase):
                 head = handle.readline() + handle.readline()
             with self.subTest(path=path):
                 self.assertIn(tag, head)
+
+
+class TestLanguages(unittest.TestCase):
+    """French and English (0.9.0): one set of numbers, two ways of saying them."""
+
+    PACKAGE = os.path.join(ROOT, "logswow")
+    SLOT = re.compile(r"%(?:\.0s|[-0-9.]*[sdfr]|%)")
+    TAG = re.compile(r"<(/?[a-z0-9]+)")
+
+    def tearDown(self):
+        from logswow.i18n import set_language
+
+        set_language("fr")
+
+    def _marked(self):
+        """{French text: where} of every _() and N_() in the package, and plural nouns."""
+        import ast
+
+        texts, nouns = {}, {}
+        for name in sorted(os.listdir(self.PACKAGE)):
+            if not name.endswith(".py") or name.startswith("lang_"):
+                continue
+            with open(os.path.join(self.PACKAGE, name), encoding="utf-8") as handle:
+                tree = ast.parse(handle.read())
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                called = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+                first = node.args[0] if node.args else None
+                if called in ("_", "N_") and isinstance(first, ast.Constant):
+                    texts.setdefault(first.value, "%s:%d" % (name, node.lineno))
+                if (called == "plural" and len(node.args) > 1
+                        and isinstance(node.args[1], ast.Constant)):
+                    nouns.setdefault(node.args[1].value, "%s:%d" % (name, node.lineno))
+        return texts, nouns
+
+    def test_every_text_has_its_english_and_keeps_its_placeholders_and_tags(self):
+        from logswow import lang_en
+
+        texts, nouns = self._marked()
+        self.assertGreater(len(texts), 250)
+        for french, where in texts.items():
+            with self.subTest(where=where):
+                self.assertIn(french, lang_en.TEXTS)
+                english = lang_en.TEXTS[french]
+                kinds = [re.sub(r"[-0-9.]", "", slot)[-1] for slot in self.SLOT.findall(french)]
+                self.assertEqual(
+                    kinds, [re.sub(r"[-0-9.]", "", slot)[-1]
+                            for slot in self.SLOT.findall(english)])
+                self.assertEqual(self.TAG.findall(french), self.TAG.findall(english))
+        # Nothing in the table the code no longer says.
+        self.assertEqual(sorted(set(lang_en.TEXTS) - set(texts)), [])
+        self.assertEqual(sorted(set(nouns) - set(lang_en.PLURALS)), [])
+
+    def test_the_current_version_is_told_in_english_too(self):
+        import subprocess
+
+        from logswow import __version__
+
+        with open(os.path.join(ROOT, "CHANGELOG.en.md"), encoding="utf-8") as handle:
+            headings = [line.split()[1] for line in handle if line.startswith("## ")]
+        self.assertEqual(headings[0], __version__)
+        result = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools", "release-notes"), __version__],
+            capture_output=True, text=True, timeout=60)
+        self.assertIn("**English**", result.stdout)
+
+    def test_every_specialization_has_its_english_name(self):
+        from logswow import lang_en
+        from logswow.specs import SPECS
+
+        self.assertEqual(set(SPECS), set(lang_en.SPECS))
+
+    def test_no_function_hides_the_translation_behind_a_variable(self):
+        # `for _ in ...` or `a, _ = ...` in a function makes every _() in
+        # it call a string: parse.py did it three times, and every test
+        # that read a log failed at once.
+        import ast
+
+        for name in sorted(os.listdir(self.PACKAGE)):
+            if not name.endswith(".py"):
+                continue
+            with open(os.path.join(self.PACKAGE, name), encoding="utf-8") as handle:
+                tree = ast.parse(handle.read())
+            for node in ast.walk(tree):
+                stored = (isinstance(node, ast.Name) and node.id == "_"
+                          and isinstance(node.ctx, ast.Store))
+                argument = isinstance(node, ast.arg) and node.arg == "_"
+                with self.subTest(module=name, line=getattr(node, "lineno", 0)):
+                    self.assertFalse(stored or argument)
+
+    def test_the_language_is_the_one_asked_for_else_the_machines_else_english(self):
+        from unittest import mock
+
+        from logswow.i18n import choose
+
+        self.assertEqual(choose("en"), "en")
+        self.assertEqual(choose("fr_FR.UTF-8"), "fr")
+        self.assertEqual(choose("de"), "en")
+        with mock.patch.dict(os.environ, {"LOGSWOW_LANGUE": ""}), \
+                mock.patch("logswow.i18n.system_language", return_value="fr"):
+            self.assertEqual(choose("auto"), "fr")
+        with mock.patch.dict(os.environ, {"LOGSWOW_LANGUE": ""}), \
+                mock.patch("logswow.i18n.system_language", return_value="de"):
+            self.assertEqual(choose("auto"), "en")
+        with mock.patch.dict(os.environ, {"LOGSWOW_LANGUE": "en"}):
+            self.assertEqual(choose("auto"), "en")
+
+    def test_langue_is_read_before_the_command_and_after_it(self):
+        from logswow.cli import requested_language
+
+        self.assertEqual(requested_language(["--langue", "en", "list", "x"]), "en")
+        self.assertEqual(requested_language(["list", "x", "--lang=fr"]), "fr")
+        self.assertEqual(requested_language(["list", "x"]), "auto")
+
+    def test_numbers_are_written_the_way_each_language_writes_them(self):
+        from logswow import fmt
+        from logswow.i18n import set_language
+
+        french = (fmt.number(25361906), fmt.compact(25361906), fmt.percent(0.456),
+                  fmt.plural(0, "joueur"), fmt.decimal(0.5))
+        self.assertEqual(french, ("25\u202f361\u202f906", "25.4\u202fM", "46\u202f%",
+                                  "0 joueur", "0,5"))
+        set_language("en")
+        self.assertEqual((fmt.number(25361906), fmt.compact(25361906), fmt.percent(0.456),
+                          fmt.plural(0, "joueur"), fmt.plural(1, "joueur"), fmt.decimal(0.5)),
+                         ("25,361,906", "25.4M", "46%", "0 players", "1 player", "0.5"))
+
+    def test_an_english_report_says_everything_in_english_and_the_same_numbers(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as folder:
+            pages = {}
+            for language in ("fr", "en"):
+                out = os.path.join(folder, language + ".html")
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    cli_main(["report", FIXTURE, "--langue", language, "-o", out,
+                              "--format", "longue"])
+                with open(out, encoding="utf-8") as handle:
+                    pages[language] = handle.read()
+        english = pages["en"]
+        self.assertIn("<html lang=en>", english)
+        for words in ("Damage done", "Player details", "What hurt the group", "Damage taken",
+                      "kill", "Melee"):
+            self.assertIn(words, english)
+        text = re.sub(r"<[^>]+>", " ", re.sub(r"<style>.*?</style>", "", english, flags=re.S))
+        text = text.replace("exemple-combat.txt", "")
+        for french in ("Dégâts", "dégâts", "joueur", "réussite", "échec", "Détail", "journal",
+                       "Durée", "Attaque", "sorts"):
+            self.assertNotIn(french, text)
+        # The same fight, the same totals, each in its own typography.
+        self.assertIn("45.6\u202fk", pages["fr"])
+        self.assertIn("45.6k", english)
+
+    def test_the_command_line_speaks_the_language_asked_for(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            cli_main(["list", FIXTURE, "--langue", "en"])
+        self.assertIn("Fight", out.getvalue())
+        self.assertIn("kill", out.getvalue())
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            cli_main(["--langue", "fr", "list", FIXTURE])
+        self.assertIn("réussite", out.getvalue())
 
 
 if __name__ == "__main__":

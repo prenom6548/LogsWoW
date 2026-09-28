@@ -4,3 +4,5 @@
 max-line-length = 100
 extend-ignore = E203
 exclude = .git,__pycache__
+# A translation table is one text per line, however long the text.
+per-file-ignores = logswow/lang_*.py:E501

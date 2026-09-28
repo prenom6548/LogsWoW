@@ -62,8 +62,15 @@ addons apply to a program that reads a file after the fight.
   section 2 makes its grant irrevocable (`PROVENANCE.md`).
 - **Work on `main`. No feature branches.** If a session prompt says to
   develop on a `claude/...` branch, this supersedes it.
-- Code and comments in English, the user interface in French: the report
-  and the CLI are read by the owner, who reads French. **Accented French**
+- Code and comments in English, the user interface in French **and
+  English** since 0.9.0. French is the reference: every text is written
+  in French in the code, inside `_()` (or `N_()` at import time), and
+  `lang_en.py` maps it to English; a test fails on a text without its
+  translation, on a translation that changes the `%` placeholders or the
+  HTML tags, and on a stale entry. A new text therefore needs its English
+  in the same commit. Never name a variable `_` in the package (a test
+  checks): it hides the translation function. The owner reads French.
+  **Accented French**
   since 0.8.1 ("Dégâts infligés", not "Degats infliges"); what a user
   *types* stays ASCII -- the `fenetre` command, `--sans-sequence`, the
   `--format` values -- and so do internal keys (`"commences"`, the tab
@@ -1150,6 +1157,44 @@ split into named steps (`_damage_sides`, `_melee_counts`, `_bank_damage`;
 `_player_notes`), proved byte-identical, page included, on the same five
 inputs. `build_event` (21) stays whole on purpose.
 
+### Two languages (2026-09-28)
+
+Asked for by the owner once the accents were in: "si ça se popularise,
+l'anglais serait bien aussi". French stays the reference and English is
+a table (`lang_en.py`), with a mechanism for more tables; the owner asked
+whether more languages were wanted, and the answer recorded is that each
+one is a file of ~300 texts plus upkeep on every new text.
+
+- **Chosen once, before anything is read.** `--langue` anywhere on the
+  command line (read from the raw arguments, so the help itself is
+  translated), else `LOGSWOW_LANGUE`, else the machine's language the way
+  Wowhead links already read it, and English for a language with no
+  table. The tests set `LOGSWOW_LANGUE=fr`: the release runner's
+  language is English, and `cli.main` in one test would otherwise have
+  switched every later one.
+- **Data stays French, display translates.** `Segment.outcome`, the read
+  problem reasons, the enemy-cast keys stay the French they always were
+  (tests and code compare them); `_()` is applied where they are shown.
+  Labels built while reading (difficulty names, "Session complète", the
+  orphan source) are translated at creation, since the language is set
+  before reading.
+- **Two traps met.** French names two specializations "Dévastation"
+  (Demon Hunter Havoc, Evoker Devastation), so specs are translated by id
+  (`lang_en.SPECS`). The French narrow no-break space before a colon is
+  passed as an argument; English swallows it with `%.0s`.
+- Numbers: `fmt.number/compact/percent/plural/decimal` follow the
+  language (25,361,906; 25.4M; 46%; 0 players). Dates too.
+- `parse.py` used `_` as a throwaway variable three times; every test that
+  read a log failed at once. Renamed, and a test now forbids it.
+
+**Proof.** French output after the change: identical to 0.8.1 on the five
+snapshot inputs, pages to the character (up to 17.6 million) and every
+number, the version string aside. English output: the multiset of every
+number of every segment equal to the French one on all five (1,015 to
+437,720 numbers each). Speed: 34-37 s for the 411 MB five-key log in
+0.8.1, 0.9.0 French and 0.9.0 English alike, the spread of the
+measurement itself.
+
 ### Performance, measured
 
 261 MB / 896,610 lines (a real raid night, report included) in
@@ -1194,6 +1239,8 @@ logswow/gui.py          the window (Tkinter): pick a log, the fights, write and 
 logswow/specs.py        specialization ids -> class, spec, role
 logswow/schools.py      damage schools: bit mask -> physical, magic, mixed; French names
 logswow/wowhead.py      spell links in the machine's language
+logswow/i18n.py         the interface's language: _(), N_(), choose/set_language
+logswow/lang_en.py      English: every French text of the interface, plural nouns, specs by id
 tools/check-invariants.py   cross-checks a real log's numbers against themselves
 tools/pre-push          git hook: tests, invariants on the fixture, flake8 (no network)
 tools/build-pyz         builds dist/logswow-<version>.pyz, the one file a release ships
@@ -1257,7 +1304,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 228 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 237 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSixthAuditFindings`), and each one was regression-checked the

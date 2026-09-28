@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Print one version's section of CHANGELOG.md: the notes of its release.
+"""Print one version's notes: its section of CHANGELOG.md, then of CHANGELOG.en.md.
 
     python3 tools/release-notes 0.2.0
 
-Exits 1 when the section is missing or empty, so that a version cannot
-be published without saying what changed in it.
+Exits 1 when the French section is missing or empty, so that a version
+cannot be published without saying what changed in it. The English
+section follows it when the English changelog has one (from 0.9.0; a
+test makes sure the current version always does).
 """
 
 import os
@@ -38,4 +40,8 @@ if __name__ == "__main__":
     if not text:
         sys.stderr.write("CHANGELOG.md n'a pas de section pour %s\n" % sys.argv[1])
         sys.exit(1)
+    english_path = os.path.join(ROOT, "CHANGELOG.en.md")
+    english = notes(sys.argv[1], english_path) if os.path.exists(english_path) else ""
+    if english:
+        text += "\n\n---\n\n**English**\n\n" + english
     print(text)

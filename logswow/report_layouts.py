@@ -20,17 +20,18 @@ fetches nothing holds for all of them.
 import os
 
 from . import fmt
+from .i18n import N_, _
 
 LAYOUTS = ("onglets", "pages", "longue")
 
 # The tabs of a fight: (key, title, parts of `ReportWriter._sections`).
 CATEGORIES = (
-    ("resume", "Résumé", ("orphans", "composition", "timeline", "pulls")),
-    ("degats", "Dégâts et soins", ("rankings", "taken")),
-    ("ecoles", "Physique ou magique", ("schools",)),
-    ("morts", "Morts", ("deaths",)),
-    ("joueurs", "Joueurs", ("players",)),
-    ("ennemis", "Ennemis", ("enemy_casts", "enemies")),
+    ("resume", N_("Résumé"), ("orphans", "composition", "timeline", "pulls")),
+    ("degats", N_("Dégâts et soins"), ("rankings", "taken")),
+    ("ecoles", N_("Physique ou magique"), ("schools",)),
+    ("morts", N_("Morts"), ("deaths",)),
+    ("joueurs", N_("Joueurs"), ("players",)),
+    ("ennemis", N_("Ennemis"), ("enemy_casts", "enemies")),
 )
 
 TABS_CSS = """
@@ -82,7 +83,7 @@ def fight_rules(indexes):
 
 def tabbed_fight(index, parts):
     """The tabs of one fight; a tab with nothing in it is left out."""
-    present = [(key, title, "".join(parts[name] for name in names))
+    present = [(key, _(title), "".join(parts[name] for name in names))
                for key, title, names in CATEGORIES]
     present = [(key, title, html) for key, title, html in present if html]
     if not present:
@@ -150,21 +151,21 @@ class LayoutsMixin:
         fights = [(segment,) + self._segment(segment) for segment in self.segments]
         footer = self._footer()
         inside = nested(self.segments)
-        radios = ("<input type=radio name=f id=f0 class=fsel checked "
-                  "aria-label='Vue d&#39;ensemble'>")
+        radios = _("<input type=radio name=f id=f0 class=fsel checked "
+                   "aria-label='Vue d&#39;ensemble'>")
         radios += "".join("<input type=radio name=f id=f%d class=fsel aria-label='%s'>"
                           % (segment.index, fmt.esc(segment.label)) for segment in self.segments)
-        nav = "<label for=f0 class='nv n0'>Vue d'ensemble</label>" + "".join(
+        nav = _("<label for=f0 class='nv n0'>Vue d'ensemble</label>") + "".join(
             "<label for=f%d class='nv n%d%s'>%s<small>%s</small></label>"
             % (segment.index, segment.index, " in" if segment.index in inside else "",
-               fmt.esc(segment.label), fmt.esc(segment.outcome) or "&nbsp;")
+               fmt.esc(segment.label), fmt.esc(_(segment.outcome)) or "&nbsp;")
             for segment in self.segments)
         sections = "<section class='fight v0'>%s</section>" % overview + "".join(
             "<section class='fight v%d'>%s%s</section>"
             % (segment.index, head, tabbed_fight(segment.index, parts))
             for segment, head, parts in fights)
-        body = ("%s<div class=layout><nav class=side aria-label='Combats'>%s</nav>"
-                "<main>%s</main></div>%s" % (radios, nav, sections, footer))
+        body = (_("%s<div class=layout><nav class=side aria-label='Combats'>%s</nav>"
+                  "<main>%s</main></div>%s") % (radios, nav, sections, footer))
         css = TABS_CSS + tab_rules() + "\n" + fight_rules([0] + [s.index for s in self.segments])
         page = self._head(extra_css=css, wrap_class="wrap tabs") + body
         write_atomic(self.out_path, page)
@@ -178,7 +179,7 @@ class LayoutsMixin:
         for position, segment in enumerate(segments):
             self._spell_ids = set()
             head, parts = self._segment(segment)
-            links = ["<a href='index.html'>&larr; Tous les combats</a>"]
+            links = [_("<a href='index.html'>&larr; Tous les combats</a>")]
             if position > 0:
                 links.append("<a href='%s'>&lsaquo; %s</a>" % (
                     page_name(segments[position - 1]), fmt.esc(segments[position - 1].label)))

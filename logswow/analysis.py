@@ -23,6 +23,7 @@ from .auras import AuraLedger
 from .castorder import MAX_CAST_LOG, classify_triggered
 from .encounters import EncounterLedger
 from .events import Actor, Event
+from .i18n import _, spell_label
 from .models import (
     CombatBlock,
     Enemy,
@@ -647,7 +648,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self.orphan_damage += amount
         name = self._name_of(event.source) or event.source.guid
         if not name or name == "nil":
-            name = "source non nommée par le journal"
+            name = _("source non nommée par le journal")
         if name in self.orphan_sources or len(self.orphan_sources) < 30:
             self.orphan_sources[name] = self.orphan_sources.get(name, 0) + amount
 
@@ -1019,12 +1020,12 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         killing_blow = ""
         for moment in reversed(chain):
             if len(moment) > 5 and moment[5] > 0:
-                killing_blow = "%s (%s)" % (moment[2] or "Attaque", moment[1] or "?")
+                killing_blow = "%s (%s)" % (spell_label(moment[2]), moment[1] or "?")
                 break
         if not killing_blow:
             for moment in reversed(chain):
                 if moment[3] < 0:
-                    killing_blow = "%s (%s)" % (moment[2] or "Attaque", moment[1] or "?")
+                    killing_blow = "%s (%s)" % (spell_label(moment[2]), moment[1] or "?")
                     break
         if self._block is not None:
             self._block.deaths += 1
@@ -1164,8 +1165,8 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             players.sort(key=lambda player: player.short_name.lower())
         return [
             (label, groups[role])
-            for role, label in ((TANK, "Tanks"), (HEAL, "Soigneurs"), (DPS, "DPS"),
-                                ("", "Rôle non indiqué"))
+            for role, label in ((TANK, _("Tanks")), (HEAL, _("Soigneurs")), (DPS, "DPS"),
+                                ("", _("Rôle non indiqué")))
             if groups[role]
         ]
 

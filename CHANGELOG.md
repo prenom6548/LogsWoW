@@ -3,6 +3,31 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.9.0 — 2026-09-28
+
+**LogsWoW parle aussi anglais.** La fenêtre, les commandes, `diagnose` et
+le rapport existent désormais en français et en anglais. La langue est
+choisie toute seule : celle de votre machine, et l'anglais pour toute
+langue qui n'a pas encore de traduction. Pour en imposer une :
+
+- `--langue fr` ou `--langue en`, avant ou après la commande ;
+- ou la variable d'environnement `LOGSWOW_LANGUE`, pour un choix
+  permanent.
+
+Chaque langue écrit ses nombres à sa façon (« 25 361 906 » et « 46 % »,
+« 25,361,906 » et « 46% »), et ses dates aussi. Les noms de sorts, de
+boss et de joueurs restent ceux du journal, dans la langue de votre
+client de jeu.
+
+Le README et le guide d'installation ont leur version anglaise
+(`README.en.md`, `INSTALL.en.md`), comme ce journal des versions
+(`CHANGELOG.en.md`).
+
+Rien d'autre ne change. En français, les pages sont identiques à celles
+de la 0.8.1, caractère pour caractère. En anglais, les chiffres sont
+exactement les mêmes : vérifié sur cinq journaux, dont trois vrais, soit
+plus d'un million de nombres. La vitesse est la même aussi.
+
 ## 0.8.1 — 2026-09-28
 
 **Le rapport parle un français accentué.** « Dégâts infligés », « Durée »,

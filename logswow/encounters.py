@@ -9,6 +9,7 @@ ENCOUNTER_START and ENCOUNTER_END answers it for all of them.
 `SegmentAnalysis` inherits this and owns the state it uses.
 """
 
+from .i18n import _
 from .models import canon
 from .tokenize import as_int
 
@@ -35,7 +36,7 @@ class EncounterLedger:
             # A start with the previous one still open: its END never came.
             self._close_encounter(self.last_ts or event.ts, None)
         self._encounter = {
-            "label": name or "Rencontre", "name": canon(name), "start": event.ts,
+            "label": name or _("Rencontre"), "name": canon(name), "start": event.ts,
             "named": 0, "window": 0, "players": {}, "blocks": {},
         }
 

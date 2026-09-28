@@ -20,6 +20,7 @@ from .events import (
     decompose,
     resolve_layout,
 )
+from .i18n import N_, _
 from .timestamps import TimestampReader
 from .tokenize import looks_like_guid, split_line
 
@@ -44,9 +45,9 @@ def _overkill_evidence(samples, offset, advanced_width):
         scheme = decompose(fields[0])
         if scheme is None:
             continue
-        _, prefix_n, _, suffix_counts = scheme
+        _prefix, prefix_n, _kind, suffix_counts = scheme
         remainder = fields[offset + 8 :]
-        _, _, suffix, note = resolve_layout(
+        _head, _advanced, suffix, note = resolve_layout(
             remainder, prefix_n, suffix_counts, advanced_width
         )
         if note or len(suffix) < 3:
@@ -88,7 +89,7 @@ def _break_width_tie(tied, samples, offset):
         for width in tied
     }
     if max(scores.values()) > 0:
-        tiebreak = "marqueur -1 : %s" % scores
+        tiebreak = _("marqueur -1 : %s") % scores
         tied = [
             width for width in tied
             if scores[width] == max(scores.values())
@@ -97,7 +98,7 @@ def _break_width_tie(tied, samples, offset):
     # width this client is known to use beats the largest number.
     if len(tied) > 1:
         tiebreak = ((tiebreak + ", ") if tiebreak else "") + (
-            "puis proximité avec %d" % DEFAULT_ADVANCED_WIDTH)
+            _("puis proximité avec %d") % DEFAULT_ADVANCED_WIDTH)
     width = min(
         tied, key=lambda width: (abs(width - DEFAULT_ADVANCED_WIDTH), -width)
     )
@@ -118,7 +119,7 @@ def _measure_advanced_width(samples, offset, evidence):
         scheme = decompose(fields[0])
         if scheme is None:
             continue
-        _, prefix_n, _, suffix_counts = scheme
+        _prefix, prefix_n, _kind, suffix_counts = scheme
         available = len(fields) - offset - 8 - prefix_n
         if available < 0 or available in suffix_counts:
             continue
@@ -154,7 +155,7 @@ def _measure_advanced_width(samples, offset, evidence):
     else:
         advanced_width = DEFAULT_ADVANCED_WIDTH
     evidence["advanced_width"] = {
-        width: "%d votes / %d événements" % (width_votes[width], len(width_backers[width]))
+        width: _("%d votes / %d événements") % (width_votes[width], len(width_backers[width]))
         for width in sorted(width_votes, key=lambda key: -len(width_backers[key]))[:5]
     }
     evidence["advanced_width_chosen"] = advanced_width
@@ -205,11 +206,11 @@ def detect_layout(samples):
 # The two reasons that stop a line before it is even an event. Named
 # because `diagnose` breaks them out, and because counting them twice is
 # exactly the bug this class used to have.
-NO_SEPARATOR = "ligne sans le séparateur de deux espaces"
-BAD_TIMESTAMP = "horodatage illisible"
+NO_SEPARATOR = N_("ligne sans le séparateur de deux espaces")
+BAD_TIMESTAMP = N_("horodatage illisible")
 # A line whose first field is not a name: a damaged line starting with a
 # bracket, found by fuzzing on 2026-09-27 -- the layout vote stopped on it.
-NO_EVENT_NAME = "nom d'événement illisible"
+NO_EVENT_NAME = N_("nom d'événement illisible")
 
 
 class ParseProblems:

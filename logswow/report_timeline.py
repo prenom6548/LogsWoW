@@ -9,6 +9,7 @@ which is how the page is checked against the analysis with no rounding.
 from . import fmt
 from .timeline import POOL_STALE_MS
 from .fmt import NBSP
+from .i18n import _
 from .timestamps import format_duration
 
 
@@ -56,11 +57,11 @@ class TimelineMixin:
         pieces += self._timeline_curve(frame, analysis, use_pool)
         pieces += self._timeline_time_axis(frame)
         return (
-            "<h3>Dégâts subis par le groupe, seconde par seconde</h3>"
-            "<div class=card><svg viewBox='0 0 %d %d' role=img "
-            "aria-label='Dégâts subis au fil du combat'>%s</svg>"
-            "<p class=dim style='margin:6px 0 0;font-size:12px'>Barres et échelle de "
-            "gauche%s: dégâts subis par intervalle de %s. Traits rouges%s: morts.%s</p></div>"
+            _("<h3>Dégâts subis par le groupe, seconde par seconde</h3>"
+              "<div class=card><svg viewBox='0 0 %d %d' role=img "
+              "aria-label='Dégâts subis au fil du combat'>%s</svg>"
+              "<p class=dim style='margin:6px 0 0;font-size:12px'>Barres et échelle de "
+              "gauche%s: dégâts subis par intervalle de %s. Traits rouges%s: morts.%s</p></div>")
             % (frame.width, frame.height, "".join(pieces), NBSP,
                "%.0f%ss" % (bucket_ms / 1000.0, NBSP), NBSP,
                self._timeline_caption(analysis, use_pool))
@@ -170,16 +171,16 @@ class TimelineMixin:
     def _timeline_caption(analysis, use_pool):
         """What the right-hand curve is, said precisely."""
         if use_pool:
-            return (" Courbe et échelle de droite%s: <b>vie cumulée des ennemis engagés</b>, "
-                    "somme de leurs points de vie courants sur la somme de leurs maximums. "
-                    "Elle remonte à chaque nouveau pack et retombe quand il meurt%s; un "
-                    "ennemi que le groupe n'a plus touché depuis %d%ss en sort."
+            return (_(" Courbe et échelle de droite%s: <b>vie cumulée des ennemis engagés</b>, "
+                      "somme de leurs points de vie courants sur la somme de leurs maximums. "
+                      "Elle remonte à chaque nouveau pack et retombe quand il meurt%s; un "
+                      "ennemi que le groupe n'a plus touché depuis %d%ss en sort.")
                     % (NBSP, NBSP, POOL_STALE_MS // 1000, NBSP))
         if analysis.boss_name and len(analysis.boss_hp) > 3:
             # Deliberately precise: on one real encounter the boss itself
             # never had its health written to the file, and the curve is
             # an add's. Naming it beats implying it is always the boss.
-            return (" Courbe et échelle de droite%s: vie de <b>%s</b>, la cible la plus "
-                    "frappée parmi celles dont le journal donne les points de vie."
+            return (_(" Courbe et échelle de droite%s: vie de <b>%s</b>, la cible la plus "
+                      "frappée parmi celles dont le journal donne les points de vie.")
                     % (NBSP, fmt.esc(analysis.boss_name)))
         return ""

@@ -15,6 +15,7 @@ Run it first on any log from a client version this package has not seen.
 from collections import Counter
 
 from .events import BARE_EVENTS, SPECIAL_EVENTS, decompose
+from .i18n import _
 from .parse import LogFile
 from .segment import Splitter
 from .timestamps import format_duration
@@ -72,10 +73,10 @@ def run(path, default_year=None, limit=None):
     reading = _Reading(path, default_year, limit)
     log = reading.log
     lines = [
-        "Fichier    : %s" % path,
-        "Taille     : %.1f Mo, %d lignes, %d événements" % (
+        _("Fichier    : %s") % path,
+        _("Taille     : %.1f Mo, %d lignes, %d événements") % (
             log.size_bytes / 1048576.0, log.line_count, log.event_count),
-        "Durée      : %s" % format_duration(log.duration_ms),
+        _("Durée      : %s") % format_duration(log.duration_ms),
         "",
     ]
     lines += _layout_section(reading)
@@ -88,42 +89,42 @@ def run(path, default_year=None, limit=None):
 def _layout_section(reading):
     layout = reading.log.layout
     evidence = layout.evidence
-    lines = ["DISPOSITION MESURÉE DANS CE FICHIER"]
-    lines.append("  bloc avancé         : %d champs  (votes: %s)" % (
+    lines = [_("DISPOSITION MESURÉE DANS CE FICHIER")]
+    lines.append(_("  bloc avancé         : %d champs  (votes: %s)") % (
         layout.advanced_width, evidence.get("advanced_width", {})))
     if evidence.get("advanced_width_tiebreak"):
-        lines.append("    votes à égalité, départage par : %s"
+        lines.append(_("    votes à égalité, départage par : %s")
                      % evidence["advanced_width_tiebreak"])
-    lines.append("  champ baseAmount    : %s  (position du -1: %s)" % (
-        "présent" if layout.has_base_amount else "absent",
+    lines.append(_("  champ baseAmount    : %s  (position du -1: %s)") % (
+        _("présent") if layout.has_base_amount else "absent",
         evidence.get("overkill_position", {})))
-    lines.append("  champ hideCaster    : %s  (%s)" % (
-        "présent" if layout.hide_caster else "absent", evidence.get("hide_caster", {})))
-    lines.append("  journalisation avancée : %s" % (
-        "oui" if evidence.get("advanced_logging")
-        else "non -- positions et points de vie absents"))
-    lines.append("  événements avec bloc avancé : %d sur %d" % (
+    lines.append(_("  champ hideCaster    : %s  (%s)") % (
+        _("présent") if layout.hide_caster else "absent", evidence.get("hide_caster", {})))
+    lines.append(_("  journalisation avancée : %s") % (
+        _("oui") if evidence.get("advanced_logging")
+        else _("non -- positions et points de vie absents")))
+    lines.append(_("  événements avec bloc avancé : %d sur %d") % (
         reading.advanced_seen.get(True, 0), sum(reading.advanced_seen.values()) or 1))
     # A unit written with more health than its own maximum: the file
     # contradicts itself, and the enemy health curves leave it out.
-    lines.append("  points de vie incohérents   : %d (courants > maximum ; ignorés "
-                 "pour les courbes de vie ennemies)" % reading.inconsistent_health)
+    lines.append(_("  points de vie incohérents   : %d (courants > maximum ; ignorés "
+                   "pour les courbes de vie ennemies)") % reading.inconsistent_health)
     lines.append("")
     return lines
 
 
 def _segments_section(reading):
-    lines = ["COMBATS DÉLIMITÉS : %d" % len(reading.segments)]
+    lines = [_("COMBATS DÉLIMITÉS : %d") % len(reading.segments)]
     for segment in reading.segments:
         lines.append("  [%2d] %-46s %8s  %s" % (
             segment.index, segment.label[:46], format_duration(segment.duration_ms),
-            segment.outcome or ""))
-    lines += ["", "JOUEURS VUS : %d" % len(reading.players), ""]
+            _(segment.outcome or "")))
+    lines += ["", _("JOUEURS VUS : %d") % len(reading.players), ""]
     return lines
 
 
 def _events_section(reading):
-    lines = ["ÉVÉNEMENTS (%d types)" % len(reading.subevents)]
+    lines = [_("ÉVÉNEMENTS (%d types)") % len(reading.subevents)]
     for subevent, count in reading.subevents.most_common():
         known = (
             subevent in SPECIAL_EVENTS
@@ -132,15 +133,15 @@ def _events_section(reading):
         )
         widths = dict(reading.shapes.get(subevent, {}))
         lines.append("  %-34s %8d  %s%s" % (
-            subevent, count, "" if known else "[SCHÉMA INCONNU] ",
+            subevent, count, "" if known else _("[SCHÉMA INCONNU] "),
             widths if len(widths) > 1 else ""))
     lines.append("")
     if reading.unresolved:
-        lines.append("LIGNES NON RÉSOLUES")
+        lines.append(_("LIGNES NON RÉSOLUES"))
         for (subevent, reason), count in reading.unresolved.most_common(20):
-            lines.append("  %-34s %6d  %s" % (subevent, count, reason))
+            lines.append("  %-34s %6d  %s" % (subevent, count, _(reason)))
     else:
-        lines.append("LIGNES NON RÉSOLUES : aucune")
+        lines.append(_("LIGNES NON RÉSOLUES : aucune"))
     lines.append("")
     return lines
 
@@ -150,9 +151,9 @@ def _problems_section(reading):
     # One line, one reason: the breakdown below is the whole ledger. The
     # two commonest reasons used to be printed again above it, which read
     # as two separate problems for one bad line.
-    lines = ["PROBLÈMES DE LECTURE : %d" % problems.total]
+    lines = [_("PROBLÈMES DE LECTURE : %d") % problems.total]
     for reason, count in sorted(problems.by_reason.items(), key=lambda item: -item[1])[:10]:
-        lines.append("  %-50s %d" % (reason, count))
+        lines.append("  %-50s %d" % (_(reason), count))
     for line_number, reason, text in problems.samples[:8]:
-        lines.append("    ligne %s : %s | %s" % (line_number, reason, text[:90]))
+        lines.append(_("    ligne %s : %s | %s") % (line_number, _(reason), text[:90]))
     return lines
