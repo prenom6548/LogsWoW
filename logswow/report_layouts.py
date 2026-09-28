@@ -122,14 +122,6 @@ def write_atomic(path, text):
             os.remove(partial)
 
 
-# `Segment.outcome` is unaccented, for the terminal; a page can print them.
-_OUTCOMES = {"reussite": "réussite", "echec": "échec"}
-
-
-def outcome_text(segment):
-    return _OUTCOMES.get(segment.outcome, segment.outcome)
-
-
 def page_name(segment):
     return "combat-%02d.html" % segment.index
 
@@ -165,7 +157,7 @@ class LayoutsMixin:
         nav = "<label for=f0 class='nv n0'>Vue d'ensemble</label>" + "".join(
             "<label for=f%d class='nv n%d%s'>%s<small>%s</small></label>"
             % (segment.index, segment.index, " in" if segment.index in inside else "",
-               fmt.esc(segment.label), fmt.esc(outcome_text(segment)) or "&nbsp;")
+               fmt.esc(segment.label), fmt.esc(segment.outcome) or "&nbsp;")
             for segment in self.segments)
         sections = "<section class='fight v0'>%s</section>" % overview + "".join(
             "<section class='fight v%d'>%s%s</section>"

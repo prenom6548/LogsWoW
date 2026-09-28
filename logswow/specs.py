@@ -22,8 +22,8 @@ SPECS = {
     250: ("Chevalier de la mort", "Sang", TANK),
     251: ("Chevalier de la mort", "Givre", DPS),
     252: ("Chevalier de la mort", "Impie", DPS),
-    577: ("Chasseur de demons", "Devastation", DPS),
-    581: ("Chasseur de demons", "Vengeance", TANK),
+    577: ("Chasseur de démons", "Dévastation", DPS),
+    581: ("Chasseur de démons", "Vengeance", TANK),
     # Added 2026-09-18 from the owner's own log, with each part of it
     # resting on something different:
     #   class  -- measured. The player casts "Planer" (Glide) and
@@ -33,38 +33,38 @@ SPECS = {
     #             and kept as theirs rather than presented as verified.
     #   role   -- measured. Top damage in three fights of four, never the
     #             most-hit player, healing negligible.
-    1480: ("Chasseur de demons", "Devoration", DPS),
-    102: ("Druide", "Equilibre", DPS),
+    1480: ("Chasseur de démons", "Dévoration", DPS),
+    102: ("Druide", "Équilibre", DPS),
     103: ("Druide", "Farouche", DPS),
     104: ("Druide", "Gardien", TANK),
     105: ("Druide", "Restauration", HEAL),
-    1467: ("Evocateur", "Devastation", DPS),
-    1468: ("Evocateur", "Preservation", HEAL),
-    1473: ("Evocateur", "Augmentation", DPS),
-    253: ("Chasseur", "Maitrise des betes", DPS),
-    254: ("Chasseur", "Precision", DPS),
+    1467: ("Évocateur", "Dévastation", DPS),
+    1468: ("Évocateur", "Préservation", HEAL),
+    1473: ("Évocateur", "Augmentation", DPS),
+    253: ("Chasseur", "Maîtrise des bêtes", DPS),
+    254: ("Chasseur", "Précision", DPS),
     255: ("Chasseur", "Survie", DPS),
     62: ("Mage", "Arcanes", DPS),
     63: ("Mage", "Feu", DPS),
     64: ("Mage", "Givre", DPS),
-    268: ("Moine", "Maitre brasseur", TANK),
+    268: ("Moine", "Maître brasseur", TANK),
     269: ("Moine", "Marche-vent", DPS),
     270: ("Moine", "Tisse-brume", HEAL),
-    65: ("Paladin", "Sacre", HEAL),
+    65: ("Paladin", "Sacré", HEAL),
     66: ("Paladin", "Protection", TANK),
     70: ("Paladin", "Vindicte", DPS),
-    256: ("Pretre", "Discipline", HEAL),
-    257: ("Pretre", "Sacre", HEAL),
-    258: ("Pretre", "Ombre", DPS),
+    256: ("Prêtre", "Discipline", HEAL),
+    257: ("Prêtre", "Sacré", HEAL),
+    258: ("Prêtre", "Ombre", DPS),
     259: ("Voleur", "Assassinat", DPS),
     260: ("Voleur", "Hors-la-loi", DPS),
     261: ("Voleur", "Finesse", DPS),
-    262: ("Chaman", "Elementaire", DPS),
-    263: ("Chaman", "Amelioration", DPS),
+    262: ("Chaman", "Élémentaire", DPS),
+    263: ("Chaman", "Amélioration", DPS),
     264: ("Chaman", "Restauration", HEAL),
-    265: ("Demoniste", "Affliction", DPS),
-    266: ("Demoniste", "Demonologie", DPS),
-    267: ("Demoniste", "Destruction", DPS),
+    265: ("Démoniste", "Affliction", DPS),
+    266: ("Démoniste", "Démonologie", DPS),
+    267: ("Démoniste", "Destruction", DPS),
     71: ("Guerrier", "Armes", DPS),
     72: ("Guerrier", "Fureur", DPS),
     73: ("Guerrier", "Protection", TANK),
@@ -94,6 +94,6 @@ def role_of(spec_id):
 
 
 def label_of(spec_id):
-    """'Moine Maitre brasseur', or 'spe 1480' for one this table lacks."""
+    """'Moine Maître brasseur', or 'spe 1480' for one this table lacks."""
     class_name, spec_name, _role = describe(spec_id)
     return (" ".join(piece for piece in (class_name, spec_name) if piece)).strip()

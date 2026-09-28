@@ -63,7 +63,12 @@ addons apply to a program that reads a file after the fight.
 - **Work on `main`. No feature branches.** If a session prompt says to
   develop on a `claude/...` branch, this supersedes it.
 - Code and comments in English, the user interface in French: the report
-  and the CLI are read by the owner, who reads French.
+  and the CLI are read by the owner, who reads French. **Accented French**
+  since 0.8.1 ("Dégâts infligés", not "Degats infliges"); what a user
+  *types* stays ASCII -- the `fenetre` command, `--sans-sequence`, the
+  `--format` values -- and so do internal keys (`"commences"`, the tab
+  keys, CSS classes). The page is UTF-8 and so is every console Python
+  writes to here (`errors="replace"` covers the rest).
 - `PROVENANCE.md` stays current when authorship-relevant facts change.
 
 ## The rule this project keeps paying for: measure, do not assume
@@ -257,7 +262,7 @@ encounter's own window (`SegmentAnalysis.encounters`); if nothing in it
 bore the encounter's name, **all damage dealt during the window counts
 as boss**, the pull table says so, and `window_encounters` names them.
 The same window tags each pull with the encounter's outcome, so the
-badge says reussite or echec instead of a green "boss" on a wipe.
+badge says réussite or échec instead of a green "boss" on a wipe.
 
 ### The 2026-09-18 audit, and the tool it left behind
 
@@ -522,7 +527,7 @@ keys come out at 660-776 KB each.
 
 One property of these files worth knowing: the owner's splitter tool
 keeps the session header, so a one-key file can span ten hours of
-timestamps. "Duree couverte" is the file's span, not the fight's, and
+timestamps. "Durée couverte" is the file's span, not the fight's, and
 that is correct.
 
 ### 2026-09-20, later: the same key read by Warcraft Logs
@@ -882,7 +887,7 @@ their readings turned out to be something else than they seemed:
   segments that were ticked, and summed every failure. They now count
   the encounter windows inside the chosen fights (keyed by start, so a
   boss chosen with its key counts once) and split "Wipes de boss" from
-  "Cles hors des temps". The owner added that a very short pull with no
+  "Clés hors des temps". The owner added that a very short pull with no
   hit is how a group resets a boss for its cooldowns: such an encounter
   is "sans combat", never a wipe.
 
@@ -1087,7 +1092,7 @@ say so**, which the rule "a total that is quietly short" already forbids.
 - **`SPELL_INSTAKILL` was fed to nothing**, so a death it caused had no
   killing blow: 3 of the 5 deaths without one on the raid night, 11
   such lines on a Mythic+ night. It enters the chain with no amount
-  (`_feed_instakill`); the recap says "mort instantanee", and a death
+  (`_feed_instakill`); the recap says "mort instantanée", and a death
   with no cause in the file says so instead of an empty cell.
 - A hit an enemy's shield ate, from a friendly unit nobody owns, went
   into no ledger; it is orphan damage like the rest of that unit's.
@@ -1121,6 +1126,29 @@ The release workflow's tag path did not
 check that the tagged commit is on `main`, as the button's path did; it
 does now (checked against a local repository: a commit on `main`
 accepted, one on a side branch refused).
+
+### Accents, and two functions split (2026-09-28)
+
+The page, the CLI and the window had said "Degats infliges" beside
+"Dégâts subis" since the first sections were written without accents
+(a caution for Windows consoles that no longer applies). About 180
+labels in 13 modules were accented by hand, one literal at a time, since
+"a" or "à", "absorbe" or "absorbé", "coupe" or "coupé" depend on the
+sentence; a word-level pass over the tests showed why: it turned the
+internal key `"commences"` and the command name `fenetre` into French too,
+and was undone. `Segment.outcome` is now "réussite"/"échec" at the
+source, and the two maps that accented it for the window and the tabs are
+gone. **Proof that only accents moved:** the snapshot before and after,
+on the five inputs, with every diacritic removed from both, is identical
+-- pages to the character (4.5 to 17.6 million each) and every number;
+the raw differences are the outcomes, the "Héroïque" labels and one
+read-problem reason.
+
+Just before, `_feed_damage` (complexity 29) and `_one_player` (24) were
+split into named steps (`_damage_sides`, `_melee_counts`, `_bank_damage`;
+`_player_tiles`, `_player_sections`, `_player_auras`, `_player_gaps`,
+`_player_notes`), proved byte-identical, page included, on the same five
+inputs. `build_event` (21) stays whole on purpose.
 
 ### Performance, measured
 
@@ -1235,7 +1263,7 @@ it would actually require, rather than approximating it.
    `TestSixthAuditFindings`), and each one was regression-checked the
    same way: stash the fix, watch the test fail, restore it.
 2. `python3 -m logswow diagnose <a real log>` -- the number that matters
-   is `PROBLEMES DE LECTURE : 0`.
+   is `PROBLÈMES DE LECTURE : 0`.
 2b. `python3 tools/check-invariants.py <a real log>` -- must end on
    "All invariants hold". It reports unreadable lines too, after the
    arithmetic rather than instead of it.

@@ -92,7 +92,7 @@ class PanelsMixin:
 
         heads = ["Sort", "Total", "Part"]
         if mode == "healing":
-            heads.append("Surguerison")
+            heads.append("Surguérison")
         heads += ["Casts", "Coups", "Moyenne"]
         if mode != "taken":
             heads.append("Crit")
@@ -116,7 +116,7 @@ class PanelsMixin:
             for name, other, ms, spell_id in rows
         )
         return (
-            "<table><tr><th>Effet</th><th>%s</th><th class=n>Duree</th></tr>%s</table>"
+            "<table><tr><th>Effet</th><th>%s</th><th class=n>Durée</th></tr>%s</table>"
             % (fmt.esc(other_label), body)
         )
 
@@ -140,7 +140,7 @@ class PanelsMixin:
             if not analysis.took_part(player):
                 continue
             blocks.append(self._one_player(analysis, player, seconds))
-        return "<h3>Detail par joueur</h3>%s" % "".join(blocks)
+        return "<h3>Détail par joueur</h3>%s" % "".join(blocks)
 
     def _one_player(self, analysis, player, seconds):
         tiles_html = self._player_tiles(analysis, player, seconds)
@@ -154,12 +154,12 @@ class PanelsMixin:
         if player.pet_casts:
             summary_casts += " (dont %d de ses invocations)" % player.pet_casts
         return (
-            "<details><summary>%s <span class=dim>&middot; %s &middot; %s degats "
+            "<details><summary>%s <span class=dim>&middot; %s &middot; %s dégâts "
             "&middot; %s soins &middot; %s</span></summary><div class=body>"
             "<div class='grid tiles'>%s</div>%s%s</div></details>"
             % (
                 fmt.esc(player.short_name),
-                fmt.esc(label_of(player.spec_id) or "role inconnu"),
+                fmt.esc(label_of(player.spec_id) or "rôle inconnu"),
                 fmt.compact(player.damage_done),
                 fmt.compact(player.healing_done),
                 summary_casts,
@@ -182,12 +182,12 @@ class PanelsMixin:
             tiles.append(("Subis par ses invocations",
                           fmt.compact(player.pet_damage_taken)))
         tiles += [
-            ("Degats subis", fmt.compact(player.damage_taken)),
-            ("Absorbe sur lui", fmt.compact(player.absorbed_taken)),
-            ("Absorbe par ses boucliers", fmt.compact(player.absorb_done)),
+            ("Dégâts subis", fmt.compact(player.damage_taken)),
+            ("Absorbé sur lui", fmt.compact(player.absorbed_taken)),
+            ("Absorbé par ses boucliers", fmt.compact(player.absorb_done)),
         ]
         if player.support_damage or player.support_healing:
-            tiles.append(("Soutien credite par le jeu",
+            tiles.append(("Soutien crédité par le jeu",
                           fmt.compact(player.support_damage + player.support_healing)))
         tiles += [
             ("Sorts par minute", "%.1f" % (player.casts / max(1.0, seconds / 60.0))),
@@ -206,13 +206,13 @@ class PanelsMixin:
     def _player_sections(self, analysis, player, seconds):
         """[(title, html)] of a player's tables, in the order the panel shows them."""
         if player.absorb_by_ability:
-            sections_absorb = [("Ce que ses boucliers ont absorbe", self._ability_table(
+            sections_absorb = [("Ce que ses boucliers ont absorbé", self._ability_table(
                 analysis.top_abilities(player.absorb_by_ability, None),
                 None, seconds, "taken", player.absorb_done, limit=12))]
         else:
             sections_absorb = []
         sections = [
-            ("Ses degats", self._ability_table(
+            ("Ses dégâts", self._ability_table(
                 analysis.top_abilities(player.damage_by_ability, None),
                 player.casts_by_spell, seconds, "damage", player.damage_done, limit=16)),
         ]
@@ -220,13 +220,13 @@ class PanelsMixin:
             sections.append(("Ses soins", self._ability_table(
                 analysis.top_abilities(player.healing_by_ability, None),
                 player.casts_by_spell, seconds, "healing", player.healing_done, limit=16)))
-            sections.append(("Qui il a soigne", self._targets_table(player.healing_to)))
+            sections.append(("Qui il a soigné", self._targets_table(player.healing_to)))
         sections.append(("Ce qu'il a pris", self._ability_table(
             analysis.top_abilities(player.taken_by_ability, None),
             None, seconds, "taken", player.damage_taken, limit=16)))
         sections.extend(sections_absorb)
         if player.support_damage or player.support_healing:
-            sections.append(("Soutien que le jeu lui credite", self._support(
+            sections.append(("Soutien que le jeu lui crédite", self._support(
                 analysis, player, seconds)))
         sections += self._player_auras(analysis, player)
         sections.append(("Plus longues pauses", self._player_gaps(analysis, player)))
@@ -236,19 +236,19 @@ class PanelsMixin:
         """The three aura tables of a player's panel, and the note on auras up before the pull."""
         duration = max(1, analysis.duration_ms)
         sections = [
-            ("Gains recus", self._aura_table(
+            ("Gains reçus", self._aura_table(
                 analysis.player_uptimes(player.guid, 18, kind="BUFF"), duration, "De qui")),
             ("Affaiblissements subis", self._aura_table(
                 analysis.player_uptimes(player.guid, 18, kind="DEBUFF"), duration, "De qui")),
-            ("Ce qu'il a applique", self._aura_table(
+            ("Ce qu'il a appliqué", self._aura_table(
                 analysis.player_applied(player.guid, 18), duration, "Sur qui")),
         ]
         if analysis.auras_before_the_pull:
             sections.append(("", (
-                "<p class=dim style='font-size:12px;margin:0'>Un effet deja "
+                "<p class=dim style='font-size:12px;margin:0'>Un effet déjà "
                 "actif quand le combat commence n'a pas de ligne d'application "
-                "dans le journal%s: sa duree est comptee depuis le premier "
-                "evenement du combat, ce qui est la seule borne que le fichier "
+                "dans le journal%s: sa durée est comptée depuis le premier "
+                "événement du combat, ce qui est la seule borne que le fichier "
                 "donne.</p>" % NBSP)))
         return sections
 
@@ -256,7 +256,7 @@ class PanelsMixin:
     def _player_gaps(analysis, player):
         """The player's five longest stretches without a cast."""
         gaps = "".join(
-            "<li><span class=dim>%s</span> sans lancer de sort, a %s</li>"
+            "<li><span class=dim>%s</span> sans lancer de sort, à %s</li>"
             % (format_duration(gap), format_duration(at - (analysis.first_ts or 0)))
             for gap, at in player.longest_gaps[:5]
         )
@@ -267,11 +267,11 @@ class PanelsMixin:
         notes = []
         if player.interrupted_spells:
             notes.append("<p class=dim style='font-size:12.5px;margin:8px 0 0'>"
-                         "<b>Sorts ennemis coupes</b>%s %s</p>"
+                         "<b>Sorts ennemis coupés</b>%s %s</p>"
                          % (NBSP + ":", self._counted_list(player.interrupted_spells)))
         if player.dispelled_spells:
             notes.append("<p class=dim style='font-size:12.5px;margin:4px 0 0'>"
-                         "<b>Effets dissipes</b>%s %s</p>"
+                         "<b>Effets dissipés</b>%s %s</p>"
                          % (NBSP + ":", self._counted_list(player.dispelled_spells)))
         return "".join(notes)
 
@@ -283,13 +283,13 @@ class PanelsMixin:
                 analysis.top_abilities(player.support_by_ability, None),
                 None, seconds, "damage", player.support_damage, limit=10)
         return (
-            "%s<p class=dim style='font-size:12px;margin:4px 0 0'>Le journal credite "
-            "cet evocateur de %s de degats et %s de soins portes par d'autres joueurs"
-            "%s: la part que ses renforts (Puissance d'ebene, Prescience...) ont ajoutee "
-            "a leurs coups, et ses Bombardements, que le journal ecrit au nom de l'allie "
-            "qui les a declenches. Ces montants sont <b>deja comptes</b> chez ceux qui ont "
-            "porte les coups et ne sont pas ajoutes aux siens%s; Warcraft Logs, lui, les "
-            "retire aux autres pour les lui donner, d'ou l'ecart entre les deux.</p>"
+            "%s<p class=dim style='font-size:12px;margin:4px 0 0'>Le journal crédite "
+            "cet évocateur de %s de dégâts et %s de soins portés par d'autres joueurs"
+            "%s: la part que ses renforts (Puissance d'ébène, Prescience...) ont ajoutée "
+            "à leurs coups, et ses Bombardements, que le journal écrit au nom de l'allié "
+            "qui les a déclenchés. Ces montants sont <b>déjà comptés</b> chez ceux qui ont "
+            "porté les coups et ne sont pas ajoutés aux siens%s; Warcraft Logs, lui, les "
+            "retire aux autres pour les lui donner, d'où l'écart entre les deux.</p>"
             % (table, fmt.compact(player.support_damage), fmt.compact(player.support_healing),
                NBSP, NBSP)
         )
@@ -343,7 +343,7 @@ class PanelsMixin:
                 ranked = sorted(enemy.casts_by_spell.items(), key=lambda item: -item[1])[:16]
                 peak = ranked[0][1] or 1
                 sections.append(("Ses sorts", "<table><tr><th>Sort</th>"
-                                 "<th class=n>Lances</th></tr>%s</table>"
+                                 "<th class=n>Lancés</th></tr>%s</table>"
                                  % "".join(
                                      "<tr>%s<td class=n>%d</td></tr>"
                                      % (_bar_row(fmt.esc(name), count / peak), count)
@@ -351,20 +351,20 @@ class PanelsMixin:
             tiles = "".join(
                 "<div class=stat><b>%s</b><span>%s</span></div>" % (fmt.esc(value), fmt.esc(label))
                 for label, value in (
-                    ("Unites", str(enemy.count)),
-                    ("Degats infliges", fmt.compact(enemy.damage_done)),
-                    ("Degats subis", fmt.compact(enemy.damage_taken)),
-                    ("Sorts lances", str(enemy.casts)),
-                    ("Tues", str(enemy.deaths)),
+                    ("Unités", str(enemy.count)),
+                    ("Dégâts infligés", fmt.compact(enemy.damage_done)),
+                    ("Dégâts subis", fmt.compact(enemy.damage_taken)),
+                    ("Sorts lancés", str(enemy.casts)),
+                    ("Tués", str(enemy.deaths)),
                 )
             )
             blocks.append(
                 "<details><summary>%s <span class=dim>&middot; %s &middot; "
-                "%s inflige &middot; %s subi</span></summary><div class=body>"
+                "%s infligé &middot; %s subi</span></summary><div class=body>"
                 "<div class='grid tiles'>%s</div>%s</div></details>"
                 % (
                     fmt.esc(enemy.name),
-                    fmt.plural(enemy.count, "unite"),
+                    fmt.plural(enemy.count, "unité"),
                     fmt.compact(enemy.damage_done),
                     fmt.compact(enemy.damage_taken),
                     tiles,
@@ -372,7 +372,7 @@ class PanelsMixin:
                             for title, content in sections),
                 )
             )
-        return "<h3>Detail par ennemi</h3>%s" % "".join(blocks)
+        return "<h3>Détail par ennemi</h3>%s" % "".join(blocks)
 
     def _enemy_casts(self, analysis):
         """What became of the spells the enemy tried to cast."""
@@ -383,8 +383,8 @@ class PanelsMixin:
         order = ("aboutis", "coupes", "cible morte", "autre")
         titles = {
             "aboutis": "Aboutis",
-            "coupes": "Coupes par une interruption",
-            "cible morte": "Lanceur tue pendant l'incantation",
+            "coupes": "Coupés par une interruption",
+            "cible morte": "Lanceur tué pendant l'incantation",
             "autre": "Non aboutis, cause non dite par le journal",
         }
         rows = "".join(
@@ -400,17 +400,17 @@ class PanelsMixin:
         top = ""
         if analysis.interrupted_spells:
             top = ("<p class=dim style='margin:10px 0 0;font-size:12px'>Les plus "
-                   "coupes%s: %s.</p>"
+                   "coupés%s: %s.</p>"
                    % (NBSP, self._counted_list(analysis.interrupted_spells, 8)))
         return (
-            "<h3>Ce que le groupe a empeche</h3><div class=card>"
-            "<p class=dim style='margin:0 0 10px;font-size:12.5px'>%s sorts commences "
+            "<h3>Ce que le groupe a empêché</h3><div class=card>"
+            "<p class=dim style='margin:0 0 10px;font-size:12.5px'>%s sorts commencés "
             "par l'ennemi%s:</p><table><tr><th>Issue</th><th class=n>Nombre</th>"
             "<th class=n>Part</th></tr>%s</table>%s"
-            "<p class=dim style='margin:10px 0 0;font-size:12px'>Un sort instantane "
-            "n'apparait pas ici%s: seuls ceux qui ont un temps d'incantation laissent "
-            "une trace. La derniere ligne regroupe tout le reste, controle compris%s: "
-            "le journal ne dit nulle part qu'un sort est un etourdissement, donc rien "
-            "ici ne pretend le savoir.</p></div>"
+            "<p class=dim style='margin:10px 0 0;font-size:12px'>Un sort instantané "
+            "n'apparaît pas ici%s: seuls ceux qui ont un temps d'incantation laissent "
+            "une trace. La dernière ligne regroupe tout le reste, contrôle compris%s: "
+            "le journal ne dit nulle part qu'un sort est un étourdissement, donc rien "
+            "ici ne prétend le savoir.</p></div>"
             % (started, NBSP, rows, top, NBSP, NBSP)
         )

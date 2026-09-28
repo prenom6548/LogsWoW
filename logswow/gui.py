@@ -53,14 +53,14 @@ BYTES_PER_LINE = 310
 # What to type when the toolkit itself is missing, by system. The
 # message names the command rather than a web page to read.
 TK_MISSING = (
-    "La fenetre de LogsWoW a besoin de Tkinter, qui fait partie de Python mais\n"
-    "que certaines distributions Linux livrent a part. Pour l'installer :\n"
+    "La fenêtre de LogsWoW a besoin de Tkinter, qui fait partie de Python mais\n"
+    "que certaines distributions Linux livrent à part. Pour l'installer :\n"
     "  Linux Mint, Ubuntu, Debian : sudo apt install python3-tk\n"
     "  Fedora                     : sudo dnf install python3-tkinter\n"
     "  Arch, Manjaro              : sudo pacman -S tk\n"
     "  openSUSE                   : sudo zypper install python3-tk\n"
     "  macOS (Homebrew)           : brew install python-tk\n"
-    "Sous Windows, et sous macOS avec l'installateur de python.org, il est deja la.\n"
+    "Sous Windows, et sous macOS avec l'installateur de python.org, il est déjà là.\n"
     "Les commandes du terminal fonctionnent sans lui (voir ci-dessous).\n"
 )
 
@@ -105,18 +105,13 @@ def read_share(lines, size):
     return min(0.99, lines * BYTES_PER_LINE / size)
 
 
-# `Segment.outcome` is written without accents, for the terminal; a
-# window can print them.
-_OUTCOMES = {"reussite": "réussite", "echec": "échec"}
-
-
 def fight_rows(segments):
     """One tuple per fight, as the list of fights shows it."""
     return [
         (segment.index, segment.label,
          format_duration(segment.analysis.duration_ms),
          "{:,}".format(segment.analysis.total_damage).replace(",", " "),
-         len(segment.analysis.deaths), _OUTCOMES.get(segment.outcome, segment.outcome))
+         len(segment.analysis.deaths), segment.outcome)
         for segment in segments
     ]
 
@@ -159,7 +154,7 @@ def write_report(log, chosen, out, log_path, cast_order=True, layout="onglets"):
     try:
         ReportWriter(log, chosen, out, cast_order=cast_order, layout=layout).write()
     except OSError as error:
-        return "Impossible d'ecrire %s : %s" % (out, error.strerror or error)
+        return "Impossible d'écrire %s : %s" % (out, error.strerror or error)
     return None
 
 

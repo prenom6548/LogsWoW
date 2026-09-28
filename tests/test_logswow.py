@@ -339,8 +339,8 @@ class TestSegments(unittest.TestCase):
     def test_outcomes_are_read_from_the_end_marker(self):
         self.assertTrue(self.segments[0].success)
         self.assertFalse(self.segments[1].success)
-        self.assertEqual(self.segments[0].outcome, "reussite")
-        self.assertEqual(self.segments[1].outcome, "echec")
+        self.assertEqual(self.segments[0].outcome, "réussite")
+        self.assertEqual(self.segments[1].outcome, "échec")
 
     def test_pull_crossing_midnight_has_a_positive_duration(self):
         self.assertGreater(self.segments[1].duration_ms, 0)
@@ -350,7 +350,7 @@ class TestSegments(unittest.TestCase):
 
     def test_difficulty_is_named_or_numbered_never_guessed(self):
         self.assertEqual(difficulty_name(16), "Mythique")
-        self.assertEqual(difficulty_name(999), "difficulte 999")
+        self.assertEqual(difficulty_name(999), "difficulté 999")
 
     def test_a_keystone_contains_its_boss_pulls(self):
         splitter = Splitter()
@@ -757,7 +757,7 @@ class TestAbilityDetail(unittest.TestCase):
             for ability in player.damage_by_ability.values():
                 if ability.name == spell_name:
                     return player, ability
-        self.fail("capacite absente : %s / %s" % (player_name, spell_name))
+        self.fail("capacité absente : %s / %s" % (player_name, spell_name))
 
     def test_an_ability_knows_its_hits_average_and_biggest(self):
         _player, ability = self._ability("Braise", "Frappe d'essai")
@@ -1108,7 +1108,7 @@ class TestSecondAuditFindings(unittest.TestCase):
             % (pet, mob, block),
             'ENCOUNTER_END,1,"Sbire",16,5,1,1000',
         ])
-        self.assertIn("ne sont comptes pour personne", page)
+        self.assertIn("ne sont comptés pour personne", page)
         self.assertIn("Cendre", page)
 
     # -- the invariant checker itself --------------------------------------
@@ -1428,9 +1428,9 @@ class TestFourthAuditFindings(unittest.TestCase):
             analysis = segment.analysis
             body = page.split("<h2 id='s%d'>" % segment.index, 1)[1]
             body = body.split("<h2 id='s", 1)[0]
-            if "<h3>Degats infliges</h3>" not in body:
+            if "<h3>Dégâts infligés</h3>" not in body:
                 continue
-            table = body.split("<h3>Degats infliges</h3>", 1)[1].split("</table>", 1)[0]
+            table = body.split("<h3>Dégâts infligés</h3>", 1)[1].split("</table>", 1)[0]
             rows = re.findall(r"<tr>(.*?)</tr>", table, re.S)[1:]
             self.assertEqual(
                 sum(int(cells(row)[1]) for row in rows),
@@ -1639,7 +1639,7 @@ class TestAgainstWarcraftLogs(unittest.TestCase):
         self.assertEqual([p.short_name for p in analysis.players.values()], [])
         # ...and its damage is unattributed rather than silently gone.
         self.assertEqual(analysis.orphan_damage, 500)
-        self.assertIn("source non nommee par le journal", analysis.orphan_sources)
+        self.assertIn("source non nommée par le journal", analysis.orphan_sources)
 
     def test_a_pets_casts_are_counted_apart(self):
         """The export counts 880 casts where this reader counted 3,668:
@@ -1758,7 +1758,7 @@ class TestReport(unittest.TestCase):
             with open(target, encoding="utf-8") as handle:
                 page = handle.read()
         self.assertIn("text-anchor='end'", page)  # the left axis values
-        self.assertIn("Courbe et echelle de droite", page)
+        self.assertIn("Courbe et échelle de droite", page)
         # the curve says whose health it is
         self.assertIn("Golem d&#x27;essai", page)
 
@@ -1771,11 +1771,11 @@ class TestReport(unittest.TestCase):
             with open(target, encoding="utf-8") as handle:
                 page = handle.read()
         self.assertIn("Ses soins", page)
-        self.assertIn("Qui il a soigne", page)
-        self.assertIn("Surguerison", page)
+        self.assertIn("Qui il a soigné", page)
+        self.assertIn("Surguérison", page)
         self.assertIn("Dissipations", page)
-        self.assertIn("Sorts ennemis coupes", page)
-        self.assertIn("Ce que le groupe a empeche", page)
+        self.assertIn("Sorts ennemis coupés", page)
+        self.assertIn("Ce que le groupe a empêché", page)
 
     def test_the_report_carries_the_group_and_the_enemies(self):
         import tempfile
@@ -1787,7 +1787,7 @@ class TestReport(unittest.TestCase):
                 page = handle.read()
         self.assertIn("Composition du groupe", page)
         self.assertIn("Guerrier Protection", page)
-        self.assertIn("Detail par ennemi", page)
+        self.assertIn("Détail par ennemi", page)
         self.assertIn("Ce qu&#x27;il inflige", page)
         self.assertIn("Principale cible", page)
 
@@ -1808,8 +1808,11 @@ class TestReport(unittest.TestCase):
             ReportWriter(self.log, self.segments, target).write()
             with open(target, encoding="utf-8") as handle:
                 page = handle.read()
-        self.assertIn("Ce qui a ete engage", page)
-        self.assertEqual(page.count("Ce qui a ete engage"), 1)
+        # The pull table's own heading; the physical/magic section has a
+        # column of the same name, per pull too.
+        heading = "<th>Ce qui a été engagé</th><th class=n>Dégâts</th>"
+        self.assertIn(heading, page)
+        self.assertEqual(page.count(heading), 1)
 
     def test_french_agreement(self):
         self.assertEqual(plural(0, "mort"), "0 mort")
@@ -1898,7 +1901,7 @@ class TestFifthAuditFindings(unittest.TestCase):
         # ...and the encounter's own segment says the same.
         boss = next(s for s in segments if s.kind == "encounter").analysis
         self.assertEqual(sum(b.damage_boss for b in boss.blocks), boss.total_damage)
-        self.assertIn("aucune unite ne porte le nom de la rencontre", self._page(segments))
+        self.assertIn("aucune unité ne porte le nom de la rencontre", self._page(segments))
 
     def test_a_wipe_and_a_kill_wear_different_badges(self):
         """On a real key the wipe and the kill on Mchimba wore the same
@@ -1917,8 +1920,8 @@ class TestFifthAuditFindings(unittest.TestCase):
         key = next(s for s in segments if s.kind == "keystone").analysis
         self.assertEqual([block.outcome for block in key.blocks], [False, True])
         page = self._page(segments)
-        self.assertIn("boss &middot; echec", page)
-        self.assertIn("boss &middot; reussite", page)
+        self.assertIn("boss &middot; échec", page)
+        self.assertIn("boss &middot; réussite", page)
         self.assertNotIn("<span class='pill ok'>boss</span>", page)
 
     def test_a_lull_inside_an_encounter_does_not_split_the_pull(self):
@@ -2054,7 +2057,7 @@ class TestFifthAuditFindings(unittest.TestCase):
             shutil.copy(FIXTURE, log)
             with contextlib.redirect_stderr(io.StringIO()) as said:
                 self.assertEqual(main(["report", log, "-q", "-o", log, "--force"]), 2)
-            self.assertIn("journal lui-meme", said.getvalue())
+            self.assertIn("journal lui-même", said.getvalue())
             with open(log, encoding="utf-8") as handle:
                 self.assertTrue(handle.read().startswith("9/18/2026"))
 
@@ -2113,7 +2116,7 @@ class TestWhatTheAuditLeftUntested(unittest.TestCase):
              % (self.PLAYER, self.MOB)),
             (90000, 'ENCOUNTER_END,1,"Golem",16,5,0,30000'),
         ])
-        self.assertEqual([s.outcome for s in segments], ["sans combat", "echec"])
+        self.assertEqual([s.outcome for s in segments], ["sans combat", "échec"])
         self.assertEqual([s.is_wipe for s in segments], [False, True])
 
     def test_the_fast_split_gives_exactly_what_the_scanner_gives(self):
@@ -2167,22 +2170,22 @@ class TestWhatTheAuditLeftUntested(unittest.TestCase):
     def test_diagnose_shows_its_work(self):
         code, out, _err = self._main(["diagnose", FIXTURE])
         self.assertEqual(code, 0)
-        for section in ("DISPOSITION MESUREE DANS CE FICHIER", "bloc avance         : 19",
-                        "champ baseAmount    : present", "points de vie incoherents   : 0",
-                        "COMBATS DELIMITES : 3", "EVENEMENTS (",
-                        "[SCHEMA INCONNU] ", "PROBLEMES DE LECTURE : 2"):
+        for section in ("DISPOSITION MESURÉE DANS CE FICHIER", "bloc avancé         : 19",
+                        "champ baseAmount    : présent", "points de vie incohérents   : 0",
+                        "COMBATS DÉLIMITÉS : 3", "ÉVÉNEMENTS (",
+                        "[SCHÉMA INCONNU] ", "PROBLÈMES DE LECTURE : 2"):
             self.assertIn(section, out)
         code, out, _err = self._main(["diagnose", FIXTURE, "--limit", "5"])
         self.assertEqual(code, 0)
-        self.assertIn("EVENEMENTS (", out)
+        self.assertIn("ÉVÉNEMENTS (", out)
 
     def test_list_prints_one_line_per_fight(self):
         code, out, _err = self._main(["list", FIXTURE, "-q"])
         self.assertEqual(code, 0)
         lines = out.strip().splitlines()
         self.assertEqual(len(lines), 4)
-        self.assertIn("reussite", lines[1])
-        self.assertIn("echec", lines[2])
+        self.assertIn("réussite", lines[1])
+        self.assertIn("échec", lines[2])
         self.assertIn("dans les temps", lines[3])
 
     def test_numbers_that_make_no_sense_are_refused_in_french(self):
@@ -2194,7 +2197,7 @@ class TestWhatTheAuditLeftUntested(unittest.TestCase):
             code, _out, err = self._main(argv)
             self.assertEqual(code, 2, argv)
             self.assertNotIn("Traceback", err)
-            self.assertTrue("secondes" in err or "superieur a zero" in err
+            self.assertTrue("secondes" in err or "supérieur à zéro" in err
                             or "entier" in err, err)
 
     def test_where_finds_a_log_folder_under_steam_and_lutris(self):
@@ -2438,7 +2441,7 @@ class TestCastOrder(unittest.TestCase):
             for event in log.events():
                 segments.feed(event)
             self.assertEqual(len(segments.finish()), 3)
-            self.assertEqual(log.problems.by_reason.get("nom d'evenement illisible"), 1)
+            self.assertEqual(log.problems.by_reason.get("nom d'événement illisible"), 1)
 
     def test_a_spell_name_becomes_two_letters(self):
         from logswow.report_casts import abbreviate, spell_colour
@@ -2549,8 +2552,8 @@ class TestWhatSixteenLogsFound(unittest.TestCase):
             ReportWriter(log, segments, target).write()
             with open(target, encoding="utf-8") as handle:
                 page = handle.read()
-        self.assertIn("Soutien credite par le jeu", page)
-        self.assertIn("deja comptes", page)
+        self.assertIn("Soutien crédité par le jeu", page)
+        self.assertIn("déjà comptés", page)
 
 
 class TestTriggeredAcrossAllClasses(unittest.TestCase):
@@ -3005,7 +3008,7 @@ class TestOwnerFeedback(unittest.TestCase):
                     page = handle.read()
                 self.assertIn("<b>%s</b><span>Pulls de boss" % bosses, page)
                 self.assertIn("<b>1</b><span>Wipes de boss", page)
-                self.assertIn("<b>1</b><span>Cles hors des temps", page)
+                self.assertIn("<b>1</b><span>Clés hors des temps", page)
 
 
 class TestLayouts(unittest.TestCase):
@@ -3292,7 +3295,7 @@ class TestSixthAuditFindings(unittest.TestCase):
             lines.append((100 + n, 'UNIT_DIED,%s,%s,0' % (self.NOBODY, self._player(n))))
         lines.append((500, 'ENCOUNTER_END,1,"Golem",15,30,0,500'))
         page = self._page(self._run(lines))
-        ranking = page.split("<h3>Degats infliges</h3>", 1)[1].split("</table>", 1)[0]
+        ranking = page.split("<h3>Dégâts infligés</h3>", 1)[1].split("</table>", 1)[0]
         self.assertEqual(ranking.count("<tr>") - 1, 30)
         self.assertEqual(page.count("<details><summary>Joueur"), 30 + 30)   # deaths + panels
 
@@ -3323,7 +3326,7 @@ class TestSixthAuditFindings(unittest.TestCase):
         ])
         death = segments[0].analysis.deaths[0]
         self.assertEqual(death["killing_blow"], "Aneantissement (Golem)")
-        self.assertIn("mort instantanee", self._page(segments))
+        self.assertIn("mort instantanée", self._page(segments))
 
     def test_a_death_the_file_explains_nowhere_says_so(self):
         victim = self._player(1)
@@ -3333,7 +3336,7 @@ class TestSixthAuditFindings(unittest.TestCase):
             (21, 'UNIT_DIED,%s,%s,0' % (self.NOBODY, victim)),
             (30, 'ENCOUNTER_END,1,"Golem",15,30,0,30'),
         ])
-        self.assertIn("cause non ecrite dans le journal", self._page(segments))
+        self.assertIn("cause non écrite dans le journal", self._page(segments))
 
     def test_a_shield_hit_from_a_pet_nobody_owns_is_unattributed_not_lost(self):
         pet = 'Pet-0-9999-1-1-00099,"Cendre",0x1114,0x0'

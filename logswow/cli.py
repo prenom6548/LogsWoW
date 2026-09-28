@@ -169,9 +169,9 @@ def read_log(args, verbose=True):
 def no_fight_message(path):
     """Why nothing was reported, without blaming an option nobody typed."""
     return (
-        "Aucun combat n'a ete trouve dans %s. Le fichier est peut-etre vide, "
-        "ou ecrit par une version du client que ce lecteur ne comprend pas : "
-        "`diagnose` dit ce qui a ete lu.\n" % path
+        "Aucun combat n'a été trouvé dans %s. Le fichier est peut-être vide, "
+        "ou écrit par une version du client que ce lecteur ne comprend pas : "
+        "`diagnose` dit ce qui a été lu.\n" % path
     )
 
 
@@ -205,12 +205,12 @@ def _refuse_to_overwrite(out, log, force):
     if not os.path.exists(out):
         return None
     if os.path.samefile(out, log):
-        return ("Refus d'ecrire le rapport par-dessus le journal lui-meme (%s). "
+        return ("Refus d'écrire le rapport par-dessus le journal lui-même (%s). "
                 "Choisissez un autre nom avec -o.\n" % out)
     if os.path.isdir(out):
         return "%s est un dossier : donnez un nom de fichier avec -o.\n" % out
     if not force and not is_our_report(out):
-        return ("%s existe et n'est pas un rapport LogsWoW : refus de l'ecraser. "
+        return ("%s existe et n'est pas un rapport LogsWoW : refus de l'écraser. "
                 "Choisissez un autre nom, ou ajoutez --force si c'est voulu.\n" % out)
     return None
 
@@ -228,13 +228,13 @@ def _refuse_folder(folder, log, force):
     if not os.path.isdir(folder):
         return ("%s existe et n'est pas un dossier : donnez un autre nom avec -o.\n" % folder)
     if os.path.dirname(os.path.abspath(log)) == os.path.abspath(folder):
-        return ("Refus d'ecrire les pages dans le dossier du journal lui-meme (%s). "
+        return ("Refus d'écrire les pages dans le dossier du journal lui-même (%s). "
                 "Donnez un autre dossier avec -o.\n" % folder)
     if force or not os.listdir(folder):
         return None
     if is_our_report(os.path.join(folder, "index.html")):
         return None
-    return ("%s contient deja autre chose qu'un rapport LogsWoW : refus d'y ecrire. "
+    return ("%s contient déjà autre chose qu'un rapport LogsWoW : refus d'y écrire. "
             "Choisissez un autre dossier, ou ajoutez --force si c'est voulu.\n" % folder)
 
 
@@ -263,7 +263,7 @@ def command_report(args):
     chosen = select_segments(segments, args.only)
     if not chosen:
         sys.stderr.write(
-            "Aucun combat ne correspond a --only %r. Utilisez `list` pour les voir.\n"
+            "Aucun combat ne correspond à --only %r. Utilisez `list` pour les voir.\n"
             % args.only
         )
         return 2
@@ -279,7 +279,7 @@ def command_report(args):
         out = ReportWriter(log, chosen, out, wowhead=args.wowhead,
                            cast_order=not args.no_cast_order, layout=args.layout).write()
     except OSError as error:
-        sys.stderr.write("Impossible d'ecrire %s : %s\n" % (out, error.strerror or error))
+        sys.stderr.write("Impossible d'écrire %s : %s\n" % (out, error.strerror or error))
         return 2
     if not args.quiet:
         print("%d combat(s) retenu(s) sur %d, %s lignes lues en %.1f s" % (
@@ -288,7 +288,7 @@ def command_report(args):
         if log.problems.total:
             print("%d lignes non comprises -- lancez `diagnose` pour voir lesquelles"
                   % log.problems.total)
-        print("Rapport ecrit : %s" % out)
+        print("Rapport écrit : %s" % out)
     return 0
 
 
@@ -301,7 +301,7 @@ def command_list(args):
     if not segments:
         sys.stderr.write(no_fight_message(args.log))
         return 2
-    print("%-4s %-46s %9s %10s %7s" % ("#", "Combat", "Duree", "Degats", "Morts"))
+    print("%-4s %-46s %9s %10s %7s" % ("#", "Combat", "Durée", "Dégâts", "Morts"))
     for segment in segments:
         analysis = segment.analysis
         print("%-4d %-46s %9s %10s %7d  %s" % (
@@ -340,7 +340,7 @@ def command_where(_args):
     """`where`: the usual log folders on this machine, newest files first."""
     found = default_log_locations()
     if not found:
-        print("Aucun dossier Logs trouve aux emplacements habituels.")
+        print("Aucun dossier Logs trouvé aux emplacements habituels.")
         print("Cherchez WoWCombatLog.txt sous _retail_/Logs dans votre installation,")
         print("puis donnez son chemin complet, entre guillemets s'il contient des espaces :")
         print('  report "/chemin/vers/World of Warcraft/_retail_/Logs/WoWCombatLog-....txt"')
@@ -370,7 +370,7 @@ def command_window(_args):
 
     code = gui.run()
     if code is None:
-        sys.stderr.write("Pas d'ecran disponible pour ouvrir la fenetre : "
+        sys.stderr.write("Pas d'écran disponible pour ouvrir la fenêtre : "
                          "utilisez les commandes (voir --help).\n")
         return 2
     return code
@@ -399,7 +399,7 @@ def _positive(text):
     except ValueError:
         raise argparse.ArgumentTypeError("%r n'est pas un nombre entier" % text) from None
     if value < 1:
-        raise argparse.ArgumentTypeError("%r : il faut un nombre superieur a zero" % text)
+        raise argparse.ArgumentTypeError("%r : il faut un nombre supérieur à zéro" % text)
     return value
 
 
@@ -421,7 +421,7 @@ def build_parser():
         """
         subparser.add_argument("log", help="chemin du fichier WoWCombatLog.txt")
         subparser.add_argument("--year", type=int, default=None,
-                               help="annee, pour les journaux dont l'horodatage n'en porte pas")
+                               help="année, pour les journaux dont l'horodatage n'en porte pas")
         if not analyses:
             return subparser
         subparser.add_argument("-q", "--quiet", action="store_true")
@@ -430,9 +430,9 @@ def build_parser():
             type=_seconds,
             default=None,
             metavar="SECONDES",
-            help="silence necessaire pour separer deux pulls (defaut 6 s) ; "
-                 "baissez-le si vos packs sont regroupes, montez-le si un pull "
-                 "unique est coupe en deux",
+            help="silence nécessaire pour séparer deux pulls (défaut 6 s) ; "
+                 "baissez-le si vos packs sont regroupés, montez-le si un pull "
+                 "unique est coupé en deux",
         )
         return subparser
 
@@ -441,27 +441,27 @@ def build_parser():
     report.add_argument(
         "--sans-sequence", dest="no_cast_order", action="store_true",
         help="ne pas mettre l'ordre des sorts de chaque joueur : la page est "
-             "environ deux fois plus legere")
+             "environ deux fois plus légère")
     report.add_argument(
         "--format", dest="layout", choices=LAYOUTS, default="onglets",
-        help="presentation du rapport : onglets (un fichier, un combat et une "
-             "categorie a la fois, par defaut), pages (un dossier, une page par "
+        help="présentation du rapport : onglets (un fichier, un combat et une "
+             "catégorie à la fois, par défaut), pages (un dossier, une page par "
              "combat) ou longue (tout sur une seule page)")
     report.add_argument(
         "--force", action="store_true",
-        help="ecraser le fichier de sortie meme s'il n'est pas un rapport LogsWoW "
+        help="écraser le fichier de sortie même s'il n'est pas un rapport LogsWoW "
              "(jamais le journal lu)")
     report.add_argument(
         "--only",
         default=None,
-        metavar="NUMERO|NOM",
-        help="n'inclure qu'un combat : son numero dans `list`, ou un bout de son nom",
+        metavar="NUMÉRO|NOM",
+        help="n'inclure qu'un combat : son numéro dans `list`, ou un bout de son nom",
     )
     report.add_argument(
         "--wowhead",
         default="auto",
         metavar="LANGUE",
-        help="langue des liens Wowhead : auto (celle du systeme), fr, en, de, es, "
+        help="langue des liens Wowhead : auto (celle du système), fr, en, de, es, "
              "it, pt, ru, ko, zh, ou off pour ne mettre aucun lien",
     )
     report.set_defaults(func=command_report)
@@ -472,14 +472,14 @@ def build_parser():
     diagnose = common(subparsers.add_parser(
         "diagnose", help="montre ce que le lecteur a compris du fichier"), analyses=False)
     diagnose.add_argument("--limit", type=_positive, default=None,
-                          help="s'arreter apres N evenements")
+                          help="s'arrêter après N événements")
     diagnose.set_defaults(func=command_diagnose)
 
     where = subparsers.add_parser("where", help="cherche le dossier Logs du jeu")
     where.set_defaults(func=command_where)
 
     window = subparsers.add_parser(
-        "fenetre", help="ouvre la fenetre (c'est aussi ce que fait la commande sans rien)")
+        "fenetre", help="ouvre la fenêtre (c'est aussi ce que fait la commande sans rien)")
     window.set_defaults(func=command_window)
     return parser
 

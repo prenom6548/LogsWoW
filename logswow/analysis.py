@@ -647,7 +647,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self.orphan_damage += amount
         name = self._name_of(event.source) or event.source.guid
         if not name or name == "nil":
-            name = "source non nommee par le journal"
+            name = "source non nommée par le journal"
         if name in self.orphan_sources or len(self.orphan_sources) < 30:
             self.orphan_sources[name] = self.orphan_sources.get(name, 0) + amount
 
@@ -1165,7 +1165,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         return [
             (label, groups[role])
             for role, label in ((TANK, "Tanks"), (HEAL, "Soigneurs"), (DPS, "DPS"),
-                                ("", "Role non indique"))
+                                ("", "Rôle non indiqué"))
             if groups[role]
         ]
 

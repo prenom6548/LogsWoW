@@ -97,7 +97,7 @@ def _break_width_tie(tied, samples, offset):
     # width this client is known to use beats the largest number.
     if len(tied) > 1:
         tiebreak = ((tiebreak + ", ") if tiebreak else "") + (
-            "puis proximite avec %d" % DEFAULT_ADVANCED_WIDTH)
+            "puis proximité avec %d" % DEFAULT_ADVANCED_WIDTH)
     width = min(
         tied, key=lambda width: (abs(width - DEFAULT_ADVANCED_WIDTH), -width)
     )
@@ -154,7 +154,7 @@ def _measure_advanced_width(samples, offset, evidence):
     else:
         advanced_width = DEFAULT_ADVANCED_WIDTH
     evidence["advanced_width"] = {
-        width: "%d votes / %d evenements" % (width_votes[width], len(width_backers[width]))
+        width: "%d votes / %d événements" % (width_votes[width], len(width_backers[width]))
         for width in sorted(width_votes, key=lambda key: -len(width_backers[key]))[:5]
     }
     evidence["advanced_width_chosen"] = advanced_width
@@ -205,11 +205,11 @@ def detect_layout(samples):
 # The two reasons that stop a line before it is even an event. Named
 # because `diagnose` breaks them out, and because counting them twice is
 # exactly the bug this class used to have.
-NO_SEPARATOR = "ligne sans le separateur de deux espaces"
+NO_SEPARATOR = "ligne sans le séparateur de deux espaces"
 BAD_TIMESTAMP = "horodatage illisible"
 # A line whose first field is not a name: a damaged line starting with a
 # bracket, found by fuzzing on 2026-09-27 -- the layout vote stopped on it.
-NO_EVENT_NAME = "nom d'evenement illisible"
+NO_EVENT_NAME = "nom d'événement illisible"
 
 
 class ParseProblems:

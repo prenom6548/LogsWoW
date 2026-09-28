@@ -3,6 +3,21 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.8.1 — 2026-09-28
+
+**Le rapport parle un français accentué.** « Dégâts infligés », « Durée »,
+« réussite », « échec », « Clés mythiques », « mort instantanée »… : le
+rapport, la ligne de commande et `diagnose` écrivaient jusqu'ici une bonne
+partie de leurs textes sans accents, à côté d'autres qui en avaient.
+Tout est accentué désormais, noms de spécialisations compris
+(« Chasseur de démons », « Maîtrise des bêtes », « Évocateur »).
+
+Rien d'autre ne change : pas un chiffre, pas une ligne de tableau. Sur
+cinq journaux, dont trois vrais, les pages d'avant et d'après sont
+identiques caractère pour caractère une fois les accents retirés. Les
+commandes se tapent comme avant : `fenetre`, `--sans-sequence`,
+`--format onglets`.
+
 ## 0.8.0 — 2026-09-28
 
 **Un audit complet, et une licence qui protège aussi contre les services

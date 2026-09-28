@@ -34,7 +34,7 @@ DEFAULT_ADVANCED_WIDTH = 19
 # `diagnose`, so they are in French like the rest of the interface;
 # UNKNOWN_SUBEVENT is also a sentinel the reader compares against, so it
 # is a constant rather than a repeated literal.
-UNKNOWN_SUBEVENT = "evenement inconnu"
+UNKNOWN_SUBEVENT = "événement inconnu"
 MISSING_BASE_FIELDS = "champs de base manquants"
 
 _PREFIXES = (
@@ -574,7 +574,7 @@ def resolve_layout(remainder, prefix_n, suffix_counts, advanced_width):
             remainder,
             None,
             [],
-            "ligne trop courte : %d champs pour un prefixe de %d"
+            "ligne trop courte : %d champs pour un préfixe de %d"
             % (len(remainder), prefix_n),
         )
     prefix = remainder[:prefix_n]
@@ -587,7 +587,7 @@ def resolve_layout(remainder, prefix_n, suffix_counts, advanced_width):
         if available == count:
             return prefix, None, rest, None
 
-    note = ("nombre de champs inattendu : %d apres le prefixe, attendu %s, "
+    note = ("nombre de champs inattendu : %d après le préfixe, attendu %s, "
             "ou cela +%d") % (
         available,
         " / ".join(str(count) for count in suffix_counts) or "0",

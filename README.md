@@ -36,7 +36,7 @@ manque). Les commandes n'en ont pas besoin.
 **La marche à suivre pas à pas, pour Windows, Linux (dont Linux Mint) et
 macOS, est dans [`INSTALL.md`](INSTALL.md).** Chaque version publiée
 fournit un fichier unique, `logswow-<version>.pyz`, qui se lance tel quel :
-`python3 logswow-0.8.0.pyz report WoWCombatLog.txt`.
+`python3 logswow-0.8.1.pyz report WoWCombatLog.txt`.
 
 Rien à installer. Python 3.8 ou plus récent, et c'est tout : pas de
 `pip install`, aucune dépendance, aucun réseau. Le paquet se copie ou se

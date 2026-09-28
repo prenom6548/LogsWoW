@@ -26,18 +26,18 @@ FIGHT_KINDS = frozenset({"_DAMAGE", "_DAMAGE_LANDED", "_MISSED", "_SHIELD", "_SP
 # by number rather than guessed at.
 DIFFICULTY_NAMES = {
     1: "Normal",
-    2: "Heroique",
+    2: "Héroïque",
     3: "10 joueurs",
     4: "25 joueurs",
-    5: "10 heroique",
-    6: "25 heroique",
+    5: "10 héroïque",
+    6: "25 héroïque",
     7: "Raid Recherche",
     8: "Mythique+",
     9: "40 joueurs",
-    11: "Heroique scenario",
-    12: "Normal scenario",
+    11: "Héroïque scénario",
+    12: "Normal scénario",
     14: "Normal",
-    15: "Heroique",
+    15: "Héroïque",
     16: "Mythique",
     17: "Raid Recherche",
     23: "Mythique",
@@ -63,7 +63,7 @@ def difficulty_name(difficulty_id):
     """A difficulty id as the reader says it, or its number when unknown."""
     if not difficulty_id:
         return ""
-    return DIFFICULTY_NAMES.get(difficulty_id, "difficulte %d" % difficulty_id)
+    return DIFFICULTY_NAMES.get(difficulty_id, "difficulté %d" % difficulty_id)
 
 
 class Segment:
@@ -118,7 +118,7 @@ class Segment:
             return "interrompu"
         if self.kind == "keystone":
             return "dans les temps" if self.success else "hors des temps"
-        return "reussite" if self.success else "echec"
+        return "réussite" if self.success else "échec"
 
     @property
     def label(self):
@@ -278,7 +278,7 @@ class Splitter:
         be one huge segment of corridor trash that nobody asked about.
         """
         if self._fallback is None:
-            self._fallback = self._new("session", "Session complete", event.ts)
+            self._fallback = self._new("session", "Session complète", event.ts)
         if self._fallback.analysis is not None:
             self._fallback.analysis.feed(event)
         self._fallback.end_ts = event.ts
