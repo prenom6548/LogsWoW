@@ -24,7 +24,7 @@ import os
 from .wowhead import normalise, system_language
 
 # The languages with a table, French first because it needs none.
-LANGUAGES = ("fr", "en")
+LANGUAGES = ("fr", "en", "de", "es")
 # What a machine speaking anything else gets.
 FALLBACK = "en"
 
@@ -35,7 +35,7 @@ _specs = {}
 
 
 def choose(choice="auto"):
-    """'auto', 'fr', 'en', 'fr_FR.UTF-8'... -> a language this package speaks.
+    """'auto', 'fr', 'de', 'es_ES.UTF-8'... -> a language this package speaks.
 
     'auto' is LOGSWOW_LANGUE when set -- a reader's standing choice, and
     what the tests use to stay in French on any machine -- and otherwise
@@ -62,7 +62,7 @@ def set_language(choice="auto"):
 
 
 def language():
-    """The language texts come out in now: 'fr' or 'en'."""
+    """The language texts come out in now: 'fr', 'en', 'de' or 'es'."""
     return _current
 
 

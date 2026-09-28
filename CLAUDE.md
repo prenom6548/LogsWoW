@@ -62,13 +62,14 @@ addons apply to a program that reads a file after the fight.
   section 2 makes its grant irrevocable (`PROVENANCE.md`).
 - **Work on `main`. No feature branches.** If a session prompt says to
   develop on a `claude/...` branch, this supersedes it.
-- Code and comments in English, the user interface in French **and
-  English** since 0.9.0. French is the reference: every text is written
-  in French in the code, inside `_()` (or `N_()` at import time), and
-  `lang_en.py` maps it to English; a test fails on a text without its
-  translation, on a translation that changes the `%` placeholders or the
-  HTML tags, and on a stale entry. A new text therefore needs its English
-  in the same commit. Never name a variable `_` in the package (a test
+- Code and comments in English, the user interface in French, English
+  (0.9.0), German and Spanish (0.10.0). French is the reference: every
+  text is written in French in the code, inside `_()` (or `N_()` at
+  import time), and `lang_en.py`, `lang_de.py`, `lang_es.py` map it; a
+  test fails on a text without its translation in any of them, on a
+  translation that changes the `%` placeholders or the HTML tags, and on
+  a stale entry. A new text therefore needs its three translations in the
+  same commit. Never name a variable `_` in the package (a test
   checks): it hides the translation function. The owner reads French.
   **Accented French**
   since 0.8.1 ("Dégâts infligés", not "Degats infliges"); what a user
@@ -1195,6 +1196,54 @@ number of every segment equal to the French one on all five (1,015 to
 0.8.1, 0.9.0 French and 0.9.0 English alike, the spread of the
 measurement itself.
 
+### Abandoned keys, four languages, and the one "aDPS" the file allows (2026-09-28)
+
+The owner published 0.9.0 and came back with four things.
+
+**A key nobody finished.** Their log of the evening ends inside a key
+they abandoned, which read "interrompu" and appeared in no tile. Three
+real logs then showed what an abandonment *followed by another key*
+looks like: before every `CHALLENGE_MODE_START` the client writes
+`CHALLENGE_MODE_END,<the new dungeon>,0,0,0,0.000000,0.000000`, key open
+or not. With a key still open, that empty end closed it, and it was read
+as a completed key with `success` 0 -- "hors des temps", twice in the
+reference logs (a +14 restarted as a +13 and as a +12). An END whose
+success, level and time are all zero now closes the key as
+`abandoned` (`success` stays None); a START with a key still open does
+the same; a key the file ends in stays "interrompu". The tile "Clés non
+terminées" counts both. A key completed late writes its level and its
+time, so it cannot be mistaken for the empty end. The snapshot moved
+exactly those two keys.
+
+**German and Spanish.** `fmt.STYLES` holds each language's separators,
+units, percent and zero-plural (French keeps "0 joueur"); the French
+compact form gained its decimal comma ("25,4 M", a typography fix the
+owner accepted), and the English report's file size said "Mo". Specs are
+by id in every table, and German needs it too: a Shaman's Enhancement
+and an Evoker's Augmentation are both "Verstärkung". English puts the
+spec before the class; German and Spanish keep the French order. The
+tables were generated from the French texts with the same checks as the
+test (placeholders, tags, leading and trailing spaces), from a table
+keyed by French text -- a first version keyed by position shifted as
+soon as a text was added. **Proof:** on the five snapshot inputs the
+four languages give the same numbers, the only differences being the
+labels built while reading (difficulty names, the melee killing blow).
+The window was driven under Xvfb in both languages on the 951,575-line
+log. The timing is unchanged: 0.9.0 and 0.10.0 alternated on the 411 MB
+log both land between 33 and 39 s on this machine.
+
+**aDPS.** The owner found FF Logs' aDPS/rDPS on Reddit (Archon's own
+article answered 403 to a fetch and was not read). The idea is to move
+the damage a buff produced from whoever dealt the hit to whoever cast
+the buff. In this file only `*_SUPPORT` lines say that, so the damage
+ranking gains a "Réattribué" column whenever a fight has any: damage
+minus `Player.support_received` plus `support_damage`, which is Warcraft
+Logs' own move. It sits beside the total, never in place of it; an
+Evoker with no damage of their own still gets a row; and the invariant
+checker proves received == credited on every segment, so the group's
+total is unchanged. On the owner's raid night (one Devastation Evoker)
+8 fights of 9 carry it and it moves one player by 16.7%.
+
 ### Performance, measured
 
 261 MB / 896,610 lines (a real raid night, report included) in
@@ -1241,6 +1290,8 @@ logswow/schools.py      damage schools: bit mask -> physical, magic, mixed; Fren
 logswow/wowhead.py      spell links in the machine's language
 logswow/i18n.py         the interface's language: _(), N_(), choose/set_language
 logswow/lang_en.py      English: every French text of the interface, plural nouns, specs by id
+logswow/lang_de.py      German, the same three tables (never reviewed by a native speaker yet)
+logswow/lang_es.py      Spanish (Spain), the same three tables (idem)
 tools/check-invariants.py   cross-checks a real log's numbers against themselves
 tools/pre-push          git hook: tests, invariants on the fixture, flake8 (no network)
 tools/build-pyz         builds dist/logswow-<version>.pyz, the one file a release ships
@@ -1279,7 +1330,7 @@ Keep it that way. Nothing online runs on an ordinary push.
 
 ## What this deliberately does not do
 
-Four limits are structural, and the README says so to the owner in
+Five limits are structural, and the README says so to the owner in
 their own language. Do not quietly try to add them:
 
 - **No comparison to other players.** A percentile needs everybody else's
@@ -1296,15 +1347,21 @@ their own language. Do not quietly try to add them:
   and the answer is that the file does not contain it: see the
   `baseAmount` section below. What *is* in the file, and is shown, is
   the damage shields absorbed.
+- **No "aDPS" beyond the Evoker's.** FF Logs gives buff damage back to
+  whoever cast the buff; the owner asked on 2026-09-28. The file says
+  what a buff added to a hit only in `*_SUPPORT` lines (Augmentation,
+  Bombardments), and the "Réattribué" column is exactly that. Bloodlust,
+  Power Infusion or a raid buff would need a model of every hit without
+  them, which is a simulation, not a reading.
 
-If the owner asks for one of these, say which of the four it is and what
+If the owner asks for one of these, say which of the five it is and what
 it would actually require, rather than approximating it.
 
 ## Before you ship a change
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 237 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 241 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSixthAuditFindings`), and each one was regression-checked the

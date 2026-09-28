@@ -13,10 +13,10 @@ import os
 import sys
 import time
 
-from . import __version__
+from . import __version__, fmt
 from .analysis import SegmentAnalysis
 from .diagnose import run as run_diagnose
-from .i18n import LANGUAGES, _, language, set_language
+from .i18n import LANGUAGES, _, set_language
 from .parse import LogFile
 from .report import ReportWriter
 from .report_layouts import LAYOUTS, is_our_report
@@ -414,7 +414,7 @@ def language_option(parser):
     parser.add_argument(
         "--langue", "--lang", choices=("auto",) + LANGUAGES, default=argparse.SUPPRESS,
         help=_("langue de l'interface et du rapport : auto (celle du système, "
-               "l'anglais pour une langue sans traduction), fr ou en"))
+               "l'anglais pour une langue sans traduction), fr, en, de ou es"))
 
 
 def requested_language(argv):
@@ -429,9 +429,9 @@ def requested_language(argv):
 
 
 def _count(value):
-    """25 361 906 in a French terminal, 25,361,906 in an English one."""
-    text = "{:,}".format(value)
-    return text.replace(",", " ") if language() == "fr" else text
+    """25 361 906 in a French terminal, 25,361,906 in an English one, 25.361.906 in German."""
+    # A plain space in a terminal: not every console font has the narrow one.
+    return "{:,}".format(value).replace(",", fmt.style().thousands.replace(fmt.NBSP, " "))
 
 
 def build_parser():

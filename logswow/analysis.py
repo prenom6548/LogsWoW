@@ -630,6 +630,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         if attr == "support_damage":
             _bucket(evoker.support_by_ability, event.spell_id, event.spell_name).add(
                 amount, False, self._name_of(event.source))
+            self._player(event.source).support_received += amount
 
     def _player_by_guid(self, guid, name=None):
         """A player's ledger by GUID, opened under `name` or what the file has said."""

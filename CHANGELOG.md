@@ -3,6 +3,45 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.10.0 — 2026-09-28
+
+**LogsWoW parle aussi allemand et espagnol.** La fenêtre, les commandes,
+`diagnose` et le rapport existent maintenant en quatre langues. Le choix
+reste automatique (la langue de votre machine, l'anglais pour une langue
+sans traduction) ; `--langue de` ou `--langue es` en impose une. Chaque
+langue écrit ses nombres à sa façon : « 25,4 Mio. » et « 25.361.906 » en
+allemand, « 25,4 M » et « 45,6 mil » en espagnol. Les traductions ont été
+écrites avec soin mais n'ont pas encore été relues par des joueurs dont
+c'est la langue : un terme qui sonne faux peut être signalé, il se
+corrige en une ligne.
+
+**La virgule décimale en français.** « 25,4 M » et « 180,6 Mo » au lieu
+de « 25.4 M » et « 180.6 Mo », partout.
+
+**Les clés abandonnées sont reconnues.** Une clé relancée, ou laissée
+pour une autre, était comptée « hors des temps » ; elle est désormais
+« abandonnée ». Le jeu écrit en effet, avant chaque nouvelle clé, une fin
+vide (ni niveau, ni temps) qui ferme celle qui restait ouverte. Une
+nouvelle tuile en haut du rapport, **Clés non terminées**, compte ces
+clés et celle que le journal laisse ouverte (« interrompu »).
+
+**La colonne « Réattribué »**, dans le classement des dégâts, dès qu'un
+combat contient les lignes de soutien d'un Évocateur : les dégâts de
+chacun, moins la part que le jeu crédite aux renforts d'un Évocateur
+(Puissance d'ébène, Prescience, Bombardements…), plus ce qu'il lui
+crédite. C'est la réattribution de Warcraft Logs, et la seule forme
+d'« aDPS » que le journal permet : il n'écrit nulle part ce qu'une Furie
+sanguinaire ou une Infusion de puissance a ajouté aux coups des autres.
+La colonne s'ajoute au total, elle ne le remplace pas, et le total du
+groupe ne change pas.
+
+**Correction.** En anglais, la taille du fichier s'affichait en « Mo » ;
+c'est « MB ».
+
+Rien d'autre ne change : sur cinq journaux (dont trois vrais), pas un
+chiffre ne bouge hors des deux clés abandonnées, et les quatre langues
+donnent exactement les mêmes nombres. La vitesse est la même.
+
 ## 0.9.0 — 2026-09-28
 
 **LogsWoW parle aussi anglais.** La fenêtre, les commandes, `diagnose` et

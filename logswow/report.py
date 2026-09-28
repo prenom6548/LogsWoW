@@ -245,14 +245,18 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         # inside it are two different failures, and a single sum read as
         # the same dungeon counted twice.
         late = sum(1 for segment in keys if segment.success is False)
+        # Abandoned, or still open when the file ends: a key the reader
+        # was never told the end of is neither in time nor late.
+        unfinished = sum(1 for segment in keys if segment.success is None)
         wipes = sum(1 for success, fought in pulls.values() if success is False and fought)
         cells = [
-            (_("Taille du fichier"), "%s Mo" % round(self.log.size_bytes / 1048576.0, 1)),
+            (_("Taille du fichier"), _("%s Mo") % fmt.one_decimal(self.log.size_bytes / 1048576.0)),
             (_("Durée couverte"), format_duration(self.log.duration_ms)),
             (_("Pulls de boss"), str(len(pulls))),
             (_("Wipes de boss"), str(wipes)),
             (_("Clés mythiques"), str(len(keys))),
             (_("Clés hors des temps"), str(late)),
+            (_("Clés non terminées"), str(unfinished)),
             (_("Lignes incomprises"), fmt.number(self.log.problems.total)),
         ]
         return "".join(
@@ -407,6 +411,18 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         # differently there; the note under the table says so.
         healing = key == "healing_done"
         absorbs = healing and any(player.absorb_done for player, _v, _r in rows)
+        # What the file lets an "aDPS" be: only the Evoker's *_SUPPORT
+        # lines name who a part of a hit belongs to. Shown beside the
+        # damage, never in place of it, and only when there is some.
+        support = not healing and any(
+            player.support_damage or player.support_received
+            for player in analysis.players.values())
+        if support:
+            # An Evoker with no damage of their own still has a row to be
+            # given one in: the column must add up to the group's total.
+            listed = {player.guid for player, _v, _r in rows}
+            rows = rows + [(player, 0, 0.0) for player in analysis.players.values()
+                           if player.support_damage and player.guid not in listed]
         peak = rows[0][1]
         lines = []
         for player, value, rate in rows:
@@ -427,13 +443,28 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                     else "<span class=dim>-</span>"))
                 cells.append("<td class=n>%s</td>"
                              % fmt.compact(value + player.absorb_done))
+            if support:
+                cells.append("<td class=n>%s</td>" % fmt.compact(
+                    value - player.support_received + player.support_damage))
             cells.append("<td class=n>%s</td>" % fmt.compact(rate))
             lines.append("<tr>%s</tr>" % "".join(cells))
         heads = _("<th>Joueur</th><th class=n>Total</th>")
         if absorbs:
             heads += _("<th class=n>Absorbé</th><th class=n>Somme</th>")
+        if support:
+            heads += _("<th class=n>Réattribué</th>")
         heads += "<th class=n>%s</th>" % fmt.esc(rate_label)
         note = ""
+        if support:
+            note = (_("<p class=dim style='margin:10px 0 0;font-size:12px'>"
+                      "<b>Réattribué</b>%s: les dégâts de chacun, moins la part que "
+                      "le jeu crédite aux renforts d'un évocateur (Puissance "
+                      "d'ébène, Prescience, Bombardements...), plus ce qu'il crédite "
+                      "au joueur lui-même. C'est la réattribution de Warcraft Logs, "
+                      "et la seule que le journal permet%s: aucune ligne ne dit ce "
+                      "qu'une Furie sanguinaire, une Infusion de puissance ou un "
+                      "buff de raid a ajouté aux coups des autres. Le total du "
+                      "groupe ne change pas.</p>") % (NBSP, NBSP))
         if absorbs:
             note = (_("<p class=dim style='margin:10px 0 0;font-size:12px'>"
                       "Un bouclier n'est pas un soin dans le journal%s: il "

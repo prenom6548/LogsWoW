@@ -33,11 +33,12 @@ déjà là ; sous Linux Mint, Ubuntu et Debian, elle s'installe une fois avec
 `sudo apt install python3-tk` (la fenêtre le dit elle-même si elle
 manque). Les commandes n'en ont pas besoin.
 
-**Français ou anglais.** La fenêtre, les commandes et le rapport parlent
-la langue de votre machine : français sur une machine en français,
-anglais sur toutes les autres. `--langue fr` ou `--langue en` impose
-l'une ou l'autre, et la variable d'environnement `LOGSWOW_LANGUE` fixe
-un choix une fois pour toutes. Les noms de sorts, de boss et de joueurs
+**Français, anglais, allemand ou espagnol.** La fenêtre, les commandes
+et le rapport parlent la langue de votre machine quand LogsWoW la
+connaît, l'anglais sinon. `--langue fr`, `en`, `de` ou `es` impose l'une
+d'elles, et la variable d'environnement `LOGSWOW_LANGUE` fixe un choix
+une fois pour toutes. La documentation existe en français et en
+anglais. Les noms de sorts, de boss et de joueurs
 restent ceux du journal, dans la langue de votre client de jeu.
 
 ## Ce qu'il faut avant
@@ -45,7 +46,7 @@ restent ceux du journal, dans la langue de votre client de jeu.
 **La marche à suivre pas à pas, pour Windows, Linux (dont Linux Mint) et
 macOS, est dans [`INSTALL.md`](INSTALL.md).** Chaque version publiée
 fournit un fichier unique, `logswow-<version>.pyz`, qui se lance tel quel :
-`python3 logswow-0.9.0.pyz report WoWCombatLog.txt`.
+`python3 logswow-0.10.0.pyz report WoWCombatLog.txt`.
 
 Rien à installer. Python 3.8 ou plus récent, et c'est tout : pas de
 `pip install`, aucune dépendance, aucun réseau. Le paquet se copie ou se
@@ -81,7 +82,7 @@ python3 -m logswow where
 | `list FICHIER` | liste les combats du fichier, une ligne chacun |
 | `diagnose FICHIER` | montre ce que le lecteur a compris, et ce qu'il n'a pas compris |
 | `where` | cherche le dossier `Logs` du jeu |
-| *(toutes)* | `--langue fr\|en\|auto` la langue de l'interface et du rapport |
+| *(toutes)* | `--langue fr\|en\|de\|es\|auto` la langue de l'interface et du rapport |
 
 **Lancez `diagnose` en premier** après chaque mise à jour du jeu. Il
 affiche la disposition des champs telle qu'elle a été *mesurée dans
@@ -148,8 +149,13 @@ lu serait pire que pas de rapport du tout.
   joueurs, et à lui les Bombardements qu'un allié déclenche. Ces montants
   sont déjà dans les dégâts de ceux qui ont porté les coups : ils sont
   montrés à part sur le panneau de l'Évocateur, jamais ajoutés une
-  seconde fois. Warcraft Logs, lui, les déplace vers l'Évocateur, d'où un
-  écart entre les deux pour les joueurs renforcés.
+  seconde fois. Warcraft Logs, lui, les déplace vers l'Évocateur : la
+  colonne **Réattribué** du classement des dégâts fait ce même
+  déplacement, à côté du total et sans le remplacer, dès qu'un combat en
+  contient.
+- **Les clés abandonnées** : une clé relancée ou quittée pour une autre
+  est « abandonnée », pas « hors des temps », et la tuile **Clés non
+  terminées** compte aussi celle que le journal laisse ouverte.
 - **Physique ou magique** : la part des dégâts subis et infligés qui
   était physique, magique ou les deux, en pourcentage, sur tout le combat
   puis pull par pull, avec le détail par école (Ombre, Feu, Nature…).
@@ -221,6 +227,11 @@ python3 -m logswow report WoWCombatLog.txt --only "Allée du meurtre"
   l'autre donne un pourcentage crédible et faux. Ce qui est réellement
   dans le fichier, et qui est affiché, ce sont les **dégâts absorbés**
   par les boucliers.
+- **Il ne calcule pas d'aDPS au sens de FF Logs.** Rendre à celui qui
+  l'a donnée la part des dégâts due à une Furie sanguinaire, une Infusion
+  de puissance ou un buff de raid demande de savoir ce que chaque coup
+  aurait fait sans elle ; le journal ne l'écrit que pour les renforts d'un
+  Évocateur, et c'est exactement ce que montre la colonne **Réattribué**.
 - **Il ne juge pas votre rotation.** Il montre vos pauses, vos capacités
   et vos effets actifs. Dire « il fallait appuyer sur ceci » demande les
   règles de votre spécialisation, écrites et maintenues par quelqu'un qui

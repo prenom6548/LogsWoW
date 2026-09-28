@@ -87,6 +87,7 @@ class Segment:
         self.affixes = []
         self.reported_duration_ms = None
         self.truncated = False
+        self.abandoned = False
         self.fought = False
         self.analysis = None
 
@@ -117,6 +118,8 @@ class Segment:
             return ""
         if self.never_fought and not self.truncated:
             return N_("sans combat")
+        if self.abandoned:
+            return N_("abandonnée")
         if self.success is None:
             return N_("interrompu")
         if self.kind == "keystone":
@@ -257,16 +260,28 @@ class Splitter:
         segment = self._close("keystone", event)
         if segment is None:
             return
+        if len(fields) > 4 and not any(as_int(fields[i], 0) for i in (2, 3, 4)):
+            # "CHALLENGE_MODE_END,2813,0,0,0,0.000000,0.000000": the client
+            # writes it just before every CHALLENGE_MODE_START, key open or
+            # not, and names the dungeon about to start. With a key still
+            # open it is the end of a key nobody finished -- two real logs
+            # restarted a dungeon that way. A key completed late writes its
+            # level and its time.
+            segment.abandoned = True
+            return
         if len(fields) > 2:
             segment.success = bool(as_int(fields[2], 0))
         if len(fields) > 4:
             segment.reported_duration_ms = as_int(fields[4], 0) or None
 
     def _abandon(self, kinds, end_ts):
-        """Close, as truncated, the open segments of these kinds."""
+        """Close the open segments of these kinds: a key abandoned, a pull truncated."""
         for segment in [s for s in self._active if s.kind in kinds]:
             self._active.remove(segment)
-            segment.truncated = True
+            if segment.kind == "keystone":
+                segment.abandoned = True
+            else:
+                segment.truncated = True
             segment.end_ts = max(segment.start_ts, end_ts or segment.start_ts)
             if segment.analysis is not None:
                 segment.analysis.finish(segment)

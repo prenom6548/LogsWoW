@@ -99,7 +99,8 @@ def label_of(spec_id):
     """'Moine Maître brasseur', or 'spe 1480' for one this table lacks.
 
     In the reader's language: English puts the specialization first,
-    'Brewmaster Monk'.
+    'Brewmaster Monk'; German and Spanish keep the French order,
+    'Mönch Braumeister', 'Monje Maestro cervecero'.
     """
     if spec_id and spec_id not in SPECS:
         return _("spe %d") % spec_id
@@ -107,6 +108,9 @@ def label_of(spec_id):
     pieces = (class_name, spec_name)
     if language() != "fr":
         # By id, not by word: French calls two different specializations
-        # "Dévastation" (a Demon Hunter's Havoc, an Evoker's Devastation).
-        pieces = spec_names(spec_id, pieces)[::-1]
+        # "Dévastation" (a Demon Hunter's Havoc, an Evoker's Devastation),
+        # and German two "Verstärkung" (a Shaman's, an Evoker's).
+        pieces = spec_names(spec_id, pieces)
+    if language() == "en":
+        pieces = pieces[::-1]
     return (" ".join(piece for piece in pieces if piece)).strip()

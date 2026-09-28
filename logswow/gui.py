@@ -39,7 +39,7 @@ import webbrowser
 
 from . import __version__, fmt
 from .analysis import PULL_GAP_MS
-from .i18n import N_, _, language
+from .i18n import N_, _
 from .cli import (Cancelled, _build, _refuse_folder, _refuse_to_overwrite,
                   default_log_locations)
 from .report import ReportWriter
@@ -93,14 +93,10 @@ def recent_logs(locations=None, limit=40):
 
 def file_size(size):
     """1234567 -> '1,2 Mo', in the units a French reader expects; '1.2 MB'."""
-    french = language() == "fr"
-    units = (("Go", 1e9), ("Mo", 1e6), ("Ko", 1e3)) if french else (
-        ("GB", 1e9), ("MB", 1e6), ("KB", 1e3))
-    for unit, scale in units:
+    for unit, scale in ((N_("Go"), 1e9), (N_("Mo"), 1e6), (N_("Ko"), 1e3)):
         if size >= scale:
-            text = "%.1f %s" % (size / scale, unit)
-            return text.replace(".", ",") if french else text
-    return ("%d o" if french else "%d B") % size
+            return "%s %s" % (fmt.one_decimal(size / scale), _(unit))
+    return _("%d o") % size
 
 
 def read_share(lines, size):

@@ -71,6 +71,14 @@ def _damage(a, players):
                       "%d vs %d" % (x.total, sum(x.targets.values())))
 
 
+def _support(a, players):
+    """An Evoker's credit is somebody's damage: both ends of the same lines."""
+    given = sum(p.support_damage for p in players)
+    received = sum(p.support_received for p in players)
+    check(given == received, "support credited == support received",
+          "%d vs %d" % (given, received))
+
+
 def _healing(a, players):
     """Healing: effective, per ability, per target, and overheal."""
     # 4. Healing: effective == sum of abilities == sum over targets.
@@ -222,7 +230,7 @@ def _casts(a, players):
               "%d vs %d" % (placed, len(p.cast_log)))
 
 
-FAMILIES = (_damage, _healing, _taken, _pulls, _deaths, _bounds, _shields, _interrupts,
+FAMILIES = (_damage, _support, _healing, _taken, _pulls, _deaths, _bounds, _shields, _interrupts,
             _casts)
 
 

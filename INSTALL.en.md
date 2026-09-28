@@ -6,22 +6,22 @@ LogsWoW needs only **Python 3.8 or newer**. Nothing else to install: no
 library, no account, no connection. There are two ways to get it, and
 the first is almost always enough:
 
-- **The single file `logswow-0.9.0.pyz`**, attached to every published
+- **The single file `logswow-0.10.0.pyz`**, attached to every published
   version (the repository's "Releases" page). It is the whole program in
-  one file of about 140 KB, which runs as it is from any folder.
+  one file of about 170 KB, which runs as it is from any folder.
 - **The source code** ("Code" button then "Download ZIP", or
   `git clone`), for those who want to read the code or run the tests.
 
 The repository is public: no account is needed to download. You can
 also simply pass the `.pyz` file around: nothing more is needed.
 
-In the examples below, replace `0.9.0` with the number of the version
+In the examples below, replace `0.10.0` with the number of the version
 you downloaded.
 
-LogsWoW speaks your machine's language: French on a French machine,
-English on every other. Add `--langue en` to a command to force English,
-or set it once and for all with the environment variable
-`LOGSWOW_LANGUE=en`.
+LogsWoW speaks your machine's language when it knows it (English,
+French, German, Spanish), English otherwise. Add `--langue en` to a
+command to force English (`de` for German, `es` for Spanish), or set it
+once and for all with the environment variable `LOGSWOW_LANGUE=en`.
 
 ---
 
@@ -64,17 +64,17 @@ The game then writes `WoWCombatLog-<date>.txt` in its `Logs` folder.
 
 ### 2. Get LogsWoW
 
-Download `logswow-0.9.0.pyz` and put it wherever you like, for instance
+Download `logswow-0.10.0.pyz` and put it wherever you like, for instance
 in `Documents\LogsWoW`.
 
 ### 3. Run it
 
-**Double-click `logswow-0.9.0.pyz`**: the LogsWoW window opens. It lists
+**Double-click `logswow-0.10.0.pyz`**: the LogsWoW window opens. It lists
 the logs it found (on drives C: to H:), you choose one, then the fights,
 and "Create the report and open it" shows the page in your browser.
 
 A black window also opens behind it: that is normal. To stop seeing it,
-rename the file to `logswow-0.9.0.pyzw` (with a **w** at the end); to
+rename the file to `logswow-0.10.0.pyzw` (with a **w** at the end); to
 have it on the desktop, right-click → Send to → Desktop (create
 shortcut).
 
@@ -83,14 +83,14 @@ Command Prompt, go to that folder, then:
 
 ```
 cd %USERPROFILE%\Documents\LogsWoW
-py logswow-0.9.0.pyz where
+py logswow-0.10.0.pyz where
 ```
 
 `where` shows the game's `Logs` folder (it looks on drives C: to H:) and
 the latest logs in it. Then:
 
 ```
-py logswow-0.9.0.pyz report "C:\Program Files (x86)\World of Warcraft\_retail_\Logs\WoWCombatLog-091826_203000.txt"
+py logswow-0.10.0.pyz report "C:\Program Files (x86)\World of Warcraft\_retail_\Logs\WoWCombatLog-091826_203000.txt"
 ```
 
 The HTML page (laid out in tabs; `--format pages` or `--format longue`
@@ -142,8 +142,8 @@ Without it, the terminal commands still work.
 
 ```
 mkdir -p ~/LogsWoW
-mv ~/Downloads/logswow-0.9.0.pyz ~/LogsWoW/
-python3 ~/LogsWoW/logswow-0.9.0.pyz
+mv ~/Downloads/logswow-0.10.0.pyz ~/LogsWoW/
+python3 ~/LogsWoW/logswow-0.10.0.pyz
 ```
 
 (On a system in French, the folder is `~/Téléchargements`.)
@@ -157,7 +157,7 @@ rename the file `logswow.pyz`, so that the shortcut still works after
 updates, then paste this into a terminal:
 
 ```
-mv ~/LogsWoW/logswow-0.9.0.pyz ~/LogsWoW/logswow.pyz
+mv ~/LogsWoW/logswow-0.10.0.pyz ~/LogsWoW/logswow.pyz
 mkdir -p ~/.local/share/applications
 cat > ~/.local/share/applications/logswow.desktop <<END
 [Desktop Entry]
@@ -171,23 +171,23 @@ END
 ```
 
 The commands stay available in the terminal (if you renamed the file,
-write `logswow.pyz` instead of `logswow-0.9.0.pyz`):
+write `logswow.pyz` instead of `logswow-0.10.0.pyz`):
 
 ```
-python3 ~/LogsWoW/logswow-0.9.0.pyz where
+python3 ~/LogsWoW/logswow-0.10.0.pyz where
 ```
 
 The file can also run directly, like a command:
 
 ```
-chmod +x ~/LogsWoW/logswow-0.9.0.pyz
-~/LogsWoW/logswow-0.9.0.pyz where
+chmod +x ~/LogsWoW/logswow-0.10.0.pyz
+~/LogsWoW/logswow-0.10.0.pyz where
 ```
 
 To stop typing the path, add at the end of `~/.bashrc`:
 
 ```
-alias logswow='python3 ~/LogsWoW/logswow-0.9.0.pyz'
+alias logswow='python3 ~/LogsWoW/logswow-0.10.0.pyz'
 ```
 
 then open a new terminal: `logswow where`, `logswow report …`.
@@ -216,7 +216,7 @@ find ~ -name 'WoWCombatLog*.txt' 2>/dev/null
 Put the path in quotes: it contains spaces.
 
 ```
-python3 ~/LogsWoW/logswow-0.9.0.pyz report "$HOME/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
+python3 ~/LogsWoW/logswow-0.10.0.pyz report "$HOME/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
 xdg-open "$HOME/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.html"
 ```
 
@@ -246,15 +246,15 @@ installer, which provides a recent Tkinter (with Homebrew:
 
 ```
 mkdir -p ~/LogsWoW
-mv ~/Downloads/logswow-0.9.0.pyz ~/LogsWoW/
-python3 ~/LogsWoW/logswow-0.9.0.pyz
+mv ~/Downloads/logswow-0.10.0.pyz ~/LogsWoW/
+python3 ~/LogsWoW/logswow-0.10.0.pyz
 ```
 
 The window opens. For the commands, in the same Terminal:
 
 ```
-python3 ~/LogsWoW/logswow-0.9.0.pyz where
-python3 ~/LogsWoW/logswow-0.9.0.pyz report "/Applications/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
+python3 ~/LogsWoW/logswow-0.10.0.pyz where
+python3 ~/LogsWoW/logswow-0.10.0.pyz report "/Applications/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
 open "/Applications/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.html"
 ```
 
@@ -267,7 +267,7 @@ If the game's folder refuses writing, write the page elsewhere with
 
 To read the code or run the tests, download the repository's ZIP (or
 `git clone`), go **into the folder that contains `logswow`**, and
-replace `logswow-0.9.0.pyz` with `-m logswow`:
+replace `logswow-0.10.0.pyz` with `-m logswow`:
 
 ```
 python3 -m logswow where              # Linux, macOS
@@ -288,9 +288,9 @@ compute yours and compare:
 
 | System | Command |
 |---|---|
-| Windows | `certutil -hashfile logswow-0.9.0.pyz SHA256` |
-| Linux | `sha256sum logswow-0.9.0.pyz` |
-| macOS | `shasum -a 256 logswow-0.9.0.pyz` |
+| Windows | `certutil -hashfile logswow-0.10.0.pyz SHA256` |
+| Linux | `sha256sum logswow-0.10.0.pyz` |
+| macOS | `shasum -a 256 logswow-0.10.0.pyz` |
 
 ---
 
@@ -310,7 +310,7 @@ compute yours and compare:
 - **The window does not open, and the terminal mentions Tkinter**:
   install the package it names (on Linux Mint: `sudo apt install python3-tk`).
 - **Run `diagnose` first**:
-  `python3 logswow-0.9.0.pyz diagnose "path/to/the/log.txt"`. It shows
+  `python3 logswow-0.10.0.pyz diagnose "path/to/the/log.txt"`. It shows
   what the reader understood of the file; the line that matters is
   `READ PROBLEMS: 0`.
 - **"No fight was found"**: the file is empty, or `/combatlog` was not

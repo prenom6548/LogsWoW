@@ -34,10 +34,11 @@ there; on Linux Mint, Ubuntu and Debian it is installed once with
 `sudo apt install python3-tk` (the window says so itself when it is
 missing). The commands do not need it.
 
-**English or French.** The window, the commands and the report speak
-your machine's language: French on a French machine, English on every
-other. `--langue en` or `--langue fr` forces one or the other, and the
+**English, French, German or Spanish.** The window, the commands and the
+report speak your machine's language when LogsWoW knows it, English
+otherwise. `--langue en`, `fr`, `de` or `es` forces one of them, and the
 `LOGSWOW_LANGUE` environment variable sets a choice once and for all.
+The documentation exists in English and French.
 Spell, boss and player names stay as the log wrote them, in your game
 client's language.
 
@@ -46,7 +47,7 @@ client's language.
 **Step-by-step instructions for Windows, Linux (Linux Mint included) and
 macOS are in [`INSTALL.en.md`](INSTALL.en.md).** Every published version
 ships one single file, `logswow-<version>.pyz`, which runs as it is:
-`python3 logswow-0.9.0.pyz report WoWCombatLog.txt`.
+`python3 logswow-0.10.0.pyz report WoWCombatLog.txt`.
 
 Nothing to install. Python 3.8 or newer, and that is all: no
 `pip install`, no dependency, no network. The package is copied or
@@ -82,7 +83,7 @@ python3 -m logswow where
 | `list FILE` | lists the fights in the file, one line each |
 | `diagnose FILE` | shows what the reader understood, and what it did not |
 | `where` | looks for the game's `Logs` folder |
-| *(all)* | `--langue en\|fr\|auto` the language of the interface and the report |
+| *(all)* | `--langue en\|fr\|de\|es\|auto` the language of the interface and the report |
 
 **Run `diagnose` first** after every game patch. It shows the field
 layout as it was *measured in your file*, the list of events it met, and
@@ -141,7 +142,12 @@ misread file would be worse than no report at all.
   Bombardments an ally sets off. Those amounts are already in the damage
   of whoever dealt the hits: they are shown apart on the Evoker's panel,
   never added a second time. Warcraft Logs moves them to the Evoker
-  instead, hence a gap between the two for buffed players.
+  instead: the **Reattributed** column of the damage ranking makes that
+  same move, beside the total rather than in place of it, whenever a
+  fight contains such lines.
+- **Abandoned keys**: a key restarted or left for another is
+  "abandoned", not "over time", and the **Unfinished keys** tile also
+  counts the one the log leaves open.
 - **Physical or magic**: the share of damage taken and dealt that was
   physical, magic or both, as percentages, over the whole fight then pull
   by pull, with the detail by school (Shadow, Fire, Nature…).
@@ -208,6 +214,11 @@ python3 -m logswow report WoWCombatLog.txt --only "Murder Row"
   crit — it is the amount before the critical multiplier. Dividing one by
   the other gives a believable, wrong percentage. What really is in the
   file, and is shown, is the **damage absorbed** by shields.
+- **It does not compute an FF Logs-style aDPS.** Giving back to whoever
+  cast it the share of damage a Bloodlust, a Power Infusion or a raid
+  buff produced takes knowing what each hit would have done without it;
+  the log writes that only for an Evoker's buffs, and that is exactly
+  what the **Reattributed** column shows.
 - **It does not judge your rotation.** It shows your pauses, your
   abilities and your active effects. Saying "you should have pressed
   this" takes your specialization's rules, written and maintained by

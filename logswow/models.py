@@ -223,7 +223,8 @@ class Player:
         "spec_id", "auras_gained", "auras_applied", "casts_by_spell",
         "_gained_until", "_applied_until", "absorb_done", "pet_casts",
         "absorb_by_ability", "pet_damage_taken",
-        "support_damage", "support_healing", "support_by_ability", "moved_health",
+        "support_damage", "support_healing", "support_by_ability", "support_received",
+        "moved_health",
         "damage_to_bosses",
         "first_cast_ts", "last_cast_ts", "downtime_ms",
         "longest_gaps", "recent", "min_hp_fraction", "max_hp",
@@ -261,6 +262,10 @@ class Player:
         # inside those players' own totals, so never added to this one.
         self.support_damage = 0
         self.support_healing = 0
+        # The other side of the same lines: the part of *this* player's
+        # damage the game credits to an Evoker's buffs. Still inside
+        # `damage_done`; only the report's "reattributed" column moves it.
+        self.support_received = 0
         # Health a summon of theirs moved between players (Spirit Link
         # Totem), taken out of `healing_done`: see `_feed_moved_health`.
         self.moved_health = 0

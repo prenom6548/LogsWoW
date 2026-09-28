@@ -381,6 +381,44 @@ class TestSegments(unittest.TestCase):
         self.assertTrue(segments[0].truncated)
         self.assertEqual(segments[0].outcome, "interrompu")
 
+    def _keys(self, payloads):
+        splitter = Splitter()
+        for second, payload in payloads:
+            _ts, fields = split_line("9/18/2026 20:%02d:%02d.123-4  %s"
+                                     % (second // 60, second % 60, payload))
+            splitter.feed(build_event(0, fields, 1))
+        return [s for s in splitter.finish() if s.kind == "keystone"]
+
+    def test_a_key_restarted_is_abandoned_not_late(self):
+        """Two real logs restarted a dungeon: the client writes, before every
+        CHALLENGE_MODE_START, an END with nothing in it -- success, level and
+        time all zero. With a key still open, that is the end of a key nobody
+        finished, and it was being counted as a key over time."""
+        keys = self._keys([
+            (0, "CHALLENGE_MODE_END,2813,0,0,0,0.000000,0.000000"),
+            (1, 'CHALLENGE_MODE_START,"Allee",2813,587,14,[9,10,147]'),
+            (500, "CHALLENGE_MODE_END,2813,0,0,0,0.000000,0.000000"),
+            (501, 'CHALLENGE_MODE_START,"Allee",2813,587,12,[9,10,147]'),
+            (2000, "CHALLENGE_MODE_END,2813,1,12,1724985,370.790710,3161.141357"),
+            (2100, "CHALLENGE_MODE_END,1762,0,0,0,0.000000,0.000000"),
+            (2101, 'CHALLENGE_MODE_START,"Repos",1762,249,12,[9,10,147]'),
+            (2400, "CHALLENGE_MODE_END,1762,0,12,2900000,0.000000,0.000000"),
+        ])
+        self.assertEqual([(k.key_level, k.outcome) for k in keys],
+                         [(14, "abandonnée"), (12, "dans les temps"), (12, "hors des temps")])
+        self.assertEqual(keys[0].success, None)
+        self.assertFalse(keys[0].truncated)
+        self.assertFalse(keys[0].is_wipe)
+
+    def test_a_key_the_file_ends_in_is_cut_short_and_a_new_one_abandons_it(self):
+        keys = self._keys([
+            (1, 'CHALLENGE_MODE_START,"Allee",2813,587,14,[9]'),
+            # A START with no empty END before it: the key is abandoned all the same.
+            (300, 'CHALLENGE_MODE_START,"Repos",1762,249,12,[9]'),
+        ])
+        self.assertEqual([k.outcome for k in keys], ["abandonnée", "interrompu"])
+        self.assertTrue(keys[1].truncated)
+
 
 class TestAnalysis(unittest.TestCase):
     def setUp(self):
@@ -2533,6 +2571,34 @@ class TestWhatSixteenLogsFound(unittest.TestCase):
         self.assertEqual(evoker.label, "Braise")
         self.assertEqual(sum(a.total for a in evoker.support_by_ability.values()), 950)
 
+    def test_the_reattributed_column_moves_the_evokers_share_and_keeps_the_total(self):
+        """What the file allows of an "aDPS" (0.10.0): Warcraft Logs' move of
+        the *_SUPPORT share from the ally to the Evoker, beside the damage."""
+        import tempfile
+        from unittest import mock
+
+        from logswow import fmt
+
+        segments = self._run(self._lines())
+        analysis = segments[0].analysis
+        ally = analysis.players[self.ALLY_GUID]
+        self.assertEqual(ally.support_received, 950)
+        self.assertEqual(ally.damage_done, 12000)
+        log, _fixture = run_fixture()
+        with tempfile.TemporaryDirectory() as folder:
+            target = os.path.join(folder, "r.html")
+            with mock.patch.object(fmt, "compact", lambda value: "=%d" % value):
+                ReportWriter(log, segments, target, wowhead="off", cast_order=False,
+                             layout="longue").write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertIn("<th class=n>Réattribué</th>", page)
+        # The ally keeps 12,000 and is reattributed 11,050; the Evoker, who
+        # dealt nothing, gets a row and the 950.
+        self.assertIn("<td class=n>=12000</td><td class=n>=11050</td>", page)
+        self.assertIn("<td class=n>=0</td><td class=n>=950</td>", page)
+        self.assertIn("Infusion de puissance", page)
+
     def test_letting_go_of_an_empowered_spell_is_not_an_interrupt(self):
         """SPELL_EMPOWER_INTERRUPT is SPELL + _EMPOWER_INTERRUPT. Read as
         SPELL_EMPOWER + _INTERRUPT, the Evoker 'interrupted' the null GUID."""
@@ -3013,6 +3079,7 @@ class TestOwnerFeedback(unittest.TestCase):
                 self.assertIn("<b>%s</b><span>Pulls de boss" % bosses, page)
                 self.assertIn("<b>1</b><span>Wipes de boss", page)
                 self.assertIn("<b>1</b><span>Clés hors des temps", page)
+                self.assertIn("<b>0</b><span>Clés non terminées", page)
 
 
 class TestLayouts(unittest.TestCase):
@@ -3406,7 +3473,10 @@ class TestSixthAuditFindings(unittest.TestCase):
 
 
 class TestLanguages(unittest.TestCase):
-    """French and English (0.9.0): one set of numbers, two ways of saying them."""
+    """French, English (0.9.0), German and Spanish (0.10.0): one set of numbers,
+    four ways of saying them."""
+
+    TABLES = ("en", "de", "es")
 
     PACKAGE = os.path.join(ROOT, "logswow")
     SLOT = re.compile(r"%(?:\.0s|[-0-9.]*[sdfr]|%)")
@@ -3439,23 +3509,30 @@ class TestLanguages(unittest.TestCase):
                     nouns.setdefault(node.args[1].value, "%s:%d" % (name, node.lineno))
         return texts, nouns
 
-    def test_every_text_has_its_english_and_keeps_its_placeholders_and_tags(self):
-        from logswow import lang_en
+    def test_every_text_has_its_translation_and_keeps_its_placeholders_and_tags(self):
+        import importlib
 
+        from logswow.i18n import LANGUAGES
+
+        self.assertEqual(LANGUAGES, ("fr",) + self.TABLES)
         texts, nouns = self._marked()
         self.assertGreater(len(texts), 250)
-        for french, where in texts.items():
-            with self.subTest(where=where):
-                self.assertIn(french, lang_en.TEXTS)
-                english = lang_en.TEXTS[french]
-                kinds = [re.sub(r"[-0-9.]", "", slot)[-1] for slot in self.SLOT.findall(french)]
-                self.assertEqual(
-                    kinds, [re.sub(r"[-0-9.]", "", slot)[-1]
-                            for slot in self.SLOT.findall(english)])
-                self.assertEqual(self.TAG.findall(french), self.TAG.findall(english))
-        # Nothing in the table the code no longer says.
-        self.assertEqual(sorted(set(lang_en.TEXTS) - set(texts)), [])
-        self.assertEqual(sorted(set(nouns) - set(lang_en.PLURALS)), [])
+        for code in self.TABLES:
+            table = importlib.import_module("logswow.lang_" + code)
+            for french, where in texts.items():
+                with self.subTest(language=code, where=where):
+                    self.assertIn(french, table.TEXTS)
+                    translated = table.TEXTS[french]
+                    kinds = [re.sub(r"[-0-9.]", "", slot)[-1]
+                             for slot in self.SLOT.findall(french)]
+                    self.assertEqual(
+                        kinds, [re.sub(r"[-0-9.]", "", slot)[-1]
+                                for slot in self.SLOT.findall(translated)])
+                    self.assertEqual(self.TAG.findall(french), self.TAG.findall(translated))
+            with self.subTest(language=code):
+                # Nothing in the table the code no longer says.
+                self.assertEqual(sorted(set(table.TEXTS) - set(texts)), [])
+                self.assertEqual(sorted(set(nouns) - set(table.PLURALS)), [])
 
     def test_the_current_version_is_told_in_english_too(self):
         import subprocess
@@ -3470,11 +3547,23 @@ class TestLanguages(unittest.TestCase):
             capture_output=True, text=True, timeout=60)
         self.assertIn("**English**", result.stdout)
 
-    def test_every_specialization_has_its_english_name(self):
-        from logswow import lang_en
-        from logswow.specs import SPECS
+    def test_every_specialization_has_its_name_in_every_language(self):
+        import importlib
 
-        self.assertEqual(set(SPECS), set(lang_en.SPECS))
+        from logswow.i18n import set_language
+        from logswow.specs import SPECS, label_of
+
+        for code in self.TABLES:
+            with self.subTest(language=code):
+                table = importlib.import_module("logswow.lang_" + code)
+                self.assertEqual(set(SPECS), set(table.SPECS))
+        # English puts the specialization first; German and Spanish do not.
+        labels = []
+        for code in ("en", "de", "es"):
+            set_language(code)
+            labels.append(label_of(268))
+        self.assertEqual(labels, ["Brewmaster Monk", "Mönch Braumeister",
+                                  "Monje Maestro cervecero"])
 
     def test_no_function_hides_the_translation_behind_a_variable(self):
         # `for _ in ...` or `a, _ = ...` in a function makes every _() in
@@ -3501,12 +3590,17 @@ class TestLanguages(unittest.TestCase):
 
         self.assertEqual(choose("en"), "en")
         self.assertEqual(choose("fr_FR.UTF-8"), "fr")
-        self.assertEqual(choose("de"), "en")
+        self.assertEqual(choose("de_AT.UTF-8"), "de")
+        self.assertEqual(choose("es-MX"), "es")
+        self.assertEqual(choose("it"), "en")
         with mock.patch.dict(os.environ, {"LOGSWOW_LANGUE": ""}), \
                 mock.patch("logswow.i18n.system_language", return_value="fr"):
             self.assertEqual(choose("auto"), "fr")
         with mock.patch.dict(os.environ, {"LOGSWOW_LANGUE": ""}), \
                 mock.patch("logswow.i18n.system_language", return_value="de"):
+            self.assertEqual(choose("auto"), "de")
+        with mock.patch.dict(os.environ, {"LOGSWOW_LANGUE": ""}), \
+                mock.patch("logswow.i18n.system_language", return_value="pt"):
             self.assertEqual(choose("auto"), "en")
         with mock.patch.dict(os.environ, {"LOGSWOW_LANGUE": "en"}):
             self.assertEqual(choose("auto"), "en")
@@ -3524,12 +3618,25 @@ class TestLanguages(unittest.TestCase):
 
         french = (fmt.number(25361906), fmt.compact(25361906), fmt.percent(0.456),
                   fmt.plural(0, "joueur"), fmt.decimal(0.5))
-        self.assertEqual(french, ("25\u202f361\u202f906", "25.4\u202fM", "46\u202f%",
+        # The decimal comma in the compact form too: "25.4 M" was an
+        # English point in a French number until 0.10.0.
+        self.assertEqual(french, ("25\u202f361\u202f906", "25,4\u202fM", "46\u202f%",
                                   "0 joueur", "0,5"))
-        set_language("en")
-        self.assertEqual((fmt.number(25361906), fmt.compact(25361906), fmt.percent(0.456),
-                          fmt.plural(0, "joueur"), fmt.plural(1, "joueur"), fmt.decimal(0.5)),
-                         ("25,361,906", "25.4M", "46%", "0 players", "1 player", "0.5"))
+        self.assertEqual((fmt.compact(1e6 - 1), fmt.compact(2e9), fmt.compact(-1500),
+                          fmt.compact(20000)),
+                         ("1\u202fM", "2\u202fMd", "-1,5\u202fk", "20\u202fk"))
+        expected = {
+            "en": ("25,361,906", "25.4M", "46%", "0 players", "1 player", "0.5"),
+            "de": ("25.361.906", "25,4\u202fMio.", "46\u202f%", "0 Spieler", "1 Spieler",
+                   "0,5"),
+            "es": ("25.361.906", "25,4\u202fM", "46\u202f%", "0 jugadores", "1 jugador",
+                   "0,5"),
+        }
+        for code, numbers in expected.items():
+            set_language(code)
+            self.assertEqual((fmt.number(25361906), fmt.compact(25361906), fmt.percent(0.456),
+                              fmt.plural(0, "joueur"), fmt.plural(1, "joueur"),
+                              fmt.decimal(0.5)), numbers)
 
     def test_an_english_report_says_everything_in_english_and_the_same_numbers(self):
         import tempfile
@@ -3555,8 +3662,29 @@ class TestLanguages(unittest.TestCase):
                        "Durée", "Attaque", "sorts"):
             self.assertNotIn(french, text)
         # The same fight, the same totals, each in its own typography.
-        self.assertIn("45.6\u202fk", pages["fr"])
+        self.assertIn("45,6\u202fk", pages["fr"])
         self.assertIn("45.6k", english)
+
+    def test_german_and_spanish_reports_carry_the_same_numbers(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as folder:
+            for code, words, total in (("de", ("Verursachter Schaden", "Details pro Spieler",
+                                               "Nahkampf"), "45,6\u202fTsd."),
+                                       ("es", ("Daño infligido", "Detalle por jugador",
+                                               "Cuerpo a cuerpo"), "45,6\u202fmil")):
+                out = os.path.join(folder, code + ".html")
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    cli_main(["report", FIXTURE, "--langue", code, "-o", out,
+                              "--format", "longue"])
+                with open(out, encoding="utf-8") as handle:
+                    page = handle.read()
+                with self.subTest(language=code):
+                    self.assertIn("<html lang=%s>" % code, page)
+                    for word in words:
+                        self.assertIn(word, page)
+                    self.assertIn(total, page)
 
     def test_the_command_line_speaks_the_language_asked_for(self):
         out = io.StringIO()
