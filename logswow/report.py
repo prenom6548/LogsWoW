@@ -21,6 +21,7 @@ from .specs import label_of
 from .timestamps import format_duration
 from .report_casts import CastOrderMixin, chip_rules
 from .report_panels import PanelsMixin
+from .report_layouts import LayoutsMixin, write_atomic
 from .report_schools import SCHOOL_CSS, SchoolsMixin
 from .report_timeline import TimelineMixin
 from .wowhead import resolve
@@ -115,11 +116,15 @@ def _council_note(names):
             "comptes sur le boss." % (", ".join(fmt.esc(name) for name in names), NBSP))
 
 
-class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin):
+class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, LayoutsMixin):
     """Writes the whole page for a list of segments."""
 
-    def __init__(self, log, segments, out_path, wowhead="auto", cast_order=True):
+    def __init__(self, log, segments, out_path, wowhead="auto", cast_order=True,
+                 layout="longue"):
         self.log = log
+        # "longue", "onglets" or "pages" (report_layouts.py). For "pages",
+        # out_path is a folder and `write` returns its index.html.
+        self.layout = layout
         self.segments = segments
         self.out_path = out_path
         # None disables spell links entirely; "" is English, "fr" French...
@@ -133,52 +138,51 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin):
         self.cast_order = cast_order
 
     def write(self):
-        """Assemble the page and put it in place in one step; returns its path."""
+        """Assemble the report and put it in place; returns the file to open."""
+        if self.layout == "onglets":
+            return self._write_tabbed()
+        if self.layout == "pages":
+            return self._write_pages()
         body = [self._overview()]
         for segment in self.segments:
-            body.append(self._segment(segment))
+            head, parts = self._segment(segment)
+            body.append(head + "".join(parts.values()))
         body.append(self._footer())
         # The head comes last: it carries one CSS rule per spell that a
-        # cast-order chip shows, and those are known only now.
-        parts = [self._head()] + body
-        # Written beside the target and moved into place in one step: a
-        # full disk or an interrupt halfway leaves the previous report
-        # whole, never a truncated page in its place.
-        partial = self.out_path + ".partiel"
-        try:
-            with open(partial, "w", encoding="utf-8") as handle:
-                handle.write("".join(parts))
-            os.replace(partial, self.out_path)
-        finally:
-            if os.path.exists(partial):
-                os.remove(partial)
+        # cast-order chip shows, and those are known only now. Written
+        # beside the target and moved into place in one step: a full disk
+        # or an interrupt halfway leaves the previous report whole.
+        write_atomic(self.out_path, self._head() + "".join(body))
         return self.out_path
 
     # -- page ------------------------------------------------------------
 
-    def _head(self):
+    def _head(self, extra_css="", wrap_class="wrap"):
+        # `class=wrap` stays unquoted: the long page is the same bytes as before.
+        wrap = "class=wrap" if wrap_class == "wrap" else "class='%s'" % wrap_class
         return (
             "<!doctype html><html lang=fr><head><meta charset=utf-8>"
             '<meta name=viewport content="width=device-width,initial-scale=1">'
-            "<title>LogsWoW — %s</title><style>%s%s</style></head><body><div class=wrap>"
+            "<title>LogsWoW — %s</title><style>%s%s%s</style></head><body><div %s>"
             % (fmt.esc(os.path.basename(self.log.path)), CSS + SCHOOL_CSS,
-               chip_rules(self._spell_ids) if self._spell_ids else "")
+               chip_rules(self._spell_ids) if self._spell_ids else "", extra_css, wrap)
         )
 
-    def _overview(self):
+    def _overview(self, link=None):
         layout = self.log.layout
         rows = []
         for segment in self.segments:
             analysis = segment.analysis
             outcome = segment.outcome
             css = "ok" if segment.success else ("ko" if segment.is_wipe else "")
+            name = (link(segment) if link is not None else
+                    "<a href='#s%d' class=name>%s</a>" % (segment.index, fmt.esc(segment.label)))
             rows.append(
-                "<tr><td><a href='#s%d' class=name>%s</a>%s</td>"
+                "<tr><td>%s%s</td>"
                 "<td class=n>%s</td><td class=n>%s</td><td class=n>%s</td>"
                 "<td class=n>%s</td><td class=n>%s</td><td class=n>%d</td></tr>"
                 % (
-                    segment.index,
-                    fmt.esc(segment.label),
+                    name,
                     "<span class='pill %s'>%s</span>" % (css, fmt.esc(outcome)) if outcome else "",
                     format_duration(analysis.duration_ms),
                     fmt.compact(analysis.total_damage),
@@ -276,24 +280,25 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin):
                 " &middot; journal interrompu" if segment.truncated else "",
             )
         )
-        body = [
-            head,
-            self._orphans(analysis),
-            self._composition(analysis),
-            self._timeline(analysis),
-            self._pulls(analysis),
-            self._schools(analysis),
-            "<div class=cols>",
+        return head, self._sections(analysis, seconds)
+
+    def _sections(self, analysis, seconds):
+        """{part: html} of one fight, rendered in the order the long page shows them."""
+        parts = {}
+        parts["orphans"] = self._orphans(analysis)
+        parts["composition"] = self._composition(analysis)
+        parts["timeline"] = self._timeline(analysis)
+        parts["pulls"] = self._pulls(analysis)
+        parts["schools"] = self._schools(analysis)
+        parts["rankings"] = "<div class=cols>%s%s</div>" % (
             self._ranking(analysis, "damage_done", "Degats infliges", "DPS", seconds),
-            self._ranking(analysis, "healing_done", "Soins effectifs", "HPS", seconds),
-            "</div>",
-            self._taken(analysis),
-            self._enemy_casts(analysis),
-            self._deaths(analysis),
-            self._players(analysis, seconds),
-            self._enemies(analysis, seconds),
-        ]
-        return "".join(body)
+            self._ranking(analysis, "healing_done", "Soins effectifs", "HPS", seconds))
+        parts["taken"] = self._taken(analysis)
+        parts["enemy_casts"] = self._enemy_casts(analysis)
+        parts["deaths"] = self._deaths(analysis)
+        parts["players"] = self._players(analysis, seconds)
+        parts["enemies"] = self._enemies(analysis, seconds)
+        return parts
 
     def _orphans(self, analysis):
         """Damage the file gives to nobody, when there is enough to matter.

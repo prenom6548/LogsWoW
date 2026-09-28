@@ -806,6 +806,27 @@ Left as they are, because the file cannot say: Shadowy Apparition (a
 proc alone at a button's pace) and Windstrike (always beside a *paid*
 Lightning Bolt; which of the two set the other off is not in the line).
 
+### Three layouts, and none of them runs anything (2026-09-28)
+
+The owner found the single page long and asked for tabs or pages, then
+for the reader to choose. `report_layouts.py` gives three: **onglets**
+(the default now), **pages**, **longue**. The tabs are radio buttons a
+label points at, and CSS shows the section whose button is checked --
+one rule per fight (`#f3:checked~.layout .v3`), six generic rules for
+the tabs inside a fight -- the technique the cast-order filter already
+used, so the page still has no script; Chromium confirmed it by
+clicking through a real 22-fight log. `pages` is a folder with
+`index.html` and `combat-NN.html`, relative links only; its chip CSS is
+per page, and pages of an earlier report of ours that the new one no
+longer has are removed, never anything else. A folder that holds
+anything but a LogsWoW report is refused like a file is
+(`cli._refuse_folder`), and so is the log's own folder.
+
+`ReportWriter._segment` now returns the fight's head and its parts by
+name, in the order the long page always drew them. **The long page was
+proved byte-identical** on the fixture and on a real 12 MB report, old
+code against new, before any other layout existed on top of it.
+
 ### What the owner found in their own reports (2026-09-28)
 
 The owner read a report of their own night, sent the log, a Warcraft
@@ -988,6 +1009,7 @@ logswow/report_timeline.py  the SVG timeline
 logswow/report_panels.py    per-player and per-enemy panels
 logswow/report_casts.py     the cast order by pull: chips, CSS-only filter
 logswow/report_schools.py   physical / magic / mixed shares, per run and per pull
+logswow/report_layouts.py   the three layouts: long page, CSS-only tabs, folder of pages
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
 logswow/fmt.py          formatters (compact, percent, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
@@ -1058,7 +1080,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 206 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 211 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestFifthAuditFindings`), and each one was regression-checked the

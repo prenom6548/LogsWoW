@@ -17,6 +17,7 @@ from .analysis import SegmentAnalysis
 from .diagnose import run as run_diagnose
 from .parse import LogFile
 from .report import ReportWriter
+from .report_layouts import LAYOUTS
 from .segment import Splitter
 from .timestamps import format_duration
 
@@ -223,6 +224,35 @@ def _refuse_to_overwrite(out, log, force):
     return None
 
 
+def _refuse_folder(folder, log, force):
+    """Why a folder of pages must not be written at `folder`, or None.
+
+    The same care as `_refuse_to_overwrite`, for the "pages" layout: a
+    folder that exists must be empty, or hold a LogsWoW report already
+    (its index.html says so); anything else is refused unless --force.
+    The log being read is never touched either way.
+    """
+    if not os.path.exists(folder):
+        return None
+    if not os.path.isdir(folder):
+        return ("%s existe et n'est pas un dossier : donnez un autre nom avec -o.\n" % folder)
+    if os.path.dirname(os.path.abspath(log)) == os.path.abspath(folder):
+        return ("Refus d'ecrire les pages dans le dossier du journal lui-meme (%s). "
+                "Donnez un autre dossier avec -o.\n" % folder)
+    if force or not os.listdir(folder):
+        return None
+    if _is_our_report(os.path.join(folder, "index.html")):
+        return None
+    return ("%s contient deja autre chose qu'un rapport LogsWoW : refus d'y ecrire. "
+            "Choisissez un autre dossier, ou ajoutez --force si c'est voulu.\n" % folder)
+
+
+def default_output(log, layout):
+    """Next to the log: a page under its name, or a folder under its name."""
+    stem = os.path.splitext(log)[0]
+    return stem if layout == "pages" else stem + ".html"
+
+
 def _pull_gap_ms(args):
     seconds = getattr(args, "pull_gap", None)
     return None if seconds is None else int(seconds * 1000)
@@ -246,14 +276,17 @@ def command_report(args):
             % args.only
         )
         return 2
-    out = args.out or os.path.splitext(args.log)[0] + ".html"
-    refusal = _refuse_to_overwrite(out, args.log, args.force)
+    out = args.out or default_output(args.log, args.layout)
+    if args.layout == "pages":
+        refusal = _refuse_folder(out, args.log, args.force)
+    else:
+        refusal = _refuse_to_overwrite(out, args.log, args.force)
     if refusal:
         sys.stderr.write(refusal)
         return 2
     try:
-        ReportWriter(log, chosen, out, wowhead=args.wowhead,
-                     cast_order=not args.no_cast_order).write()
+        out = ReportWriter(log, chosen, out, wowhead=args.wowhead,
+                           cast_order=not args.no_cast_order, layout=args.layout).write()
     except OSError as error:
         sys.stderr.write("Impossible d'ecrire %s : %s\n" % (out, error.strerror or error))
         return 2
@@ -418,6 +451,11 @@ def build_parser():
         "--sans-sequence", dest="no_cast_order", action="store_true",
         help="ne pas mettre l'ordre des sorts de chaque joueur : la page est "
              "environ deux fois plus legere")
+    report.add_argument(
+        "--format", dest="layout", choices=LAYOUTS, default="onglets",
+        help="presentation du rapport : onglets (un fichier, un combat et une "
+             "categorie a la fois, par defaut), pages (un dossier, une page par "
+             "combat) ou longue (tout sur une seule page)")
     report.add_argument(
         "--force", action="store_true",
         help="ecraser le fichier de sortie meme s'il n'est pas un rapport LogsWoW "

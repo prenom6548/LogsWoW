@@ -38,7 +38,8 @@ import webbrowser
 
 from . import __version__
 from .analysis import PULL_GAP_MS
-from .cli import Cancelled, _build, _refuse_to_overwrite, default_log_locations
+from .cli import (Cancelled, _build, _refuse_folder, _refuse_to_overwrite,
+                  default_log_locations)
 from .report import ReportWriter
 from .timestamps import format_duration
 
@@ -119,21 +120,43 @@ def fight_rows(segments):
     ]
 
 
-def default_report_path(log_path, chosen, segments):
-    """Next to the log, under its name; one fight gets its number in the name."""
+# The three presentations of report_layouts.py, as the window names them.
+LAYOUT_CHOICES = (
+    ("onglets", "Onglets (un fichier)"),
+    ("pages", "Pages (un dossier)"),
+    ("longue", "Une seule longue page"),
+)
+
+
+def default_report_path(log_path, chosen, segments, layout="onglets"):
+    """Next to the log, under its name; one fight gets its number in the name.
+
+    A page for "onglets" and "longue", a folder for "pages".
+    """
     stem = os.path.splitext(log_path)[0]
     if len(chosen) == 1 and len(segments) > 1:
-        return "%s-combat-%d.html" % (stem, chosen[0].index)
-    return stem + ".html"
+        stem = "%s-combat-%d" % (stem, chosen[0].index)
+    return stem if layout == "pages" else stem + ".html"
 
 
-def write_report(log, chosen, out, log_path, cast_order=True):
-    """Write the page, or say in French why not. Returns None or the reason."""
-    refusal = _refuse_to_overwrite(out, log_path, force=False)
+def report_entry(out, layout):
+    """The file to open: the page itself, or the folder's index.html."""
+    return os.path.join(out, "index.html") if layout == "pages" else out
+
+
+def _refusal(out, log_path, layout):
+    if layout == "pages":
+        return _refuse_folder(out, log_path, force=False)
+    return _refuse_to_overwrite(out, log_path, force=False)
+
+
+def write_report(log, chosen, out, log_path, cast_order=True, layout="onglets"):
+    """Write the report, or say in French why not. Returns None or the reason."""
+    refusal = _refusal(out, log_path, layout)
     if refusal:
         return refusal.strip()
     try:
-        ReportWriter(log, chosen, out, cast_order=cast_order).write()
+        ReportWriter(log, chosen, out, cast_order=cast_order, layout=layout).write()
     except OSError as error:
         return "Impossible d'ecrire %s : %s" % (out, error.strerror or error)
     return None
@@ -290,6 +313,13 @@ class App:
         ttk.Checkbutton(box, variable=self.cast_order,
                         text="Ordre des sorts de chaque joueur (la page est environ "
                              "deux fois plus lourde)").pack(anchor="w")
+        choice = ttk.Frame(box)
+        choice.pack(anchor="w", pady=(6, 0))
+        ttk.Label(choice, text="Présentation :").pack(side="left")
+        self.layout = tk.StringVar(value="onglets")
+        for value, text in LAYOUT_CHOICES:
+            ttk.Radiobutton(choice, text=text, value=value,
+                            variable=self.layout).pack(side="left", padx=(10, 0))
         line = ttk.Frame(box)
         line.pack(fill="x", pady=(8, 0))
         self.write_button = ttk.Button(line, text="Créer le rapport et l'ouvrir",
@@ -399,12 +429,19 @@ class App:
         chosen = [segment for segment in self.segments if segment.index in wanted]
         if not chosen:
             return
-        out = default_report_path(self.log_path, chosen, self.segments)
-        if _refuse_to_overwrite(out, self.log_path, force=False) or not _writable(out):
-            out = filedialog.asksaveasfilename(
-                parent=self.root, title="Où écrire le rapport ?",
-                initialdir=os.path.expanduser("~"), initialfile=os.path.basename(out),
-                defaultextension=".html", filetypes=(("Page web", "*.html"),))
+        layout = self.layout.get()
+        out = default_report_path(self.log_path, chosen, self.segments, layout)
+        if _refusal(out, self.log_path, layout) or not _writable(out):
+            if layout == "pages":
+                parent = filedialog.askdirectory(
+                    parent=self.root, title="Dans quel dossier écrire les pages ?",
+                    initialdir=os.path.expanduser("~"))
+                out = os.path.join(parent, os.path.basename(out)) if parent else ""
+            else:
+                out = filedialog.asksaveasfilename(
+                    parent=self.root, title="Où écrire le rapport ?",
+                    initialdir=os.path.expanduser("~"), initialfile=os.path.basename(out),
+                    defaultextension=".html", filetypes=(("Page web", "*.html"),))
             if not out:
                 return
         log, cast_order = self.log, self.cast_order.get()
@@ -415,10 +452,10 @@ class App:
 
         def work():
             try:
-                reason = write_report(log, chosen, out, self.log_path, cast_order)
+                reason = write_report(log, chosen, out, self.log_path, cast_order, layout)
             except Exception:       # noqa: BLE001 -- shown to the reader, not swallowed
                 reason = "Erreur inattendue en écrivant le rapport :\n\n" + traceback.format_exc()
-            self.messages.put(("written", out, reason))
+            self.messages.put(("written", report_entry(out, layout), reason))
 
         threading.Thread(target=work, daemon=True).start()
 

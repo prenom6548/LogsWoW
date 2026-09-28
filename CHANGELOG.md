@@ -3,7 +3,29 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
-## 0.5.1 — 2026-09-28
+## 0.6.0 — 2026-09-28
+
+**Trois présentations du rapport, au choix.**
+
+- **Onglets** (nouveau, par défaut) : un seul fichier. La liste des
+  combats à gauche ; un clic en affiche un, et ses rubriques sont des
+  onglets : Résumé, Dégâts et soins, Physique ou magique, Morts, Joueurs,
+  Ennemis. Un onglet vide (aucune mort, par exemple) n'apparaît pas.
+- **Pages** (nouveau) : un dossier, avec une page d'accueil
+  (`index.html`) et une page par combat, reliées par des liens
+  « Tous les combats », « précédent », « suivant ». Plus léger à ouvrir
+  pour une grosse soirée ; c'est un dossier à partager plutôt qu'un
+  fichier.
+- **Une seule longue page** : la présentation d'avant, identique.
+- Le choix se fait dans la fenêtre (« Présentation », à l'étape 3) ou en
+  ligne de commande : `--format onglets`, `--format pages` ou
+  `--format longue`.
+- Comme avant, aucune des trois ne contient de script ni ne charge quoi
+  que ce soit : les onglets sont faits en CSS seul.
+- Un dossier qui contient déjà autre chose qu'un rapport LogsWoW est
+  refusé (sauf `--force`), comme l'est un fichier existant.
+
+
 
 **Corrigé, d'après vos retours sur vos propres rapports.**
 

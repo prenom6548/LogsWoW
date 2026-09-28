@@ -20,6 +20,11 @@ python3 -m logswow report "/chemin/vers/WoWCombatLog.txt"
 Une page HTML apparaît à côté du fichier. Elle s'ouvre hors ligne, elle
 ne charge rien depuis nulle part, et elle ne contient aucun script.
 
+Trois présentations au choix, dans la fenêtre ou avec `--format` :
+**onglets** (par défaut : un fichier, la liste des combats à gauche et
+des onglets par rubrique), **pages** (un dossier, une page par combat)
+ou **longue** (tout sur une seule page).
+
 La fenêtre utilise Tkinter, la boîte à outils graphique fournie avec
 Python. Sous Windows et avec l'installateur macOS de python.org, elle est
 déjà là ; sous Linux Mint, Ubuntu et Debian, elle s'installe une fois avec
@@ -31,7 +36,7 @@ manque). Les commandes n'en ont pas besoin.
 **La marche à suivre pas à pas, pour Windows, Linux (dont Linux Mint) et
 macOS, est dans [`INSTALL.md`](INSTALL.md).** Chaque version publiée
 fournit un fichier unique, `logswow-<version>.pyz`, qui se lance tel quel :
-`python3 logswow-0.5.1.pyz report WoWCombatLog.txt`.
+`python3 logswow-0.6.0.pyz report WoWCombatLog.txt`.
 
 Rien à installer. Python 3.8 ou plus récent, et c'est tout : pas de
 `pip install`, aucune dépendance, aucun réseau. Le paquet se copie ou se
@@ -63,7 +68,7 @@ python3 -m logswow where
 |---|---|
 | *(aucune)* ou `fenetre` | ouvre la fenêtre |
 | `report FICHIER` | écrit la page HTML complète |
-| | `-o` le nom du fichier, `--only` un seul combat, `--pull-gap` le découpage des pulls, `--wowhead` la langue des liens, `--sans-sequence` sans l'ordre des sorts, `--force` pour écraser un fichier qui n'est pas un rapport |
+| | `--format onglets\|pages\|longue` la présentation, `-o` le nom du fichier (ou du dossier pour `pages`), `--only` un seul combat, `--pull-gap` le découpage des pulls, `--wowhead` la langue des liens, `--sans-sequence` sans l'ordre des sorts, `--force` pour écraser un fichier qui n'est pas un rapport |
 | `list FICHIER` | liste les combats du fichier, une ligne chacun |
 | `diagnose FICHIER` | montre ce que le lecteur a compris, et ce qu'il n'a pas compris |
 | `where` | cherche le dossier `Logs` du jeu |

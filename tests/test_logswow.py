@@ -2999,5 +2999,97 @@ class TestOwnerFeedback(unittest.TestCase):
                 self.assertIn("<b>1</b><span>Cles hors des temps", page)
 
 
+class TestLayouts(unittest.TestCase):
+    """Tabs, a folder of pages, or the long page (2026-09-28)."""
+
+    def _write(self, directory, layout, name="r.html"):
+        log, segments = run_fixture()
+        target = os.path.join(directory, name)
+        return ReportWriter(log, segments, target, wowhead="off", layout=layout).write(), segments
+
+    def test_tabs_are_one_file_with_no_script(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            path, segments = self._write(directory, "onglets")
+            with open(path, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertNotIn("<script", page)
+        self.assertIn("<input type=radio name=f id=f0 class=fsel checked", page)
+        for segment in segments:
+            self.assertIn("#f%d:checked~.layout .v%d{display:block}"
+                          % (segment.index, segment.index), page)
+            self.assertIn("<section class='fight v%d'>" % segment.index, page)
+        self.assertIn(".tb-resume:checked~.panes .pn-resume{display:block}", page)
+        self.assertIn("<label for=f%d class=name>" % segments[0].index, page)
+
+    def test_pages_are_a_folder_linked_together(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            folder = os.path.join(directory, "rapport")
+            path, segments = self._write(directory, "pages", "rapport")
+            self.assertEqual(path, os.path.join(folder, "index.html"))
+            names = sorted(os.listdir(folder))
+            self.assertEqual(names, sorted(["index.html"] + ["combat-%02d.html" % s.index
+                                                             for s in segments]))
+            with open(path, encoding="utf-8") as handle:
+                index = handle.read()
+            self.assertIn("href='combat-%02d.html'" % segments[0].index, index)
+            with open(os.path.join(folder, "combat-%02d.html" % segments[0].index),
+                      encoding="utf-8") as handle:
+                self.assertIn("href='index.html'", handle.read())
+            # A page left by an earlier report of ours goes; a stranger's stays.
+            for name, text in (("combat-99.html", "<!doctype html><title>LogsWoW x"),
+                               ("notes.txt", "a moi")):
+                with open(os.path.join(folder, name), "w") as handle:
+                    handle.write(text)
+            self._write(directory, "pages", "rapport")
+            self.assertNotIn("combat-99.html", os.listdir(folder))
+            self.assertIn("notes.txt", os.listdir(folder))
+
+    def test_a_folder_that_is_not_ours_is_refused(self):
+        import tempfile
+        from logswow.cli import _refuse_folder
+
+        with tempfile.TemporaryDirectory() as directory:
+            log = os.path.join(directory, "WoWCombatLog.txt")
+            with open(log, "w") as handle:
+                handle.write("x")
+            mine = os.path.join(directory, "photos")
+            os.makedirs(mine)
+            with open(os.path.join(mine, "vacances.jpg"), "w") as handle:
+                handle.write("x")
+            self.assertIsNotNone(_refuse_folder(mine, log, force=False))
+            self.assertIsNone(_refuse_folder(os.path.join(directory, "neuf"), log, False))
+            self.assertIsNotNone(_refuse_folder(directory, log, force=True))  # the log's own
+            self.assertIsNotNone(_refuse_folder(log, log, force=False))       # a file
+
+    def test_the_command_line_chooses_and_tabs_are_the_default(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            page = os.path.join(directory, "a.html")
+            folder = os.path.join(directory, "b")
+            with contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(cli_main(["report", FIXTURE, "-q", "-o", page]), 0)
+                self.assertEqual(cli_main(["report", FIXTURE, "-q", "-o", folder,
+                                           "--format", "pages"]), 0)
+            with open(page, encoding="utf-8") as handle:
+                self.assertIn("class=layout", handle.read())
+            self.assertTrue(os.path.isfile(os.path.join(folder, "index.html")))
+
+    def test_the_window_writes_each_layout_where_it_should(self):
+        from logswow import gui
+
+        _log, segments = run_fixture()
+        self.assertEqual(gui.default_report_path("/j/Log.txt", segments, segments, "pages"),
+                         "/j/Log")
+        self.assertEqual(gui.default_report_path("/j/Log.txt", segments, segments), "/j/Log.html")
+        self.assertEqual(gui.report_entry("/j/Log", "pages"), os.path.join("/j/Log", "index.html"))
+        self.assertEqual(gui.report_entry("/j/Log.html", "longue"), "/j/Log.html")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
