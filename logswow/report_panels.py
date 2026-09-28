@@ -143,7 +143,34 @@ class PanelsMixin:
         return "<h3>Detail par joueur</h3>%s" % "".join(blocks)
 
     def _one_player(self, analysis, player, seconds):
-        duration = max(1, analysis.duration_ms)
+        tiles_html = self._player_tiles(analysis, player, seconds)
+        sections = self._player_sections(analysis, player, seconds)
+        sections.append(("", self._cast_order(analysis, player)))
+        body = "".join(
+            ("<h3>%s</h3>%s" % (fmt.esc(title), content)) if title else content
+            for title, content in sections
+        )
+        summary_casts = fmt.plural(player.casts, "sort")
+        if player.pet_casts:
+            summary_casts += " (dont %d de ses invocations)" % player.pet_casts
+        return (
+            "<details><summary>%s <span class=dim>&middot; %s &middot; %s degats "
+            "&middot; %s soins &middot; %s</span></summary><div class=body>"
+            "<div class='grid tiles'>%s</div>%s%s</div></details>"
+            % (
+                fmt.esc(player.short_name),
+                fmt.esc(label_of(player.spec_id) or "role inconnu"),
+                fmt.compact(player.damage_done),
+                fmt.compact(player.healing_done),
+                summary_casts,
+                tiles_html,
+                body,
+                self._player_notes(player),
+            )
+        )
+
+    def _player_tiles(self, analysis, player, seconds):
+        """The figures at the top of a player's panel; role-specific ones only when they apply."""
         tiles = [
             ("DPS", fmt.compact(player.damage_done / seconds)),
             ("HPS", fmt.compact(player.healing_done / seconds)),
@@ -171,11 +198,13 @@ class PanelsMixin:
             ("Vie la plus basse",
              fmt.percent(player.min_hp_fraction) if player.min_hp_fraction is not None else "?"),
         ]
-        tiles_html = "".join(
+        return "".join(
             "<div class=stat><b>%s</b><span>%s</span></div>" % (fmt.esc(value), fmt.esc(label))
             for label, value in tiles
         )
 
+    def _player_sections(self, analysis, player, seconds):
+        """[(title, html)] of a player's tables, in the order the panel shows them."""
         if player.absorb_by_ability:
             sections_absorb = [("Ce que ses boucliers ont absorbe", self._ability_table(
                 analysis.top_abilities(player.absorb_by_ability, None),
@@ -199,12 +228,21 @@ class PanelsMixin:
         if player.support_damage or player.support_healing:
             sections.append(("Soutien que le jeu lui credite", self._support(
                 analysis, player, seconds)))
-        sections.append(("Gains recus", self._aura_table(
-            analysis.player_uptimes(player.guid, 18, kind="BUFF"), duration, "De qui")))
-        sections.append(("Affaiblissements subis", self._aura_table(
-            analysis.player_uptimes(player.guid, 18, kind="DEBUFF"), duration, "De qui")))
-        sections.append(("Ce qu'il a applique", self._aura_table(
-            analysis.player_applied(player.guid, 18), duration, "Sur qui")))
+        sections += self._player_auras(analysis, player)
+        sections.append(("Plus longues pauses", self._player_gaps(analysis, player)))
+        return sections
+
+    def _player_auras(self, analysis, player):
+        """The three aura tables of a player's panel, and the note on auras up before the pull."""
+        duration = max(1, analysis.duration_ms)
+        sections = [
+            ("Gains recus", self._aura_table(
+                analysis.player_uptimes(player.guid, 18, kind="BUFF"), duration, "De qui")),
+            ("Affaiblissements subis", self._aura_table(
+                analysis.player_uptimes(player.guid, 18, kind="DEBUFF"), duration, "De qui")),
+            ("Ce qu'il a applique", self._aura_table(
+                analysis.player_applied(player.guid, 18), duration, "Sur qui")),
+        ]
         if analysis.auras_before_the_pull:
             sections.append(("", (
                 "<p class=dim style='font-size:12px;margin:0'>Un effet deja "
@@ -212,18 +250,20 @@ class PanelsMixin:
                 "dans le journal%s: sa duree est comptee depuis le premier "
                 "evenement du combat, ce qui est la seule borne que le fichier "
                 "donne.</p>" % NBSP)))
+        return sections
 
+    @staticmethod
+    def _player_gaps(analysis, player):
+        """The player's five longest stretches without a cast."""
         gaps = "".join(
             "<li><span class=dim>%s</span> sans lancer de sort, a %s</li>"
             % (format_duration(gap), format_duration(at - (analysis.first_ts or 0)))
             for gap, at in player.longest_gaps[:5]
         )
-        sections.append((
-            "Plus longues pauses",
-            "<ul class=chain>%s</ul>" % (gaps or "<li class=dim>Aucune pause notable.</li>"),
-        ))
-        sections.append(("", self._cast_order(analysis, player)))
+        return "<ul class=chain>%s</ul>" % (gaps or "<li class=dim>Aucune pause notable.</li>")
 
+    def _player_notes(self, player):
+        """The enemy spells the player cut and the effects they dispelled, named."""
         notes = []
         if player.interrupted_spells:
             notes.append("<p class=dim style='font-size:12.5px;margin:8px 0 0'>"
@@ -233,29 +273,7 @@ class PanelsMixin:
             notes.append("<p class=dim style='font-size:12.5px;margin:4px 0 0'>"
                          "<b>Effets dissipes</b>%s %s</p>"
                          % (NBSP + ":", self._counted_list(player.dispelled_spells)))
-
-        body = "".join(
-            ("<h3>%s</h3>%s" % (fmt.esc(title), content)) if title else content
-            for title, content in sections
-        )
-        summary_casts = fmt.plural(player.casts, "sort")
-        if player.pet_casts:
-            summary_casts += " (dont %d de ses invocations)" % player.pet_casts
-        return (
-            "<details><summary>%s <span class=dim>&middot; %s &middot; %s degats "
-            "&middot; %s soins &middot; %s</span></summary><div class=body>"
-            "<div class='grid tiles'>%s</div>%s%s</div></details>"
-            % (
-                fmt.esc(player.short_name),
-                fmt.esc(label_of(player.spec_id) or "role inconnu"),
-                fmt.compact(player.damage_done),
-                fmt.compact(player.healing_done),
-                summary_casts,
-                tiles_html,
-                body,
-                "".join(notes),
-            )
-        )
+        return "".join(notes)
 
     def _support(self, analysis, player, seconds):
         """An Augmentation Evoker's share of other players' numbers, and what it is not."""

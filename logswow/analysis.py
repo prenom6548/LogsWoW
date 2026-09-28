@@ -503,7 +503,23 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
 
     def _feed_damage(self, event, settled=False):
         """One hit: whose ledger it belongs to depends on both ends."""
-        amount = event.amount
+        source_ours, dest_ours = self._damage_sides(event)
+        if event.subevent.startswith("SWING_DAMAGE") and not self._melee_counts(
+                event, source_ours, dest_ours, settled):
+            return
+        if (source_ours and dest_ours and event.dest.is_player
+                and not event.source.is_player and not settled):
+            # A summon of ours hitting a player of ours: Spirit Link Totem
+            # moving health, unless the instant says otherwise.
+            if (event.source.guid, event.spell_id) in self._moving_units:
+                self._feed_moved_health(event)
+            else:
+                self._held.append(event)
+            return
+        self._bank_damage(event, source_ours, dest_ours)
+
+    def _damage_sides(self, event):
+        """(source is the group's, target is the group's), for one hit."""
         source_ours = self._is_ours(event.source)
         dest_ours = self._is_ours(event.dest)
         if source_ours and dest_ours and event.source.guid in self._shared_summons:
@@ -516,36 +532,39 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             source_ours = False
         if source_ours and dest_ours:
             dest_ours = self._target_is_ours(event)
-        if event.subevent.startswith("SWING_DAMAGE"):
-            landed = event.suffix_kind == "_DAMAGE_LANDED"
-            if not dest_ours or source_ours:
-                if landed:
-                    return          # the SWING_DAMAGE line of the same hit counts
-            # Melee the group took is counted from _LANDED: the client
-            # writes many such hits *only* as _LANDED (5,720 lines against
-            # 3,870 SWING_DAMAGE on a real night, 4,691 against 2,815 on
-            # another), and on a tank SWING_DAMAGE came to 12.6% less than
-            # the hits that landed. Warcraft Logs counts _LANDED; five keys
-            # agree with it to the unit once this does. SWING_DAMAGE comes
-            # first in a pair (2,056 times of 2,058), so until the segment
-            # has shown a _LANDED one is held to the end of its instant; a
-            # file that writes no _LANDED at all keeps SWING_DAMAGE.
-            elif landed:
-                self._melee_taken_landed = True
-            elif self._melee_taken_landed:
-                return
-            elif not settled:
-                self._held.append(event)
-                return
-        if (source_ours and dest_ours and event.dest.is_player
-                and not event.source.is_player and not settled):
-            # A summon of ours hitting a player of ours: Spirit Link Totem
-            # moving health, unless the instant says otherwise.
-            if (event.source.guid, event.spell_id) in self._moving_units:
-                self._feed_moved_health(event)
-            else:
-                self._held.append(event)
-            return
+        return source_ours, dest_ours
+
+    def _melee_counts(self, event, source_ours, dest_ours, settled):
+        """Whether this melee line is the one of its pair that counts, now.
+
+        False also when the line is held back to the end of its instant
+        (`_held`), to be decided by `_settle_moves`.
+        """
+        landed = event.suffix_kind == "_DAMAGE_LANDED"
+        if not dest_ours or source_ours:
+            return not landed       # the SWING_DAMAGE line of the same hit counts
+        # Melee the group took is counted from _LANDED: the client
+        # writes many such hits *only* as _LANDED (5,720 lines against
+        # 3,870 SWING_DAMAGE on a real night, 4,691 against 2,815 on
+        # another), and on a tank SWING_DAMAGE came to 12.6% less than
+        # the hits that landed. Warcraft Logs counts _LANDED; five keys
+        # agree with it to the unit once this does. SWING_DAMAGE comes
+        # first in a pair (2,056 times of 2,058), so until the segment
+        # has shown a _LANDED one is held to the end of its instant; a
+        # file that writes no _LANDED at all keeps SWING_DAMAGE.
+        if landed:
+            self._melee_taken_landed = True
+            return True
+        if self._melee_taken_landed:
+            return False
+        if not settled:
+            self._held.append(event)
+            return False
+        return True
+
+    def _bank_damage(self, event, source_ours, dest_ours):
+        """A hit that counts: into the ledgers of whoever was on each end."""
+        amount = event.amount
         # Damage past the last point of health went nowhere, as healing
         # past full health does: it is the overkill, counted apart.
         # Warcraft Logs leaves it out too; five real keys agree with it to
