@@ -5,7 +5,7 @@ installer : pas de bibliothèque, pas de compte, pas de connexion. Il
 existe deux façons de le récupérer, et la première suffit presque
 toujours :
 
-- **Le fichier unique `logswow-0.6.0.pyz`**, joint à chaque version
+- **Le fichier unique `logswow-0.7.0.pyz`**, joint à chaque version
   publiée (page « Releases » du dépôt). C'est tout le programme en un
   fichier de 90 Ko, qu'on lance tel quel depuis n'importe quel dossier.
 - **Le code source** (bouton « Code » puis « Download ZIP », ou
@@ -15,7 +15,7 @@ Le dépôt est privé : pour télécharger, il faut un compte GitHub à qui le
 propriétaire a donné accès. Sinon, qu'il vous transmette simplement le
 fichier `.pyz` : il n'en faut pas plus.
 
-Dans les exemples ci-dessous, remplacez `0.6.0` par le numéro de la
+Dans les exemples ci-dessous, remplacez `0.7.0` par le numéro de la
 version que vous avez téléchargée.
 
 ---
@@ -60,18 +60,18 @@ Le jeu écrit alors `WoWCombatLog-<date>.txt` dans son dossier `Logs`.
 
 ### 2. Récupérer LogsWoW
 
-Téléchargez `logswow-0.6.0.pyz` et rangez-le où vous voulez, par
+Téléchargez `logswow-0.7.0.pyz` et rangez-le où vous voulez, par
 exemple dans `Documents\LogsWoW`.
 
 ### 3. Le lancer
 
-**Double-cliquez sur `logswow-0.6.0.pyz`** : la fenêtre de LogsWoW s'ouvre.
+**Double-cliquez sur `logswow-0.7.0.pyz`** : la fenêtre de LogsWoW s'ouvre.
 Elle liste les journaux trouvés (sur les disques C: à H:), vous en
 choisissez un, puis les combats, et « Créer le rapport et l'ouvrir »
 affiche la page dans votre navigateur.
 
 Une fenêtre noire s'ouvre aussi derrière elle : c'est normal. Pour ne plus
-la voir, renommez le fichier en `logswow-0.6.0.pyzw` (avec un **w** à la
+la voir, renommez le fichier en `logswow-0.7.0.pyzw` (avec un **w** à la
 fin) ; pour l'avoir sur le bureau, clic droit → Envoyer vers → Bureau
 (créer un raccourci).
 
@@ -80,14 +80,14 @@ dans l'Invite de commandes, placez-vous dans ce dossier, puis :
 
 ```
 cd %USERPROFILE%\Documents\LogsWoW
-py logswow-0.6.0.pyz where
+py logswow-0.7.0.pyz where
 ```
 
 `where` affiche le dossier `Logs` du jeu (il regarde sur les disques C:
 à H:) et les derniers journaux qu'il contient. Ensuite :
 
 ```
-py logswow-0.6.0.pyz report "C:\Program Files (x86)\World of Warcraft\_retail_\Logs\WoWCombatLog-091826_203000.txt"
+py logswow-0.7.0.pyz report "C:\Program Files (x86)\World of Warcraft\_retail_\Logs\WoWCombatLog-091826_203000.txt"
 ```
 
 La page HTML (présentée en onglets ; `--format pages` ou `--format longue`
@@ -140,8 +140,8 @@ Sans elle, les commandes du terminal fonctionnent quand même.
 
 ```
 mkdir -p ~/LogsWoW
-mv ~/Téléchargements/logswow-0.6.0.pyz ~/LogsWoW/
-python3 ~/LogsWoW/logswow-0.6.0.pyz
+mv ~/Téléchargements/logswow-0.7.0.pyz ~/LogsWoW/
+python3 ~/LogsWoW/logswow-0.7.0.pyz
 ```
 
 (Sur un système en anglais, le dossier est `~/Downloads`.)
@@ -155,7 +155,7 @@ renommez d'abord le fichier `logswow.pyz`, pour que le raccourci serve
 encore après les mises à jour, puis collez ceci dans un terminal :
 
 ```
-mv ~/LogsWoW/logswow-0.6.0.pyz ~/LogsWoW/logswow.pyz
+mv ~/LogsWoW/logswow-0.7.0.pyz ~/LogsWoW/logswow.pyz
 mkdir -p ~/.local/share/applications
 cat > ~/.local/share/applications/logswow.desktop <<FIN
 [Desktop Entry]
@@ -169,23 +169,23 @@ FIN
 ```
 
 Les commandes restent disponibles, dans le terminal (si vous avez renommé
-le fichier, écrivez `logswow.pyz` à la place de `logswow-0.6.0.pyz`) :
+le fichier, écrivez `logswow.pyz` à la place de `logswow-0.7.0.pyz`) :
 
 ```
-python3 ~/LogsWoW/logswow-0.6.0.pyz where
+python3 ~/LogsWoW/logswow-0.7.0.pyz where
 ```
 
 Le fichier peut aussi se lancer directement, comme une commande :
 
 ```
-chmod +x ~/LogsWoW/logswow-0.6.0.pyz
-~/LogsWoW/logswow-0.6.0.pyz where
+chmod +x ~/LogsWoW/logswow-0.7.0.pyz
+~/LogsWoW/logswow-0.7.0.pyz where
 ```
 
 Pour ne plus taper le chemin, ajoutez à la fin de `~/.bashrc` :
 
 ```
-alias logswow='python3 ~/LogsWoW/logswow-0.6.0.pyz'
+alias logswow='python3 ~/LogsWoW/logswow-0.7.0.pyz'
 ```
 
 puis ouvrez un nouveau terminal : `logswow where`, `logswow report …`.
@@ -215,7 +215,7 @@ find ~ -name 'WoWCombatLog*.txt' 2>/dev/null
 Mettez le chemin entre guillemets : il contient des espaces.
 
 ```
-python3 ~/LogsWoW/logswow-0.6.0.pyz report "$HOME/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
+python3 ~/LogsWoW/logswow-0.7.0.pyz report "$HOME/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
 xdg-open "$HOME/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.html"
 ```
 
@@ -245,15 +245,15 @@ récente de Tkinter (avec Homebrew : `brew install python-tk`).
 
 ```
 mkdir -p ~/LogsWoW
-mv ~/Downloads/logswow-0.6.0.pyz ~/LogsWoW/
-python3 ~/LogsWoW/logswow-0.6.0.pyz
+mv ~/Downloads/logswow-0.7.0.pyz ~/LogsWoW/
+python3 ~/LogsWoW/logswow-0.7.0.pyz
 ```
 
 La fenêtre s'ouvre. Pour les commandes, dans le même Terminal :
 
 ```
-python3 ~/LogsWoW/logswow-0.6.0.pyz where
-python3 ~/LogsWoW/logswow-0.6.0.pyz report "/Applications/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
+python3 ~/LogsWoW/logswow-0.7.0.pyz where
+python3 ~/LogsWoW/logswow-0.7.0.pyz report "/Applications/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.txt"
 open "/Applications/World of Warcraft/_retail_/Logs/WoWCombatLog-091826_203000.html"
 ```
 
@@ -266,7 +266,7 @@ Si le dossier du jeu refuse l'écriture, écrivez la page ailleurs avec
 
 Pour lire le code ou lancer les tests, téléchargez le ZIP du dépôt (ou
 `git clone`), placez-vous **dans le dossier qui contient `logswow`**, et
-remplacez `logswow-0.6.0.pyz` par `-m logswow` :
+remplacez `logswow-0.7.0.pyz` par `-m logswow` :
 
 ```
 python3 -m logswow where              # Linux, macOS
@@ -287,9 +287,9 @@ publié, calculez la vôtre et comparez :
 
 | Système | Commande |
 |---|---|
-| Windows | `certutil -hashfile logswow-0.6.0.pyz SHA256` |
-| Linux | `sha256sum logswow-0.6.0.pyz` |
-| macOS | `shasum -a 256 logswow-0.6.0.pyz` |
+| Windows | `certutil -hashfile logswow-0.7.0.pyz SHA256` |
+| Linux | `sha256sum logswow-0.7.0.pyz` |
+| macOS | `shasum -a 256 logswow-0.7.0.pyz` |
 
 ---
 
@@ -310,7 +310,7 @@ publié, calculez la vôtre et comparez :
 - **La fenêtre ne s'ouvre pas, et le terminal parle de Tkinter** : installez
   le paquet indiqué (sous Linux Mint : `sudo apt install python3-tk`).
 - **Lancez `diagnose` en premier** :
-  `python3 logswow-0.6.0.pyz diagnose "chemin/du/journal.txt"`. Il montre
+  `python3 logswow-0.7.0.pyz diagnose "chemin/du/journal.txt"`. Il montre
   ce que le lecteur a compris du fichier ; la ligne qui compte est
   `PROBLEMES DE LECTURE : 0`.
 - **« Aucun combat n'a été trouvé »** : le fichier est vide, ou

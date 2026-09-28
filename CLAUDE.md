@@ -95,13 +95,16 @@ files, not a guess:
 - **The heal suffix is `amount, baseAmount, overhealing, absorbed,
   critical`.** Its `critical` is the *last* field, where damage's is
   fourth from last. A single "count from the end" formula for both looked
-  right and read every heal's crit flag off the wrong field.
-- **`SWING_DAMAGE` and `SWING_DAMAGE_LANDED` are the same hit written
-  twice.** 5,943 of 6,135 pairs sharing a timestamp, a source and a
-  target carried identical amounts. Summing both doubles every melee
-  total. `_DAMAGE_LANDED` is therefore **never added to a total**; it is
-  kept only for its advanced block. Check `analysis.landed_seen` to see
-  how many were skipped.
+  right and read every heal's crit flag off the wrong field. `amount`
+  holds the overhealing but **not** `absorbed` (what a healing-absorb
+  debuff ate): see the 2026-09-28 Warcraft Logs section.
+- **`SWING_DAMAGE` and `SWING_DAMAGE_LANDED` describe the same hits.**
+  5,943 of 6,135 pairs sharing a timestamp, a source and a target
+  carried identical amounts. Summing both doubles every melee total, so
+  only one side counts: `SWING_DAMAGE` for melee the group *dealt*
+  (the two agree to the unit there), `_LANDED` for melee it *took*,
+  which the client writes more completely -- corrected 2026-09-28, see
+  the Warcraft Logs section. `analysis.landed_seen` counts them.
 - **Which unit the advanced block describes depends on the event.**
   `SWING_DAMAGE` carries the *attacker's* (7,342 of 7,342);
   `SWING_DAMAGE_LANDED` and `SPELL_DAMAGE` carry the *target's*. This is
@@ -486,8 +489,10 @@ because they are behaviours, not bugs:
   summon deals before its `SPELL_SUMMON` line -- or before any advanced
   block names its `ownerGUID` -- belongs to nobody yet. Counting the
   whole file first and then attributing overstates a key by about 0.9%.
-- **Damage onto our own summons is not group damage.** 20.5M of one key
-  was players hitting their own units.
+- **Damage onto our own summons is not group damage** -- except that the
+  20.5M found here was the "Tombe glaciale" mechanic, which the
+  encounter summons under a player's name. Since 2026-09-28 a summon
+  flagged hostile is a target (see the Warcraft Logs section).
 
 Also confirmed on real data: **absorbs were genuinely being double
 counted** (the fix matches the recount exactly), most summons in these
@@ -553,7 +558,9 @@ and the ranking of every table.
    really cast by a person. That is the fourth structural limit, and it
    is the same one as the rotation verdict.
 
-**Definitional differences, left as they are and now documented:**
+**Definitional differences, as they were understood on 2026-09-20** (the
+2026-09-28 comparison through the site's API explained every one of
+them and changed three; read that section rather than this list):
 
 - **Healing.** Warcraft Logs' "healing" is effective healing **plus
   absorbs**. This report keeps them in separate columns and shows the
@@ -574,7 +581,8 @@ unit**, so skipping `_LANDED` loses nothing at all on the damage-done
 side. On the monsters' side `_LANDED` runs 2.4% above `SWING_DAMAGE`
 (105.8M vs 103.3M), so damage *taken* is that much under-counted -- a
 measured property of the file, not a bug, and too small to justify
-pairing machinery.
+pairing machinery. (Wrong, as 2026-09-28 showed: many hits on the group
+are written *only* as `_LANDED`, 12.6% of a tank's melee on one key.)
 
 ### 2026-09-20, third round: auditing the audit
 
@@ -875,6 +883,89 @@ The snapshot before and after, on five inputs: no damage, healing or
 death total moved; 22 cast sequences lost the echoes' and orbs' casts;
 every other cast-log difference is the new last field.
 
+### The same night through Warcraft Logs' API (2026-09-28)
+
+The owner created an API client of their own on Warcraft Logs and gave
+the session its credentials, so that the five keys of their night could
+be compared with the site's own tables *and events*, fight by fight and
+player by player. The fetching script lived in the scratch directory
+only (the package still opens no socket); the data and the credentials
+were deleted afterwards. Being able to pair the site's events with the
+file's lines, hit by hit, is what explained every gap -- the 2026-09-20
+comparison had only tables and left 0.4% "not explained".
+
+**Before:** damage 0.2% to 2.2% under the site per player, healing +4%
+to +7.5% for the shaman and -1% to -4% for everyone on one key, damage
+taken up to -43% (absorbs apart) and one death too many. **After**, on
+the 25 player-keys: deaths 25 of 25; damage exact to the unit for 13,
+within 0.08% for all 25; healing (with shields) exact for 17; damage
+taken with its absorbed part exact or within 0.1% for 18. Seven
+changes, each re-measured on the logs themselves before the code moved,
+each with a test in `TestWhatWarcraftLogsShowed` that fails without it:
+
+- **Heals a healing-absorb debuff ate were lost outright.** The heal
+  suffix writes the eaten part *beside* `amount`: `amount + absorbed ==
+  baseAmount` on 511 of 669 such lines ("74,143 healed, 141,613 eaten,
+  215,756 in all"), and overhealing never exceeds `amount` (0 of
+  197,150). `effective_healing` subtracted the eaten part from `amount`
+  and clamped at zero -- 4.4M of *landed* healing lost on two logs, plus
+  the eaten part itself (12.7M on one key, every healer 1-4% under).
+  Now `amount - overhealing + absorbed`, the site's reading.
+- **Melee the group took is counted from `SWING_DAMAGE_LANDED`.** On
+  the 09/27 night, enemies' melee on players is 5,720 `_LANDED` lines
+  against 3,870 `SWING_DAMAGE`; many hits exist only as `_LANDED`, and a
+  tank's melee read 12.6% low. The site counts `_LANDED`. `SWING_DAMAGE`
+  comes first in a pair (2,056 of 2,058), so until a segment has shown a
+  `_LANDED` the swing is held to the end of its millisecond (`_held`);
+  a file with no `_LANDED` at all keeps `SWING_DAMAGE`. Melee *dealt*
+  still counts `SWING_DAMAGE`, where both agree to the unit.
+- **Overkill is not damage dealt**, as overhealing is not healing: a
+  485,187 hit on a unit with 203,564 health left dealt 203,564. The
+  site's event `amount` is exactly the line's amount minus overkill.
+  `Ability.overkill` still keeps it.
+- **A hit an enemy's shield ate is damage dealt**: `SPELL_ABSORBED` with
+  an attacker of ours and a victim that is not. The site's `absorbed`
+  equals the file's `SPELL_ABSORBED` sum for that player to the unit.
+  The wide form names the attacker's spell 13 fields from the end, its
+  school **in hex** -- a test caught it being read as decimal, which
+  filed every such shield under "unknown school". `shield_damage` keeps
+  the share.
+- **A summon flagged hostile is a target, not the group's.** "Tombe
+  glaciale", the ice a player is locked in, is written as that player's
+  `SPELL_SUMMON`; hits on it were the group's own damage taken (10.9M).
+  On three logs every such unit carries 0xa48 while every real summon
+  the group's lines touch (Soul Link's `DAMAGE_SPLIT` onto a demon, a
+  raid boss turning pets) is friendly -- a first version without the
+  flag test credited a warlock's Soul Link as damage dealt, and the
+  per-spell pairing against the site's events caught it.
+- **Spirit Link Totem moves health; it deals nothing.** A summon of ours
+  hitting a player of ours, whose unit heals the group with the same
+  spell in the same millisecond (either order: of 14 totems on one night,
+  7 healed first and 6 hit first), is `_feed_moved_health`: in nobody's damage taken, subtracted
+  from the shaman's healing (the site shows it as a negative "Spirit
+  Link (Damage)" row, amount *plus* absorbed), kept in the victim's
+  recap. `Player.moved_health`; the invariant on `healing_to` accounts
+  for it. A summon that never heals the group hits like anything else.
+- **`UNIT_DIED` with `unconsciousOnDeath` = 1 is not a death** for a
+  player: 3 of 197 player lines on three logs, all hunters, one casting
+  again 217 ms later. The site does not count it.
+
+**Left as they are, and why** -- say so rather than chase them:
+
+- **Heals on summons.** This reader counts every heal; the site drops
+  some heals on *other players'* summons and keeps others (a shaman up
+  to +4.6%, a DK +0.4%). No rule tested reproduced theirs exactly.
+- **A warlock's absorbed damage taken.** The site's `absorbed` is close
+  to the hits' `absorbed` field plus fully-absorbed misses; this reader
+  sums `SPELL_ABSORBED`, which for Fel Armor ("Gangrarmure") writes
+  **negative** amounts (587 lines on one night). Amounts taken agree to
+  the unit; the absorbed part differs by 4-8% for the warlock only.
+- **Casts.** Unchanged: the site's count is pets excluded (exact for the
+  warlock, 5 of 5) and a maintained list of procs removed, which is the
+  fourth structural limit.
+- **Pet ownership timing** leaves damage 0.02-0.08% under the site for
+  some players: damage a summon deals before the file names its owner.
+
 ### Physical or magic, and the fall that carried a GUID (2026-09-27)
 
 Asked for by the owner: the physical/magic split of damage taken over a
@@ -1080,7 +1171,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 211 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 219 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestFifthAuditFindings`), and each one was regression-checked the

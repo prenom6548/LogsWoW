@@ -113,7 +113,15 @@ lu serait pire que pas de rapport du tout.
   qu'ils ont absorbé n'est pas un soin dans le journal, puisqu'ils
   empêchent des dégâts au lieu d'en rendre. La colonne « Somme »
   additionne les deux — c'est ce total-là que les sites en ligne
-  appellent « soins ».
+  appellent « soins ». Les dégâts comptent ce que chaque coup a
+  réellement retiré : pas l'excédent d'un coup fatal, mais bien ce qu'un
+  bouclier ennemi a mangé. Les soins comptent ce qu'un affaiblissement
+  « absorbe-soins » a mangé, et le Lien d'esprit, qui déplace de la vie
+  d'un joueur à l'autre, n'est ni un soin ni un dégât subi.
+- **Comparé à Warcraft Logs** sur cinq clés, joueur par joueur : mêmes
+  morts pour tous, mêmes dégâts à moins de 0,1 % (au point près pour la
+  moitié des joueurs), mêmes soins au point près pour 17 joueurs sur 25.
+  Les écarts restants ont une cause connue, écrite dans `CHANGELOG.md`.
 - **Les sorts lancés** comptent aussi ceux des invocations, indiqués à
   part. Un sort déclenché tout seul (une procédure passive) est écrit
   dans le journal exactement comme un sort lancé à la main : les

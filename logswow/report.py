@@ -437,6 +437,14 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                     "donc comptes a part, et additionnes dans la colonne "
                     "<b>Somme</b> — c'est ce total-la que les sites en ligne "
                     "appellent \u00ab soins \u00bb.</p>" % NBSP)
+        moved = sum(player.moved_health for player, _v, _r in rows) if healing else 0
+        if moved:
+            note += ("<p class=dim style='margin:6px 0 0;font-size:12px'>"
+                     "Le Lien d'esprit ne soigne pas%s: il prend de la sante aux "
+                     "joueurs les plus hauts pour la donner aux plus bas. Les %s "
+                     "qu'il a pris sont deduits des soins de son poseur, comme sur "
+                     "Warcraft Logs, et ne comptent dans les degats subis de "
+                     "personne.</p>" % (NBSP, fmt.compact(moved)))
         return (
             "<div><h3>%s</h3><div class=card><table>"
             "<tr>%s</tr>%s</table>%s</div></div>"

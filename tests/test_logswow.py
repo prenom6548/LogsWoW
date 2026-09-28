@@ -210,12 +210,14 @@ class TestHealLayouts(unittest.TestCase):
         self.assertEqual(event.amount, 1000)
         self.assertEqual(event.overhealing, 300)
         self.assertEqual(event.healing_absorbed, 50)
-        self.assertEqual(event.effective_healing, 650)
+        # What a healing-absorb debuff ate is not inside the amount, and is
+        # healing done (see effective_healing): 1000 - 300 + 50.
+        self.assertEqual(event.effective_healing, 750)
         self.assertTrue(event.is_critical)
 
     def test_documented_heal_reads_the_same(self):
         event = self._heal(DOCUMENTED, "1000,300,50,1")
-        self.assertEqual(event.effective_healing, 650)
+        self.assertEqual(event.effective_healing, 750)
         self.assertTrue(event.is_critical)
 
     def test_a_full_overheal_is_not_negative(self):
@@ -389,7 +391,8 @@ class TestAnalysis(unittest.TestCase):
 
     def test_damage_is_attributed_to_the_right_player(self):
         braise = self._player(self.first, "Braise")
-        self.assertEqual(braise.damage_done, 6 * 5000 + 9000 + 6 * 700)
+        # The 9,000 hit killed with 3,000 to spare: 6,000 of it was dealt.
+        self.assertEqual(braise.damage_done, 6 * 5000 + (9000 - 3000) + 6 * 700)
 
     def test_a_pet_is_not_a_separate_player(self):
         names = {player.short_name for player in self.first.players.values()}
@@ -759,7 +762,8 @@ class TestAbilityDetail(unittest.TestCase):
         _player, ability = self._ability("Braise", "Frappe d'essai")
         self.assertEqual(ability.hits, 7)
         self.assertEqual(ability.average, ability.total / ability.hits)
-        self.assertEqual(ability.biggest, 9000)
+        self.assertEqual(ability.biggest, 6000)     # 9,000 with 3,000 overkill
+        self.assertEqual(ability.overkill, 3000)
 
     def test_an_ability_knows_who_it_hit_and_for_how_much(self):
         _player, ability = self._ability("Braise", "Frappe d'essai")
@@ -3089,6 +3093,159 @@ class TestLayouts(unittest.TestCase):
         self.assertEqual(gui.default_report_path("/j/Log.txt", segments, segments), "/j/Log.html")
         self.assertEqual(gui.report_entry("/j/Log", "pages"), os.path.join("/j/Log", "index.html"))
         self.assertEqual(gui.report_entry("/j/Log.html", "longue"), "/j/Log.html")
+
+
+class TestWhatWarcraftLogsShowed(unittest.TestCase):
+    """Five real keys read side by side with Warcraft Logs (2026-09-28).
+
+    Each gap was traced line by line against the site's own events; every
+    test here fails without the change it names.
+    """
+
+    A = 'Player-9999-00000001,"Ardoise-Dalaran-EU",0x512,0x0'
+    B = 'Player-9999-00000002,"Tisane-Dalaran-EU",0x512,0x0'
+    MOB = 'Creature-0-9999-2222-1111-70000-0000111111,"Golem",0xa48,0x0'
+    NOBODY = '0000000000000000,nil,0x80000000,0x80000000'
+
+    def _run(self, timed_payloads):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, (ms, payload) in enumerate(timed_payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ms, fields, index + 1))
+        return splitter.finish()[0].analysis
+
+    def _player(self, analysis, guid_end):
+        return analysis.players["Player-9999-0000000%d" % guid_end]
+
+    def _hit(self, ms, source, dest, amount, overkill=-1, spell=100, name="Frappe", school=1):
+        return (ms, 'SPELL_DAMAGE,%s,%s,%d,"%s",0x%x,%d,%d,%d,%d,0,0,0,nil,nil,nil,ST'
+                % (source, dest, spell, name, school, amount, amount, overkill, school))
+
+    def _heal(self, ms, source, dest, amount, over=0, eaten=0, spell=2061, name="Soin"):
+        return (ms, 'SPELL_HEAL,%s,%s,%d,"%s",0x2,%d,%d,%d,%d,nil'
+                % (source, dest, spell, name, amount, amount + eaten, over, eaten))
+
+    def test_damage_past_the_last_point_of_health_is_not_dealt(self):
+        """Warcraft Logs leaves the overkill out, as healing leaves overhealing."""
+        analysis = self._run([self._hit(0, self.A, self.MOB, 5000),
+                              self._hit(100, self.A, self.MOB, 9000, overkill=3000)])
+        player = self._player(analysis, 1)
+        self.assertEqual(player.damage_done, 5000 + 6000)
+        ability = next(iter(player.damage_by_ability.values()))
+        self.assertEqual((ability.total, ability.overkill), (11000, 3000))
+        self.assertEqual(analysis.enemies["Golem"].damage_taken, 11000)
+
+    def test_a_hit_an_enemy_shield_ate_is_damage_dealt(self):
+        """0.5% to 1.6% of a key's damage was missing: what enemies' shields ate."""
+        caster = self.MOB.rsplit(",", 2)[0]
+        wide = ('SPELL_ABSORBED,%s,%s,300,"Eclair",0x4,%s,0xa48,0x0,999,"Barriere",0x20,'
+                '4000,9000,1' % (self.A, self.MOB, caster))
+        narrow = ('SPELL_ABSORBED,%s,%s,%s,0xa48,0x0,999,"Barriere",0x20,500,700,nil'
+                  % (self.A, self.MOB, caster))
+        analysis = self._run([self._hit(0, self.A, self.MOB, 1000), (50, wide), (60, narrow)])
+        player = self._player(analysis, 1)
+        self.assertEqual(player.damage_done, 1000 + 4000 + 500)
+        self.assertEqual(analysis.shield_damage, 4500)
+        names = {a.name: (a.total, a.crits) for a in player.damage_by_ability.values()}
+        self.assertEqual(names["Eclair"], (4000, 1))
+        self.assertEqual(names["Attaque"], (500, 0))
+        self.assertEqual(analysis.done_by_school, {1: 1500, 4: 4000})
+        # A shield on the group is the victim's, never damage dealt.
+        on_us = ('SPELL_ABSORBED,%s,%s,300,"Eclair",0x4,%s,999,"Barriere",0x20,800,900,nil'
+                 % (self.MOB, self.A, self.A))
+        analysis = self._run([(0, on_us)])
+        self.assertEqual((analysis.total_damage, self._player(analysis, 1).absorbed_taken),
+                         (0, 800))
+
+    def test_a_unit_the_encounter_puts_under_a_players_name_is_a_target(self):
+        """'Tombe glaciale': summoned by the player it holds, flagged hostile,
+        broken by the group -- 10.9M counted as the group's own damage taken."""
+        tomb = 'Creature-0-9999-2222-1111-248000-0000000001,"Tombe glaciale",0xa48,0x0'
+        demon = 'Creature-0-9999-2222-1111-17252-0000000002,"Gangregarde",0x1112,0x0'
+        lines = [(0, 'SPELL_SUMMON,%s,%s,1240000,"Tombe glaciale",0x10' % (self.A, tomb)),
+                 (10, 'SPELL_SUMMON,%s,%s,30146,"Gangregarde",0x20' % (self.B, demon)),
+                 self._hit(100, self.B, tomb, 7000),
+                 self._hit(200, self.B, demon, 300)]           # the owner's own demon
+        analysis = self._run(lines)
+        self.assertEqual(self._player(analysis, 2).damage_done, 7000)
+        holder = analysis.players.get("Player-9999-00000001")
+        self.assertEqual(holder.pet_damage_taken if holder else 0, 0)
+        self.assertEqual(self._player(analysis, 2).pet_damage_taken, 300)
+        self.assertIn("Tombe glaciale", analysis.enemies)
+
+    def test_spirit_link_moves_health_it_does_not_deal_damage(self):
+        """Damage and heal lines in one instant, in either order: nobody's
+        damage taken, and the shaman's healing is net of it."""
+        totem = 'Creature-0-9999-2222-1111-53006-0000000003,"Totem de lien d\'esprit",0x2111,0x0'
+        link = dict(spell=98021, name="Lien d'esprit")
+        lines = [(0, 'SPELL_SUMMON,%s,%s,98008,"Totem de lien d\'esprit",0x8' % (self.A, totem)),
+                 self._heal(10, self.A, self.B, 10000),
+                 self._hit(1000, totem, self.B, 3000, school=8, **link),     # damage first
+                 self._heal(1000, totem, self.A, 2500, **link),
+                 self._heal(2000, totem, self.B, 1000, **link),              # heal first
+                 self._hit(2000, totem, self.A, 1200, school=8, **link),
+                 self._hit(3000, self.MOB, self.B, 400)]
+        analysis = self._run(lines)
+        shaman, other = self._player(analysis, 1), self._player(analysis, 2)
+        self.assertEqual(other.damage_taken, 400)
+        self.assertEqual(shaman.damage_taken, 0)
+        self.assertEqual(shaman.moved_health, 4200)
+        self.assertEqual(shaman.healing_done, 10000 + 2500 + 1000 - 4200)
+        self.assertEqual(analysis.total_healing, shaman.healing_done)
+        self.assertEqual(analysis.moved_health, 4200)
+        # The hit still lowered their health: it stays in their recap.
+        self.assertIn("Lien d'esprit", [moment[2] for moment in other.recent])
+
+    def test_a_summon_that_never_heals_hits_like_anything_else(self):
+        imp = 'Creature-0-9999-2222-1111-55659-0000000004,"Diablotin",0x1112,0x0'
+        lines = [(0, 'SPELL_SUMMON,%s,%s,104317,"Diablotin",0x20' % (self.A, imp)),
+                 self._hit(100, imp, self.B, 600, spell=555, name="Boule de feu")]
+        analysis = self._run(lines)
+        self.assertEqual(self._player(analysis, 2).damage_taken, 600)
+        self.assertEqual(analysis.moved_health, 0)
+
+    def test_what_a_healing_absorb_ate_is_healing_and_not_taken_off_the_rest(self):
+        """The eaten part is beside `amount`, not inside it: the heal of
+        74,143 with 141,613 eaten used to count 0."""
+        analysis = self._run([self._heal(0, self.A, self.B, 74143, eaten=141613),
+                              self._heal(10, self.A, self.B, 0, eaten=8203),
+                              self._heal(20, self.A, self.B, 1000, over=400)])
+        self.assertEqual(self._player(analysis, 1).healing_done, 215756 + 8203 + 600)
+
+    def test_a_player_who_fell_unconscious_did_not_die(self):
+        """A hunter written dead, casting again 217 ms later: not a death."""
+        lines = [self._hit(0, self.MOB, self.A, 500),
+                 (100, 'UNIT_DIED,%s,%s,1' % (self.NOBODY, self.A)),
+                 (200, 'UNIT_DIED,%s,%s,0' % (self.NOBODY, self.B))]
+        analysis = self._run(lines)
+        self.assertEqual((self._player(analysis, 1).deaths, self._player(analysis, 2).deaths),
+                         (0, 1))
+        self.assertEqual(analysis.unconscious_seen, 1)
+        self.assertEqual(len(analysis.deaths), 1)
+
+    def test_melee_the_group_took_is_read_from_the_line_that_landed(self):
+        """SWING_DAMAGE comes first, then its _LANDED twin -- or _LANDED alone."""
+        adv = ",".join(advanced_block(19, info="Player-9999-00000001"))
+
+        def swing(ms, kind, source, dest, amount):
+            return (ms, '%s,%s,%s,%s,%d,%d,-1,1,0,0,0,nil,nil,nil'
+                    % (kind, source, dest, adv, amount, amount))
+
+        lines = [swing(0, "SWING_DAMAGE", self.MOB, self.A, 1000),
+                 swing(0, "SWING_DAMAGE_LANDED", self.MOB, self.A, 1100),
+                 swing(500, "SWING_DAMAGE_LANDED", self.MOB, self.A, 900),     # alone
+                 swing(900, "SWING_DAMAGE", self.MOB, self.A, 700),            # twin below
+                 swing(900, "SWING_DAMAGE_LANDED", self.MOB, self.A, 800),
+                 swing(1000, "SWING_DAMAGE", self.A, self.MOB, 400),           # dealt
+                 swing(1000, "SWING_DAMAGE_LANDED", self.A, self.MOB, 400)]
+        analysis = self._run(lines)
+        player = self._player(analysis, 1)
+        self.assertEqual(player.damage_taken, 1100 + 900 + 800)
+        self.assertEqual(player.damage_done, 400)
+        # A file that writes no _LANDED at all keeps SWING_DAMAGE.
+        analysis = self._run([swing(0, "SWING_DAMAGE", self.MOB, self.A, 1000),
+                              swing(10, "SWING_DAMAGE", self.MOB, self.A, 500)])
+        self.assertEqual(self._player(analysis, 1).damage_taken, 1500)
 
 
 if __name__ == "__main__":

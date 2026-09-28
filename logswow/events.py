@@ -403,7 +403,59 @@ class Event:
 
     @property
     def effective_healing(self):
-        return max(0, self.amount - self.overhealing - self.healing_absorbed)
+        """What a heal did: its amount less the overhealing, plus what a
+        healing-absorb debuff ate.
+
+        **The eaten part is not inside `amount`.** Measured 2026-09-28 on
+        two real logs: overhealing never exceeds `amount` (0 lines of
+        197,150), so `amount` holds it; but on 511 of the 669 heals a debuff
+        ate from, `amount` + `healing_absorbed` is exactly `base_amount` --
+        one real line reads 74,143 healed, 141,613 eaten, 215,756 in all.
+        Until then this subtracted the eaten part from `amount`, which lost
+        the heal outright (that line counted 0), 4.4M on those two logs.
+
+        The eaten part is counted as healing: it raised nobody's health,
+        but it wore down a debuff the group had to heal through, which is
+        work a healer did. Warcraft Logs counts it the same way, and on a
+        real key with such a debuff every healer read 1% to 4% under the
+        site without it.
+        """
+        return max(0, self.amount - self.overhealing) + max(0, self.healing_absorbed)
+
+    @property
+    def unconscious(self):
+        """UNIT_DIED written for a unit that fell unconscious and did not die.
+
+        The field after the unit (`unconsciousOnDeath`) is 1 for it.
+        Measured on three real logs: 3 player lines of 197 carry it, all
+        hunters, and one cast again 217 ms later with no resurrection in
+        between. Warcraft Logs does not count it as a death.
+        """
+        return (self.subevent == "UNIT_DIED" and bool(self.suffix)
+                and self.suffix[-1] == "1")
+
+    @property
+    def absorbed_attack(self):
+        """SPELL_ABSORBED: (id, name, school) of the hit the shield ate.
+
+        The wide form names the attacker's spell thirteen fields from the
+        end, its school in hexadecimal ("0x4") like every prefix's; the
+        narrow one names none, and is a melee swing (id 0, physical).
+        Tail-anchored like the rest of this event.
+        """
+        if self.subevent != "SPELL_ABSORBED":
+            return 0, "", 0
+        size = len(self.suffix)
+        if size >= 13:
+            name = self._at(size - 12)
+            return (as_int(self._at(size - 13), 0), name if isinstance(name, str) else "",
+                    _hex(self._at(size - 11)))
+        return 0, "", 1
+
+    @property
+    def absorbed_critical(self):
+        """SPELL_ABSORBED: whether the hit the shield ate was a critical one."""
+        return self.subevent == "SPELL_ABSORBED" and as_bool(self._at(len(self.suffix) - 1))
 
     @property
     def miss_type(self):

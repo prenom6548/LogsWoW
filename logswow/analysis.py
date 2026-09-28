@@ -147,6 +147,21 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self.landed_seen = 0
         # Units a player "summoned" that turned out to be the encounter's.
         self.disowned_units = 0
+        # Health a summon of ours moved from one player to another (Spirit
+        # Link Totem): see `_feed_moved_health`. The pairs (unit, spell)
+        # seen healing the group, and the hits held until their instant
+        # ends, when the lines written after them say how to read them.
+        self.moved_health = 0
+        self._moving_units = set()
+        self._held = []
+        # What the group dealt into its enemies' shields: in damage done,
+        # counted apart here too so the page and the checks can name it.
+        self.shield_damage = 0
+        # Players the file wrote as dead who only fell unconscious.
+        self.unconscious_seen = 0
+        # True once a SWING_DAMAGE_LANDED on the group was seen: see
+        # `_feed_damage`.
+        self._melee_taken_landed = False
         # {school mask: amount} over the whole segment, crumbs included:
         # what the group took (players and their summons) and dealt.
         self.taken_by_school = {}
@@ -257,6 +272,8 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         health, to the sampling that picks the main target's curve.
         """
         self.events_seen += 1
+        if self._held and event.ts != self._held[0].ts:
+            self._settle_moves()
         subevent = event.subevent
         if subevent == "COMBATANT_INFO":
             self._feed_combatant_info(event)
@@ -417,6 +434,11 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             player.dispelled_spells[name] = player.dispelled_spells.get(name, 0) + 1
 
     def _feed_unit_died(self, event):
+        if event.dest.is_player and event.unconscious:
+            # Not a death: the player got up and acted again (see
+            # `Event.unconscious`).
+            self.unconscious_seen += 1
+            return
         self._pool.pop(event.dest.guid, None)
         if not event.dest.is_player and event.dest.is_hostile:
             enemy = self._enemy(event.dest)
@@ -449,8 +471,34 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
                 player.absorb_done += amount
                 _bucket(player.absorb_by_ability, spell_id, spell_name).add(
                     amount, False, self._name_of(event.dest))
+        # ...and, when the shield was an enemy's, on the attacker: a hit a
+        # shield ate is damage dealt to the unit behind it. Left out until
+        # 2026-09-28, the group's damage read 0.5% to 1.6% short of
+        # Warcraft Logs on five real keys, and the gap matched what their
+        # enemies' shields ate to the unit.
+        if amount > 0 and self._is_ours(event.source) and not self._target_is_ours(event):
+            spell_id, spell_name, school = event.absorbed_attack
+            self.shield_damage += amount
+            self._feed_damage_dealt(event, amount, spell=(spell_id, spell_name or "Attaque"),
+                                    school=school, critical=event.absorbed_critical)
 
-    def _feed_damage(self, event):
+    def _target_is_ours(self, event):
+        """Whether the unit hit is the group's, for a hit that one of us dealt.
+
+        A player, yes. A player's summon, unless the line flags it hostile:
+        the encounter can put a unit there under a player's name for the
+        group to break -- "Tombe glaciale", the ice a player is locked in,
+        10.9M on one night, until 2026-09-28 counted as the group's own
+        damage taken instead of damage dealt. Measured on three real logs,
+        every such unit carries hostile flags (0xa48), while every genuine
+        summon the group's lines touch -- a demon taking its share of Soul
+        Link, a raid boss turning a pet against the group -- is friendly.
+        """
+        if event.dest.is_player:
+            return self._is_ours(event.dest)
+        return self._is_ours(event.dest) and not event.dest.is_hostile
+
+    def _feed_damage(self, event, settled=False):
         """One hit: whose ledger it belongs to depends on both ends."""
         amount = event.amount
         source_ours = self._is_ours(event.source)
@@ -463,6 +511,43 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             # Spirit Link Totem, a Rune Weapon and an Arcane Phoenix among
             # the enemies of a real key.
             source_ours = False
+        if source_ours and dest_ours:
+            dest_ours = self._target_is_ours(event)
+        if event.subevent.startswith("SWING_DAMAGE"):
+            landed = event.suffix_kind == "_DAMAGE_LANDED"
+            if not dest_ours or source_ours:
+                if landed:
+                    return          # the SWING_DAMAGE line of the same hit counts
+            # Melee the group took is counted from _LANDED: the client
+            # writes many such hits *only* as _LANDED (5,720 lines against
+            # 3,870 SWING_DAMAGE on a real night, 4,691 against 2,815 on
+            # another), and on a tank SWING_DAMAGE came to 12.6% less than
+            # the hits that landed. Warcraft Logs counts _LANDED; five keys
+            # agree with it to the unit once this does. SWING_DAMAGE comes
+            # first in a pair (2,056 times of 2,058), so until the segment
+            # has shown a _LANDED one is held to the end of its instant; a
+            # file that writes no _LANDED at all keeps SWING_DAMAGE.
+            elif landed:
+                self._melee_taken_landed = True
+            elif self._melee_taken_landed:
+                return
+            elif not settled:
+                self._held.append(event)
+                return
+        if (source_ours and dest_ours and event.dest.is_player
+                and not event.source.is_player and not settled):
+            # A summon of ours hitting a player of ours: Spirit Link Totem
+            # moving health, unless the instant says otherwise.
+            if (event.source.guid, event.spell_id) in self._moving_units:
+                self._feed_moved_health(event)
+            else:
+                self._held.append(event)
+            return
+        # Damage past the last point of health went nowhere, as healing
+        # past full health does: it is the overkill, counted apart.
+        # Warcraft Logs leaves it out too; five real keys agree with it to
+        # the unit once it is, and once shields and mechanics are counted.
+        overkill = min(max(0, event.overkill), max(0, amount))
         if (
             not source_ours
             and not dest_ours
@@ -470,9 +555,9 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             and event.source.is_friendly
             and not event.source.is_hostile
         ):
-            self._bank_orphan(event, amount)
+            self._bank_orphan(event, amount - overkill)
         if source_ours and not dest_ours:
-            self._feed_damage_dealt(event, amount)
+            self._feed_damage_dealt(event, amount - overkill, overkill=overkill)
         if dest_ours and not event.dest.is_player:
             self._feed_summon_hit(event, amount, source_ours)
         elif dest_ours:
@@ -544,13 +629,22 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         if name in self.orphan_sources or len(self.orphan_sources) < 30:
             self.orphan_sources[name] = self.orphan_sources.get(name, 0) + amount
 
-    def _feed_damage_dealt(self, event, amount):
-        """The group hit something that is not the group."""
+    def _feed_damage_dealt(self, event, amount, overkill=0, spell=None, school=None,
+                           critical=None):
+        """The group hit something that is not the group.
+
+        `amount` is what the hit took off the unit: its overkill already
+        removed. A hit an enemy's shield ate comes from SPELL_ABSORBED,
+        which names its spell, school and critical flag elsewhere on the
+        line, so the caller passes them.
+        """
+        spell_id, spell_name = spell or (event.spell_id, event.spell_name)
+        if critical is None:
+            critical = event.is_critical
         player = self._player(event.source)
         player.damage_done += amount
-        ability = _bucket(player.damage_by_ability, event.spell_id, event.spell_name)
-        ability.add(amount, event.is_critical, self._name_of(event.dest),
-                    max(0, event.overkill))
+        ability = _bucket(player.damage_by_ability, spell_id, spell_name)
+        ability.add(amount, critical, self._name_of(event.dest), overkill)
         self.total_damage += amount
         self._enemy_damage[event.dest.guid] = (
             self._enemy_damage.get(event.dest.guid, 0) + amount
@@ -565,7 +659,8 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             self._enemy_names[event.dest.guid] = event.dest.display_name
         block = self._touch_block(event)
         block.damage_done += amount
-        _bank_school(event, amount, block.done_by_school, self.done_by_school)
+        _bank_mask(event.damage_school if school is None else school, amount,
+                   block.done_by_school, self.done_by_school)
         dest_name = canon(event.dest.name)
         if dest_name in self.boss_names:
             block.damage_boss += amount
@@ -579,9 +674,60 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         enemy = self._enemy(event.dest)
         if enemy is not None:
             enemy.damage_taken += amount
-            _bucket(enemy.taken_by_ability, event.spell_id, event.spell_name).add(
-                amount, event.is_critical, player.short_name
+            _bucket(enemy.taken_by_ability, spell_id, spell_name).add(
+                amount, critical, player.short_name
             )
+
+    def _settle_moves(self):
+        """Decide the hits held back by `_feed_damage`, now their instant is over.
+
+        An enemy's SWING_DAMAGE on the group is dropped if a _LANDED line
+        has shown up since, and counted otherwise.
+
+        Spirit Link Totem writes, in one millisecond, a damage line on each
+        player above the group's average health and a heal line on each
+        one below, with the same spell. Which comes first varies (of 14
+        totems on a real night, 13 wrote both in their first instant, 7
+        heal first and 6 damage first), so a summon's hit on a player waits for
+        its instant to end: if the same unit healed the group with the
+        same spell by then, it was moving health; otherwise it was an
+        ordinary hit and is read as one.
+        """
+        pending, self._held = self._held, []
+        for event in pending:
+            if (not event.source.is_player and event.dest.is_player
+                    and (event.source.guid, event.spell_id) in self._moving_units):
+                self._feed_moved_health(event)
+            else:
+                self._feed_damage(event, settled=True)
+
+    def _feed_moved_health(self, event):
+        """Health a summon took from one player to give another: not damage.
+
+        Spirit Link Totem, the one case in three real logs (23.5M on one
+        night). Read as damage, it was the group's damage taken -- listed
+        among what hurt the group -- while the heal half was the shaman's
+        healing, so the totem looked like it both hurt and healed. It is
+        neither: the shaman's healing is net of it, as on Warcraft Logs
+        (their "Spirit Link (Damage)" row, negative), and nobody's damage
+        taken counts it. The victim's own health and death recap still see
+        the hit, because it did lower their health.
+        """
+        amount = event.amount
+        # The part a shield ate is moved health too; the shield's caster
+        # was credited for it by SPELL_ABSORBED.
+        moved = amount + max(0, event.absorbed)
+        self.moved_health += moved
+        owner = self._player(event.source)
+        owner.healing_done -= moved
+        owner.moved_health += moved
+        _bucket(owner.healing_by_ability, event.spell_id, event.spell_name).total -= moved
+        self.total_healing -= moved
+        self._timeline_add(event.ts, "healing", -moved)
+        victim = self._player(event.dest)
+        victim.recent.append((event.ts, self._name_of(event.source), event.spell_name,
+                              -amount, self._hp_of(event), event.overkill))
+        self._track_hp(event, victim)
 
     def _feed_summon_hit(self, event, amount, source_ours):
         # A summon's damage is the group's, not the owner's. It stays
@@ -707,13 +853,24 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         return block
 
     def _feed_landed(self, event):
-        """A resolved melee hit: health and position only, never a total."""
+        """A resolved melee hit: the group's health, and the melee it took.
+
+        Never a total for melee the group *dealt*: there it is the same hit
+        as SWING_DAMAGE, written twice. For melee the group *took* it is the
+        one line counted (see `_feed_damage`).
+        """
         self.landed_seen += 1
         if event.dest.is_player and self._is_ours(event.dest):
             self._track_hp(event, self._player(event.dest))
+        if self._is_ours(event.dest):
+            self._feed_damage(event)
 
     def _feed_heal(self, event):
         effective = event.effective_healing
+        if (not event.source.is_player and event.dest.is_player
+                and self._is_ours(event.source) and self._is_ours(event.dest)
+                and len(self._moving_units) < 1000):
+            self._moving_units.add((event.source.guid, event.spell_id))
         if self._is_ours(event.source):
             player = self._player(event.source)
             player.healing_done += effective
@@ -853,6 +1010,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
     def finish(self, segment):
         """Close the segment: everything that can only be known at its end."""
         end = segment.end_ts or self.last_ts or self.first_ts or 0
+        self._settle_moves()
         if self._encounter is not None:
             self._close_encounter(end, None)
         self._pick_main_target()
@@ -981,12 +1139,13 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         ]
 
     # Which reader each suffix goes to. SWING_DAMAGE and SWING_DAMAGE_LANDED
-    # are the same hit written twice: on a real 12.1.0 log, 5,943 of 6,135
-    # pairs sharing a timestamp, a source and a target carried identical
-    # amounts, so adding both doubled every melee total. _LANDED is kept for
-    # what only it has -- its advanced block describes the *target* (7,561
-    # of 7,561), where SWING_DAMAGE's describes the attacker -- and it is
-    # never added to a total.
+    # describe the same hits, and adding both doubled every melee total (on
+    # a real 12.1.0 log, 5,943 of 6,135 pairs sharing a timestamp, a source
+    # and a target carried identical amounts). Which one counts depends on
+    # the side: SWING_DAMAGE for melee the group dealt, where the two agree
+    # to the unit; _LANDED for melee it took, which the client writes more
+    # completely (see `_feed_damage`). _LANDED's advanced block describes
+    # the *target* (7,561 of 7,561), SWING_DAMAGE's the attacker.
     _BY_SUFFIX = {
         "_DAMAGE_LANDED": _feed_landed,
         "_DAMAGE": _feed_damage,
@@ -1006,7 +1165,11 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
 
 def _bank_school(event, amount, *ledgers):
     """Add one hit to each {school mask: amount} ledger."""
-    school = event.damage_school
+    _bank_mask(event.damage_school, amount, *ledgers)
+
+
+def _bank_mask(school, amount, *ledgers):
+    """Add an amount of one school mask to each {school mask: amount} ledger."""
     if not 0 < school <= 127:       # a damaged line: one "unknown" key, not one per value
         school = 0
     for ledger in ledgers:

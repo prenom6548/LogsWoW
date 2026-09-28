@@ -89,7 +89,16 @@ were downloaded one at a time into the session's scratch directory,
 read, and deleted after the read; only counts per specialization and
 per spell were kept. On 2026-09-28 the owner sent one more night (five
 keys, with a Warcraft Logs events export and a report of their own to
-compare), read the same way. What they taught is recorded here as
+compare), read the same way. For that night the owner also created a
+Warcraft Logs API client of their own and gave the session its
+credentials, so the session could fetch the site's tables and events
+for the same five keys (their public report) and compare them with this
+package's numbers. The fetching script lived in the session's scratch
+directory only; the package still opens no socket, and the fetched data
+was deleted after the comparison, as were the credentials. Only facts
+about the file format came out of it -- which lines the site counts --
+and they were each re-measured on the logs themselves before any code
+changed. What they taught is recorded here as
 counts and totals, in `CLAUDE.md` and in commit messages. A combat log
 carries the character names, realms and performance of **everyone in
 the group**, who did not agree to anything. `examples/exemple-

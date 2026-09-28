@@ -49,6 +49,10 @@ def _damage(a, players):
           "total damage == sum of players", "%d vs %d" % (
               a.total_damage, sum(p.damage_done for p in players)))
 
+    # 1b. What enemies' shields ate is inside that total, never beside it.
+    check(0 <= a.shield_damage <= a.total_damage, "damage into shields within the total",
+          "%d of %d" % (a.shield_damage, a.total_damage))
+
     # 2. Each player's damage is the sum of their abilities.
     for p in players:
         by_ability = sum(x.total for x in p.damage_by_ability.values())
@@ -76,13 +80,20 @@ def _healing(a, players):
         check(p.healing_done == by_ability,
               "%s: healing == sum of abilities" % p.short_name,
               "%d vs %d" % (p.healing_done, by_ability))
+        # The targets are what was healed; health a totem moved away from
+        # a player is taken out of the total but belongs to no target.
         if "autres" not in p.healing_to:
-            check(p.healing_done == sum(p.healing_to.values()),
-                  "%s: healing == sum over targets" % p.short_name,
-                  "%d vs %d" % (p.healing_done, sum(p.healing_to.values())))
+            check(p.healing_done == sum(p.healing_to.values()) - p.moved_health,
+                  "%s: healing == sum over targets - moved health" % p.short_name,
+                  "%d vs %d" % (p.healing_done, sum(p.healing_to.values()) - p.moved_health))
         by_ability_over = sum(x.overheal for x in p.healing_by_ability.values())
         check(p.overhealing == by_ability_over,
               "%s: overheal == sum of abilities' overheal" % p.short_name)
+    check(a.moved_health == sum(p.moved_health for p in players),
+          "moved health == sum of players'")
+    check(a.total_healing == sum(p.healing_done for p in players),
+          "total healing == sum of players", "%d vs %d" % (
+              a.total_healing, sum(p.healing_done for p in players)))
 
 
 def _taken(a, players):

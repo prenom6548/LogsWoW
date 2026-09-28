@@ -3,6 +3,57 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.7.0 — 2026-09-28
+
+**Les chiffres concordent avec Warcraft Logs.** Cinq de vos clés ont été
+comparées joueur par joueur avec ce qu'en dit Warcraft Logs, puis coup
+par coup là où ça ne tombait pas juste. Chaque écart a trouvé sa cause.
+Sur ces cinq clés, maintenant :
+
+- **les morts** : identiques pour les 25 joueurs ;
+- **les dégâts infligés** : identiques à l'unité pour 13 joueurs sur 25,
+  à moins de 0,1 % pour tous ;
+- **les soins** (soins + boucliers) : identiques à l'unité pour 17
+  joueurs sur 25 ;
+- **les dégâts subis** (avec la part absorbée) : identiques ou à moins
+  de 0,1 % pour 18 joueurs sur 25.
+
+Ce qui a changé :
+
+- **Soins mangés par un affaiblissement : ils étaient perdus en entier.**
+  Quand un affaiblissement « absorbe les prochains soins », le journal
+  écrit la part mangée *à côté* du soin. LogsWoW la retirait du soin
+  lui-même, qui tombait souvent à zéro. Ces soins comptent désormais,
+  et la part mangée aussi : c'est un travail de soigneur. Sur l'Autel des
+  crochets, 12,7 M de soins manquaient, et chaque soigneur y était 1 à 4 %
+  sous Warcraft Logs.
+- **La mêlée reçue était sous-comptée**, jusqu'à 12 % sur un tank. Le
+  jeu écrit beaucoup de coups de mêlée reçus sous une seule des deux
+  formes qu'il utilise ; c'est désormais celle-là qui est lue.
+- **Les dégâts dans les boucliers ennemis comptent** comme dégâts
+  infligés : un coup mangé par le bouclier d'un ennemi a été porté. Ils
+  manquaient (0,5 à 1,6 % des dégâts d'une clé).
+- **Les dégâts « en trop » sur un coup fatal ne comptent plus**, comme
+  les soins en trop ne comptent pas : un coup de 485 000 sur une cible à
+  qui il restait 203 000 points de vie en a infligé 203 000.
+- **La Tombe glaciale** (Antre de Nalorakk) est une cible que le groupe
+  doit briser, que le jeu fait « invoquer » par le joueur qu'elle
+  enferme. Les coups portés dessus comptaient comme des dégâts subis par
+  le groupe ; ce sont désormais des dégâts infligés.
+- **Le Lien d'esprit** du chaman ne soigne pas : il prend de la vie aux
+  uns pour la donner aux autres. Ce qu'il prend n'est plus compté dans
+  les dégâts subis de personne, et est déduit des soins du chaman, comme
+  sur Warcraft Logs. Une phrase sous le tableau des soins le dit.
+- **Une Feinte de mort n'est plus une mort.** Le journal écrit un
+  chasseur qui feint la mort comme mort, avec un drapeau
+  « inconscient » ; il ne compte plus.
+
+Il reste deux différences connues, qui sont des choix et non des
+erreurs : les soins sur les familiers des autres joueurs, que Warcraft
+Logs ne compte pas toujours (jusqu'à 4,6 % pour un chaman), et la part
+absorbée des dégâts subis par un démoniste sous Gangrarmure, que le
+journal écrit de deux façons qui ne concordent pas.
+
 ## 0.6.0 — 2026-09-28
 
 **Trois présentations du rapport, au choix.**
