@@ -1105,8 +1105,10 @@ Recorded and **left to the owner**, since each is an outward or
 irreversible act: an early commit (bb6fddb) still holds a real player
 GUID and character name in the public history, and only a history
 rewrite removes it; a merged `claude/...` branch lingers on the remote;
-0.4.0 was never published; the tag path of the release workflow does
-not check that the tagged commit is on `main`.
+0.4.0 was never published. The release workflow's tag path did not
+check that the tagged commit is on `main`, as the button's path did; it
+does now (checked against a local repository: a commit on `main`
+accepted, one on a side branch refused).
 
 ### Performance, measured
 
@@ -1177,8 +1179,9 @@ workflow does the rest:
    its git proxy refuses tag pushes (HTTP 403, measured 2026-09-27), and
    a refusal is not something to route around -- so the button exists.
 
-The workflow refuses a tag that is not the package's version, a
-dispatch from any branch but `main`, and a version already published;
+The workflow refuses a tag that is not the package's version or not on
+`main`, a dispatch from any branch but `main`, and a version already
+published;
 it reruns
 every test, builds the `.pyz` (the package and the licence, nothing
 else -- a test checks no log or fixture gets in) and publishes it with

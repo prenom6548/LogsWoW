@@ -38,7 +38,9 @@ jobs:
               fetch -q --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" "$GITHUB_SHA"
           git checkout -q FETCH_HEAD
 
-      - name: The tag must be the package's version
+      - name: The tag must be the package's version, on main
+        env:
+          TOKEN: ${{ github.token }}
         run: |
           version=$(python3 -c "import logswow; print(logswow.__version__)")
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
@@ -51,6 +53,15 @@ jobs:
             tag="$GITHUB_REF_NAME"
             if [ "$tag" != "v$version" ]; then
               echo "The tag is $tag but logswow/__init__.py says $version."
+              exit 1
+            fi
+            # A tag can be pushed on any commit; the button can only run on
+            # main. The same rule for both: the tagged commit is on main.
+            auth=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
+            git -c "http.extraheader=AUTHORIZATION: basic $auth" \
+                fetch -q "https://github.com/${GITHUB_REPOSITORY}.git" main
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
+              echo "$tag is on a commit that is not on main."
               exit 1
             fi
           fi
