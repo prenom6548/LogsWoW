@@ -25,10 +25,29 @@ designed for this repository and looks nothing like it.
 
 The legal status of AI-generated works varies by jurisdiction; to the
 extent any rights exist in this content, they are held by the repository
-owner and licensed under the GNU General Public License, version 3 or
-(at the licensee's option) any later version (GPL-3.0-or-later). The
-"or later" was made explicit by the owner on 2026-09-27, before the
-repository went public; until then the documents said "GPLv3".
+owner and licensed under the GNU Affero General Public License, version 3
+or (at the licensee's option) any later version (AGPL-3.0-or-later).
+
+The licence history, since each step was the owner's decision: "GPLv3"
+until 2026-09-27; GPL-3.0-or-later from then, made explicit before the
+repository went public, for versions 0.3.2 to 0.7.0; AGPL-3.0-or-later
+from 0.8.0 (2026-09-28), chosen by the owner so that anyone running a
+modified version as an online service must offer its source to its users
+as well. The owner could make that change alone because no third-party
+code is in the repository (see below).
+
+On 2026-09-28 the owner also placed the **earlier versions** (0.1.0 to
+0.7.0) under AGPL-3.0-or-later: from that date, the owner distributes
+every version of LogsWoW, old and new, under that licence only. What
+this cannot do is take back a licence already given. GPLv3 says so in
+its own text: its section 2 declares the rights it grants "irrevocable
+provided the stated conditions are met", section 10 gives every
+recipient a licence directly from the licensor, and section 8 ends
+those rights only for someone who breaks the licence. Anyone who
+obtained a copy of 0.1.0 to 0.7.0 before 2026-09-28 therefore keeps,
+for that copy, the GPL rights it came with. Nobody else's
+agreement was needed: the repository has no contributor other than the
+owner's own sessions.
 
 ## Third-party material
 
@@ -36,8 +55,10 @@ repository went public; until then the documents said "GPLv3".
 library, by design: no dependency means nothing to audit, nothing to
 install, and nothing that can phone home.
 
-`LICENSE` is the verbatim GNU GPLv3, fetched from gnu.org. The FSF
-permits and requires verbatim copying of the license document itself.
+`LICENSE` is the verbatim GNU AGPLv3, fetched from gnu.org on
+2026-09-28 (SHA-256 0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0,
+the FSF's own file). The FSF permits and requires verbatim copying of the
+license document itself.
 
 ## The research document
 

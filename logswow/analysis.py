@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """What the events add up to, accumulated as they stream past.
 
 Nothing here keeps the events themselves. Each segment holds counters,
@@ -83,7 +84,6 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self.total_damage = 0
         self.total_healing = 0
         self.aura_open = {}
-        self.aura_uptime = {}
         # True once an aura could not be tracked for want of room; see
         # `_aura_close`, which stops inferring anything after that.
         self._aura_overflowed = False
@@ -125,7 +125,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         # once per timeline bucket into the "pool" series.
         self._pool = {}
         # The boss encounters inside this segment, from its own markers:
-        # (name, start, end, success). A key sees every boss it contains;
+        # (name, start, end, success, fought). A key sees every boss it contains;
         # a boss segment sees itself.
         self.encounters = []
         # Encounters no unit is named after -- a council of several
@@ -143,7 +143,6 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self._hp_samples = {}
         self._timeline = {}
         self._bucket_ms = 1000
-        self.events_seen = 0
         self.landed_seen = 0
         # Units a player "summoned" that turned out to be the encounter's.
         self.disowned_units = 0
@@ -271,7 +270,6 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         end of the class) and then, if it describes a hostile unit's
         health, to the sampling that picks the main target's curve.
         """
-        self.events_seen += 1
         if self._held and event.ts != self._held[0].ts:
             self._settle_moves()
         subevent = event.subevent
@@ -481,6 +479,11 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             self.shield_damage += amount
             self._feed_damage_dealt(event, amount, spell=(spell_id, spell_name or "Attaque"),
                                     school=school, critical=event.absorbed_critical)
+        elif (amount > 0 and not self._is_ours(event.source) and not self._is_ours(event.dest)
+              and event.source.is_friendly and not event.source.is_hostile):
+            # The same hit, from a friendly unit nobody owns: unattributed,
+            # like the rest of what it dealt (see `_bank_orphan`).
+            self._bank_orphan(event, amount)
 
     def _target_is_ours(self, event):
         """Whether the unit hit is the group's, for a hit that one of us dealt.
@@ -852,6 +855,19 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         block.end_ts = max(block.end_ts, event.ts)
         return block
 
+    def _feed_instakill(self, event):
+        """A player killed outright: the cause of death, with no amount at all.
+
+        SPELL_INSTAKILL carries no damage and no overkill, so the chain
+        before such a death held only heals and the page named no killing
+        blow: 3 of the 5 deaths without one on a real raid night, 11 such
+        lines on a Mythic+ night. It goes into the chain marked as the
+        fatal moment, with nothing to add to any total.
+        """
+        if event.dest.is_player and self._is_ours(event.dest):
+            self._player(event.dest).recent.append(
+                (event.ts, self._name_of(event.source), event.spell_name, 0, None, 1))
+
     def _feed_landed(self, event):
         """A resolved melee hit: the group's health, and the melee it took.
 
@@ -928,7 +944,6 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         fraction = self._hp_of(event)
         if fraction is None:
             return
-        player.hp_fraction = fraction
         if player.min_hp_fraction is None or fraction < player.min_hp_fraction:
             player.min_hp_fraction = fraction
         if event.advanced.max_hp > player.max_hp:
@@ -1029,7 +1044,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self.aura_open = {}
 
         self._disown_mechanics()
-        self._close_downtime(segment, end)
+        self._close_downtime(end)
         self._collapse_timeline()
         for player in self.players.values():
             player.triggered = classify_triggered(player.cast_log)
@@ -1043,7 +1058,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             if kept:
                 self.blocks = kept
 
-    def _close_downtime(self, segment, end):
+    def _close_downtime(self, end):
         # A player's own downtime runs to the end of the pull, not to
         # their last cast: a rotation that stops thirty seconds early is
         # exactly the thing worth seeing.
@@ -1055,9 +1070,6 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
                     player.longest_gaps.append((trailing, player.last_cast_ts))
                     player.longest_gaps.sort(reverse=True)
                     del player.longest_gaps[5:]
-            player.active_ms = segment.duration_ms or (
-                (self.last_ts or 0) - (self.first_ts or 0)
-            )
 
     # -- readers the report uses ------------------------------------------
 
@@ -1157,6 +1169,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         "_DISPEL": _feed_dispel,
         "_STOLEN": _feed_dispel,
         "_CAST_START": _feed_enemy_cast_start,
+        "_INSTAKILL": _feed_instakill,
         "_AURA_APPLIED": AuraLedger._aura_open,
         "_AURA_REFRESH": AuraLedger._aura_open,
         "_AURA_REMOVED": AuraLedger._aura_close,

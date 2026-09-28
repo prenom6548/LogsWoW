@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """The order a player cast their spells in, and which of them nobody pressed.
 
 The file writes a cast the game triggered on its own -- a talent firing

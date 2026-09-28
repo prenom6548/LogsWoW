@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Spell links, in the reader's own language.
 
 The report stays a single file that loads nothing: a link is followed

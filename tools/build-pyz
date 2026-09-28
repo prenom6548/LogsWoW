@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Build the one file a release ships: dist/logswow-<version>.pyz.
 
     python3 tools/build-pyz
@@ -30,7 +31,7 @@ def build(target_dir=None):
     with tempfile.TemporaryDirectory() as staging:
         shutil.copytree(os.path.join(ROOT, "logswow"), os.path.join(staging, "logswow"),
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-        # Licence travels with the code, as the GPL asks.
+        # Licence travels with the code, as the AGPL asks.
         shutil.copy(os.path.join(ROOT, "LICENSE"), os.path.join(staging, "LICENSE"))
         # Written by hand rather than with zipapp's `main=`: that one
         # drops the exit code, and `report` says 2 when it refuses.

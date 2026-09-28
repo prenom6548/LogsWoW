@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Schools of damage: physical, magic, or both at once.
 
 Every damage line carries the school of what it dealt, as a bit mask:

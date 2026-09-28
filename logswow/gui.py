@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """A window, for whoever would rather click than type.
 
 Asked for by the owner on 2026-09-27, after a first try in a terminal:
@@ -267,8 +268,9 @@ class App:
 
         line = ttk.Frame(box)
         line.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        ttk.Button(line, text="Choisir un autre fichier…", command=self.choose_file).pack(
-            side="left")
+        self.choose_button = ttk.Button(line, text="Choisir un autre fichier…",
+                                        command=self.choose_file)
+        self.choose_button.pack(side="left")
         ttk.Button(line, text="Actualiser la liste", command=self.refresh_logs).pack(
             side="left", padx=(6, 0))
         self.read_button = ttk.Button(line, text="Lire ce journal", style="Accent.TButton",
@@ -363,6 +365,10 @@ class App:
                             "« Choisir un autre fichier… » pour l'indiquer.")
 
     def choose_file(self):
+        # A second read started while one runs would hand the window the
+        # first file's fights under the second file's name.
+        if self.busy:
+            return
         from tkinter import filedialog
 
         start = next(iter(default_log_locations() if self.locations is None
@@ -444,7 +450,9 @@ class App:
                     defaultextension=".html", filetypes=(("Page web", "*.html"),))
             if not out:
                 return
-        log, cast_order = self.log, self.cast_order.get()
+        # Captured now: the thread runs later, and the log it must never
+        # overwrite is the one these fights were read from.
+        log, log_path, cast_order = self.log, self.log_path, self.cast_order.get()
         plural = "s" if len(chosen) > 1 else ""
         self._start("Écriture du rapport (%d combat%s)…" % (len(chosen), plural))
         self.bar.configure(mode="indeterminate")
@@ -452,7 +460,7 @@ class App:
 
         def work():
             try:
-                reason = write_report(log, chosen, out, self.log_path, cast_order, layout)
+                reason = write_report(log, chosen, out, log_path, cast_order, layout)
             except Exception:       # noqa: BLE001 -- shown to the reader, not swallowed
                 reason = "Erreur inattendue en écrivant le rapport :\n\n" + traceback.format_exc()
             self.messages.put(("written", report_entry(out, layout), reason))
@@ -531,6 +539,7 @@ class App:
             widget.state(["!disabled"] if on else ["disabled"])
 
         state(self.read_button, not self.busy and bool(self.logs.selection()))
+        state(self.choose_button, not self.busy)
         state(self.cancel_button, self.busy)
         state(self.write_button, not self.busy and bool(self.fights.selection()))
         state(self.folder_button, not self.busy and self.last_report is not None)

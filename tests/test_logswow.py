@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Tests for LogsWoW. Standard library only: `python3 tests/run-tests.py`.
 
 Two kinds of test live here and they are worth telling apart.
@@ -3246,6 +3247,151 @@ class TestWhatWarcraftLogsShowed(unittest.TestCase):
         analysis = self._run([swing(0, "SWING_DAMAGE", self.MOB, self.A, 1000),
                               swing(10, "SWING_DAMAGE", self.MOB, self.A, 500)])
         self.assertEqual(self._player(analysis, 1).damage_taken, 1500)
+
+
+class TestSixthAuditFindings(unittest.TestCase):
+    """The 2026-09-28 audit of 0.7.0: what three real logs and a full read
+    of every file found. Each test fails without the change it names."""
+
+    MOB = 'Creature-0-9999-2222-1111-70000-0000111111,"Golem",0xa48,0x0'
+    NOBODY = '0000000000000000,nil,0x80000000,0x80000000'
+
+    @staticmethod
+    def _player(n):
+        return 'Player-9999-%08d,"Joueur%d-Dalaran-EU",0x512,0x0' % (n, n)
+
+    def _run(self, timed_payloads):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, (ms, payload) in enumerate(timed_payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ms, fields, index + 1))
+        return splitter.finish()
+
+    def _page(self, segments):
+        import tempfile
+
+        log, _fixture = run_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "r.html")
+            ReportWriter(log, segments, target, wowhead="off", cast_order=False,
+                         layout="longue").write()
+            with open(target, encoding="utf-8") as handle:
+                return handle.read()
+
+    def test_a_raid_of_more_than_twenty_is_ranked_whole(self):
+        """A real heroic encounter had 21 players; the ranking stopped at
+        twenty and the last one vanished from it. Deaths stopped at 24."""
+        lines = [(0, 'ENCOUNTER_START,1,"Golem",15,30,2000')]
+        for n in range(1, 31):
+            lines.append((n, 'SPELL_DAMAGE,%s,%s,1,"Frappe",0x1,%d,%d,-1,1,0,0,0,nil,nil,nil,ST'
+                          % (self._player(n), self.MOB, 1000 + n, 1000 + n)))
+            lines.append((100 + n, 'UNIT_DIED,%s,%s,0' % (self.NOBODY, self._player(n))))
+        lines.append((500, 'ENCOUNTER_END,1,"Golem",15,30,0,500'))
+        page = self._page(self._run(lines))
+        ranking = page.split("<h3>Degats infliges</h3>", 1)[1].split("</table>", 1)[0]
+        self.assertEqual(ranking.count("<tr>") - 1, 30)
+        self.assertEqual(page.count("<details><summary>Joueur"), 30 + 30)   # deaths + panels
+
+    def test_a_healer_with_many_targets_shows_them_all(self):
+        """A raid healer reached 36 targets; the list stopped at twenty."""
+        healer = self._player(99)
+        lines = [(0, 'ENCOUNTER_START,1,"Golem",15,30,2000'),
+                 (1, 'SPELL_DAMAGE,%s,%s,1,"Frappe",0x1,10,10,-1,1,0,0,0,nil,nil,nil,ST'
+                  % (healer, self.MOB))]
+        for n in range(1, 26):
+            lines.append((10 + n, 'SPELL_HEAL,%s,%s,2,"Soin",0x2,%d,%d,0,0,nil'
+                          % (healer, self._player(n), 500 - n, 500 - n)))
+        lines.append((100, 'ENCOUNTER_END,1,"Golem",15,30,1,100'))
+        page = self._page(self._run(lines))
+        self.assertIn("5 cibles de plus", page)
+        self.assertIn(">Joueur25<", page.replace("<span class=name>", ">"))
+
+    def test_an_instant_kill_is_the_cause_of_death(self):
+        """SPELL_INSTAKILL carries no amount: three of five unexplained
+        deaths on a real raid night, eleven such lines on a Mythic+ one."""
+        victim = self._player(1)
+        segments = self._run([
+            (0, 'ENCOUNTER_START,1,"Golem",15,30,2000'),
+            (10, 'SPELL_HEAL,%s,%s,2,"Soin",0x2,500,500,0,0,nil' % (victim, victim)),
+            (20, 'SPELL_INSTAKILL,%s,%s,777,"Aneantissement",0x20,0' % (self.MOB, victim)),
+            (21, 'UNIT_DIED,%s,%s,0' % (self.NOBODY, victim)),
+            (30, 'ENCOUNTER_END,1,"Golem",15,30,0,30'),
+        ])
+        death = segments[0].analysis.deaths[0]
+        self.assertEqual(death["killing_blow"], "Aneantissement (Golem)")
+        self.assertIn("mort instantanee", self._page(segments))
+
+    def test_a_death_the_file_explains_nowhere_says_so(self):
+        victim = self._player(1)
+        segments = self._run([
+            (0, 'ENCOUNTER_START,1,"Golem",15,30,2000'),
+            (10, 'SPELL_HEAL,%s,%s,2,"Soin",0x2,500,500,0,0,nil' % (victim, victim)),
+            (21, 'UNIT_DIED,%s,%s,0' % (self.NOBODY, victim)),
+            (30, 'ENCOUNTER_END,1,"Golem",15,30,0,30'),
+        ])
+        self.assertIn("cause non ecrite dans le journal", self._page(segments))
+
+    def test_a_shield_hit_from_a_pet_nobody_owns_is_unattributed_not_lost(self):
+        pet = 'Pet-0-9999-1-1-00099,"Cendre",0x1114,0x0'
+        caster = self.MOB.rsplit(",", 2)[0]
+        analysis = self._run([
+            (0, 'SPELL_ABSORBED,%s,%s,300,"Morsure",0x1,%s,0xa48,0x0,999,"Barriere",0x20,'
+                '700,900,nil' % (pet, self.MOB, caster)),
+        ])[0].analysis
+        self.assertEqual(analysis.total_damage, 0)
+        self.assertEqual(analysis.orphan_damage, 700)
+
+    def test_the_window_refuses_a_second_read_while_one_runs(self):
+        """'Choisir un autre fichier...' stayed clickable during a read and
+        started a second one; the first file's fights then came back under
+        the second file's name."""
+        from types import SimpleNamespace
+
+        from logswow import gui
+
+        app = SimpleNamespace(busy=True, read=lambda path: self.fail("a second read"))
+        self.assertIsNone(gui.App.choose_file(app))
+
+    def test_every_published_minor_version_keeps_its_changelog_section(self):
+        """Writing each new section *over* the previous heading lost 0.5.0
+        and 0.5.1: their notes were published inside 0.5.1's and 0.6.0's."""
+        from logswow import __version__
+
+        with open(os.path.join(ROOT, "CHANGELOG.md"), encoding="utf-8") as handle:
+            versions = [tuple(int(p) for p in line.split()[1].split("."))
+                        for line in handle if line.startswith("## ")]
+        self.assertEqual(versions[0], tuple(int(p) for p in __version__.split(".")))
+        self.assertEqual(versions, sorted(set(versions), reverse=True))
+        minors = {version[:2] for version in versions}
+        self.assertEqual(minors, {(0, minor) for minor in range(1, versions[0][1] + 1)})
+
+    def test_the_licence_is_the_fsf_text_byte_for_byte(self):
+        import hashlib
+
+        with open(os.path.join(ROOT, "LICENSE"), "rb") as handle:
+            digest = hashlib.sha256(handle.read()).hexdigest()
+        self.assertEqual(
+            digest, "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0")
+        from logswow import __doc__ as notice
+
+        self.assertIn("GNU Affero General Public License", notice)
+
+    def test_every_source_file_names_its_licence(self):
+        # One SPDX line per file, so a file copied out alone still says
+        # what it may be used under.
+        tag = "# SPDX-License-Identifier: AGPL-3.0-or-later\n"
+        paths = []
+        for folder in ("logswow", "tests", "tools"):
+            for name in sorted(os.listdir(os.path.join(ROOT, folder))):
+                path = os.path.join(ROOT, folder, name)
+                if os.path.isfile(path) and (name.endswith(".py") or "." not in name):
+                    paths.append(path)
+        self.assertGreater(len(paths), 30)
+        for path in paths:
+            with open(path, encoding="utf-8") as handle:
+                head = handle.readline() + handle.readline()
+            with self.subTest(path=path):
+                self.assertIn(tag, head)
 
 
 if __name__ == "__main__":

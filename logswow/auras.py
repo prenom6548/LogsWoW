@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Aura uptime: who held what, put there by whom, and for how long.
 
 The one part of the analysis that has to pair two lines -- an APPLIED

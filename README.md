@@ -36,7 +36,7 @@ manque). Les commandes n'en ont pas besoin.
 **La marche à suivre pas à pas, pour Windows, Linux (dont Linux Mint) et
 macOS, est dans [`INSTALL.md`](INSTALL.md).** Chaque version publiée
 fournit un fichier unique, `logswow-<version>.pyz`, qui se lance tel quel :
-`python3 logswow-0.6.0.pyz report WoWCombatLog.txt`.
+`python3 logswow-0.8.0.pyz report WoWCombatLog.txt`.
 
 Rien à installer. Python 3.8 ou plus récent, et c'est tout : pas de
 `pip install`, aucune dépendance, aucun réseau. Le paquet se copie ou se
@@ -252,7 +252,7 @@ python3 tools/check-invariants.py WoWCombatLog.txt
 ln -s ../../tools/pre-push .git/hooks/pre-push     # une fois, pour les contributeurs
 ```
 
-Les tests, 173, tournent sans dépendance ni réseau sur
+Les tests, 228, tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 
@@ -285,8 +285,16 @@ Windows, sous Linux comme sous Windows.
 
 ## Licence
 
-Licence publique générale GNU, **version 3 ou (à votre choix) toute
-version ultérieure** (GPL-3.0-or-later). Tout le monde peut utiliser,
-modifier et redistribuer ; quiconque distribue une version, modifiée ou
-non, doit en fournir le code source sous la même licence. Voir `LICENSE`
+Licence publique générale GNU Affero, **version 3 ou (à votre choix)
+toute version ultérieure** (AGPL-3.0-or-later), depuis la version 0.8.0.
+Tout le monde peut utiliser, modifier et redistribuer ; quiconque
+distribue une version, modifiée ou non, doit en fournir le code source
+sous la même licence. L'AGPL ajoute un point à la GPL : **quiconque fait
+tourner une version modifiée comme service en ligne** (un site qui lirait
+vos journaux, par exemple) doit aussi en proposer le code source à ceux
+qui s'en servent. Pour vous, qui l'utilisez sur votre machine, rien ne
+change. Depuis le 28 septembre 2026, les versions antérieures (0.1.0 à
+0.7.0) sont elles aussi distribuées sous AGPL-3.0-or-later ; qui en avait
+déjà une copie garde, pour cette copie, les droits de la GPL sous
+laquelle elle a été reçue, que la GPL déclare irrévocables. Voir `LICENSE`
 et `PROVENANCE.md`.

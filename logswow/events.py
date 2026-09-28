@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Turning a field list into a typed event.
 
 The log's own scheme is prefix + suffix: SPELL_DAMAGE is the SPELL
@@ -246,31 +247,22 @@ class Advanced:
 
     def __init__(self, fields):
         count = len(fields)
-
-        def head(index, default=""):
-            return fields[index] if 0 <= index < count else default
-
-        def tail(offset, default=""):
-            index = count + offset
-            return fields[index] if 0 <= index < count else default
-
-        self.info_guid = head(0) if isinstance(head(0), str) else ""
-        self.owner_guid = head(1) if isinstance(head(1), str) else ""
-        self.current_hp = as_int(head(2), 0)
-        self.max_hp = as_int(head(3), 0)
-        self.attack_power = as_int(head(4), 0)
-        self.spell_power = as_int(head(5), 0)
-        self.armor = as_int(head(6), 0)
-        self.absorb = as_int(head(7), 0)
-        self.power_type = tail(-9)
-        self.current_power = tail(-8)
-        self.max_power = tail(-7)
-        self.power_cost = tail(-6)
-        self.position_x = tail(-5)
-        self.position_y = tail(-4)
-        self.ui_map_id = as_int(tail(-3), 0)
-        self.facing = tail(-2)
-        self.level = as_int(tail(-1), 0)
+        # Padded so a short block reads "" where a field is missing, as the
+        # two ends are read: the head from the front, the tail from the back.
+        head = list(fields[:8]) + [""] * (8 - min(8, count))
+        tail = list(fields[-9:]) if count >= 9 else [""] * (9 - count) + list(fields)
+        self.info_guid = head[0] if isinstance(head[0], str) else ""
+        self.owner_guid = head[1] if isinstance(head[1], str) else ""
+        self.current_hp = as_int(head[2], 0)
+        self.max_hp = as_int(head[3], 0)
+        # Kept as the file writes them: nothing reads these four, and
+        # converting them on every line cost a second on a real night.
+        self.attack_power, self.spell_power, self.armor, self.absorb = head[4:8]
+        (self.power_type, self.current_power, self.max_power, self.power_cost,
+         self.position_x, self.position_y) = tail[:6]
+        self.ui_map_id = as_int(tail[6], 0)
+        self.facing = tail[7]
+        self.level = as_int(tail[8], 0)
 
     @property
     def paid_power(self):
@@ -524,6 +516,10 @@ class Event:
         return "Event(%s %s -> %s)" % (self.subevent, self.source.name, self.dest.name)
 
 
+# decompose() answers the same few dozen names millions of times a night.
+_DECOMPOSED = {}
+
+
 def decompose(subevent):
     """'SPELL_PERIODIC_DAMAGE' -> ('SPELL_PERIODIC', 3, '_DAMAGE', counts).
 
@@ -538,6 +534,15 @@ def decompose(subevent):
     buff the support came from: SWING_DAMAGE_LANDED_SUPPORT has the same
     42 fields as SPELL_DAMAGE_SUPPORT (9,772 of 9,772 lines, one real log).
     """
+    if subevent in _DECOMPOSED:
+        return _DECOMPOSED[subevent]
+    scheme = _decompose(subevent)
+    if len(_DECOMPOSED) < 2000:         # a damaged file can invent names without end
+        _DECOMPOSED[subevent] = scheme
+    return scheme
+
+
+def _decompose(subevent):
     best = None
     for prefix, prefix_n in _PREFIXES:
         if not subevent.startswith(prefix):

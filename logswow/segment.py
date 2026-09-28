@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Cutting a log into the things a player actually thinks in: pulls.
 
 Three markers do the work, and all three are written by the client

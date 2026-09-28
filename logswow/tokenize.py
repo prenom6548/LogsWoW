@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Splitting one combat log line into fields.
 
 A line is:
@@ -7,7 +8,7 @@ A line is:
 with exactly two spaces between the timestamp and the rest. Fields are
 comma-separated, but three things make a naive split wrong:
 
-  * quoted strings, which contain commas: "Thalia-Hyjal", "Coup de bouclier"
+  * quoted strings, which contain commas: "Garde, le Brise-Fer", "Coup de bouclier"
   * bracketed lists, which nest: COMBATANT_INFO's talents, gear, auras
   * parenthesised tuples inside those lists
 
@@ -137,8 +138,8 @@ def looks_like_guid(value):
     """True for a unit GUID, including the nil one.
 
     Used to tell whether a line carries the addon-only `hideCaster`
-    field. No real file read so far has contained it (seven, from two
-    client builds), but the addon-side event does, so the parser still
+    field. No real file read so far has contained it (more than twenty,
+    from two client builds), but the addon-side event does, so the parser still
     checks rather than assumes -- and `diagnose` reports which answer it
     got.
     """

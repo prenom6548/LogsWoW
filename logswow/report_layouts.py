@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Three ways to lay the same report out: one long page, tabs, or pages.
 
 Asked for by the owner on 2026-09-28: the single page is long, could it
@@ -133,6 +134,21 @@ def page_name(segment):
     return "combat-%02d.html" % segment.index
 
 
+def is_our_report(path):
+    """True when the file at `path` is a page this program wrote.
+
+    The one test both the command line and the folder layout use before
+    replacing a file: a LogsWoW page starts with the doctype and names
+    itself in its title, and nothing else is ever overwritten.
+    """
+    try:
+        with open(path, "rb") as handle:
+            head = handle.read(512)
+    except OSError:
+        return False
+    return head.startswith(b"<!doctype html>") and b"<title>LogsWoW" in head
+
+
 class LayoutsMixin:
     """The tabbed page and the folder of pages; the long page is `write` itself."""
 
@@ -190,15 +206,6 @@ class LayoutsMixin:
         # Pages of an earlier report of ours that this one no longer has.
         for name in os.listdir(folder):
             if (name.startswith("combat-") and name.endswith(".html") and name not in written
-                    and self._is_ours(os.path.join(folder, name))):
+                    and is_our_report(os.path.join(folder, name))):
                 os.remove(os.path.join(folder, name))
         return index
-
-    @staticmethod
-    def _is_ours(path):
-        try:
-            with open(path, "rb") as handle:
-                head = handle.read(512)
-        except OSError:
-            return False
-        return head.startswith(b"<!doctype html>") and b"<title>LogsWoW" in head

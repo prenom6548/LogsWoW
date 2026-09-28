@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # What CLAUDE.md asks before shipping, run by git before every push.
 # No network, no service, no dependency. Nothing runs online on a push;
 # only a version tag triggers a workflow (.github/workflows/release.yml),

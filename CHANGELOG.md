@@ -3,6 +3,51 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.8.0 — 2026-09-28
+
+**Un audit complet, et une licence qui protège aussi contre les services
+en ligne.**
+
+La licence devient l'**AGPL-3.0 ou ultérieure** (elle était la GPL-3.0
+ou ultérieure). Pour vous, qui lancez LogsWoW sur votre machine, rien ne
+change. La différence vise qui voudrait en faire un site : quiconque
+fait tourner une version modifiée comme service en ligne doit désormais
+en proposer le code source à ceux qui s'en servent. Les versions
+antérieures (0.1.0 à 0.7.0) sont elles aussi distribuées sous AGPL depuis
+aujourd'hui. Qui en avait déjà une copie garde les droits de la GPL pour
+cette copie, parce que la GPL les déclare irrévocables. Chaque fichier
+source porte désormais sa licence en première ligne, et le pied du
+rapport indique où trouver le code.
+
+Ce que l'audit a trouvé dans le rapport, vérifié sur vos vrais journaux :
+
+- **Des lignes disparaissaient sans le dire.**
+  - Le classement s'arrêtait à 20 joueurs : sur une rencontre héroïque
+    à 21, le vingt et unième manquait.
+  - La liste des morts s'arrêtait à 24, ce qu'un wipe de raid dépasse.
+  - Les panneaux s'arrêtaient à 30 joueurs.
+  - Les cibles d'un soigneur s'arrêtaient à 20 : un soigneur de raid en
+    avait 36.
+
+  Tout est affiché maintenant. Les cibles au-delà de la vingtième se
+  déplient sous le tableau, avec leur total.
+- **Une mort instantanée n'avait pas de cause.** Quand le jeu tue un
+  joueur d'un coup (le journal l'écrit sans montant), le récapitulatif
+  de la mort ne nommait aucun coup fatal. Sur une soirée de raid, c'était
+  le cas de 3 des 5 morts restées sans cause. Le sort est nommé désormais, avec
+  la mention « mort instantanée ». Quand le journal n'écrit vraiment
+  aucune cause, le rapport le dit au lieu de laisser la case vide.
+- **Les coups d'un allié sans propriétaire dans un bouclier ennemi**
+  rejoignent les autres dégâts non attribués, au lieu de disparaître.
+- **La fenêtre** ne laisse plus ouvrir un second journal pendant qu'un
+  premier se lit ou qu'un rapport s'écrit. Le rapport s'écrit toujours
+  à partir du journal dont les combats ont été choisis.
+- La note sur les dégâts physiques et magiques dit précisément ce qu'elle
+  compte, dans les mêmes termes que le reste du rapport.
+
+Aucun total de dégâts, de soins ou de morts n'a changé : l'audit a
+comparé tous les chiffres de trois vrais journaux avant et après.
+
 ## 0.7.0 — 2026-09-28
 
 **Les chiffres concordent avec Warcraft Logs.** Cinq de vos clés ont été
@@ -76,7 +121,7 @@ journal écrit de deux façons qui ne concordent pas.
 - Un dossier qui contient déjà autre chose qu'un rapport LogsWoW est
   refusé (sauf `--force`), comme l'est un fichier existant.
 
-
+## 0.5.1 — 2026-09-28
 
 **Corrigé, d'après vos retours sur vos propres rapports.**
 
@@ -105,7 +150,7 @@ journal écrit de deux façons qui ne concordent pas.
   comme un donjon compté deux fois. Une rencontre ouverte et refermée
   sans un coup (un reset volontaire du boss) n'est jamais un wipe.
 
-
+## 0.5.0 — 2026-09-27
 
 **Physique ou magique, en pourcentage.**
 

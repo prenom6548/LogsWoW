@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Write examples/exemple-combat.txt: a small, fabricated combat log.
 
 **Nothing here comes from anybody's real log.** The names are invented,

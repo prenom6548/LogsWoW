@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """The unfolding panels: one per player, one per enemy, and their tables.
 
 Split out of report.py, with the same rule as the timeline: formatters
@@ -62,7 +63,7 @@ class PanelsMixin:
         return table + (
             "<details class=more><summary>%s de plus &middot; %s (%s)</summary>%s</details>"
             % (fmt.plural(len(rest), "sort"), fmt.compact(hidden),
-               fmt.percent(hidden / grand) if grand else "0 %",
+               fmt.percent(hidden / grand) if grand else fmt.percent(0),
                self._ability_rows(rest, casts_by_spell, seconds, mode, grand)))
 
     def _ability_rows(self, abilities, casts_by_spell, seconds, mode, grand):
@@ -133,7 +134,9 @@ class PanelsMixin:
             reverse=True,
         )
         blocks = []
-        for player in rows[:30]:
+        # Every player who took part: a heroic raid is up to thirty, and a
+        # cap here would drop a panel without a word.
+        for player in rows:
             if not analysis.took_part(player):
                 continue
             blocks.append(self._one_player(analysis, player, seconds))
@@ -274,20 +277,32 @@ class PanelsMixin:
         )
 
     def _targets_table(self, targets, limit=20):
+        """Who a healer healed. Past `limit`, the rest folds open below.
+
+        A raid healer reached 36 targets on a real night, and the sixteen
+        after the twentieth were dropped without a word.
+        """
         if not targets:
             return "<p class=dim>Rien.</p>"
-        ranked = sorted(targets.items(), key=lambda item: -item[1])[:limit]
+        ranked = sorted(targets.items(), key=lambda item: -item[1])
         grand = sum(targets.values()) or 1
-        rows = "".join(
-            "<tr>%s<td class=n>%s</td><td class=n>%s</td></tr>"
-            % (_bar_row(fmt.esc(name), value / grand), fmt.compact(value),
-               fmt.percent(value / grand))
-            for name, value in ranked
-        )
-        return (
-            "<table><tr><th>Cible</th><th class=n>Total</th><th class=n>Part</th></tr>"
-            "%s</table>" % rows
-        )
+
+        def table(rows):
+            return ("<table><tr><th>Cible</th><th class=n>Total</th><th class=n>Part</th></tr>"
+                    "%s</table>" % "".join(
+                        "<tr>%s<td class=n>%s</td><td class=n>%s</td></tr>"
+                        % (_bar_row(fmt.esc(name), value / grand), fmt.compact(value),
+                           fmt.percent(value / grand))
+                        for name, value in rows))
+
+        shown, rest = ranked[:limit], ranked[limit:]
+        if not rest:
+            return table(shown)
+        hidden = sum(value for _name, value in rest)
+        return table(shown) + (
+            "<details class=more><summary>%s de plus &middot; %s (%s)</summary>%s</details>"
+            % (fmt.plural(len(rest), "cible"), fmt.compact(hidden),
+               fmt.percent(hidden / grand), table(rest)))
 
     def _enemies(self, analysis, seconds):
         # Twelve rather than everything: a whole raid night's report was

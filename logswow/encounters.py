@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Boss encounters inside a segment, bounded by the file's own markers.
 
 A key contains its bosses, and the pull table has to know which of its

@@ -697,6 +697,14 @@ Ce document a été écrit avant l'outil. Voici ce qu'il a décidé.
   surplus, et un coup de mêlée écrit deux fois. Le détail est dans le
   `CLAUDE.md` du dépôt. La leçon vaut pour quiconque écrit un lecteur :
   mesurer dans le fichier, ne pas croire la page.
+- **L'API a servi une fois, comme étalon, jamais comme dépendance.** Le
+  2026-09-28, le propriétaire a créé un client API Warcraft Logs à son
+  nom pour comparer cinq de ses clés, table par table puis coup par coup,
+  aux chiffres de LogsWoW. Le script de récupération vivait hors du
+  dépôt ; les données et les identifiants ont été supprimés après, et le
+  client révoqué. Chaque écart expliqué a été remesuré dans le fichier
+  lui-même avant que le code ne change : c'est le fichier qui fait foi,
+  l'API a seulement dit où regarder. Le détail est dans `CLAUDE.md`.
 
 ## 9. Sources
 

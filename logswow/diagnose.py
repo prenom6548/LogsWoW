@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """What the reader did and did not understand, before you trust a number.
 
 This exists because of a rule this project has paid for twice already,

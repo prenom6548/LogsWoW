@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """The damage-taken timeline: an inline SVG, drawn from the analysis.
 
 Split out of report.py. Formatters are called through `fmt` so that

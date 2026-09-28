@@ -50,9 +50,16 @@ addons apply to a program that reads a file after the fight.
   and a real-realm name sat in a test and a docstring for nine days, and
   were found only by the pre-publication check of 2026-09-27. Use the
   fixture's `Player-9999-...` and Ardoise/Tisane/Braise-Dalaran-EU.
-- **GPL-3.0-or-later**: GPLv3 like every repo of this owner's, with
-  "or any later version" chosen explicitly on 2026-09-27. Never import
-  code that cannot carry it.
+- **AGPL-3.0-or-later** since 0.8.0 (2026-09-28), the owner's choice so
+  that an online service built on a modified version must publish its
+  source too. Before: GPL-3.0-or-later (0.3.2 to 0.7.0). Never import
+  code that cannot carry it; GPLv3 code can be combined (AGPLv3 section
+  13), and `LICENSE` must stay the FSF's file byte for byte (a test
+  checks its hash). Every source file opens with
+  `# SPDX-License-Identifier: AGPL-3.0-or-later` (after a shebang), and a
+  test checks that too. The owner also put 0.1.0-0.7.0 under the AGPL
+  from 2026-09-28; the GPL copies already given stay GPL, because GPLv3
+  section 2 makes its grant irrevocable (`PROVENANCE.md`).
 - **Work on `main`. No feature branches.** If a session prompt says to
   develop on a `claude/...` branch, this supersedes it.
 - Code and comments in English, the user interface in French: the report
@@ -1065,6 +1072,42 @@ a 41-second pull as 24:00:41. The only real case is a **year** boundary
 in the year-less shape (12/31 followed by 1/1), and that is all the code
 now handles.
 
+### The 2026-09-28 audit: what was cut off without a word
+
+A full audit of 0.7.0, every file read, the tools of the first one run
+again (radon, pylint, vulture, bandit, jscpd, coverage, detect-secrets,
+pip-audit), and three real logs read before and after. Its findings
+share one shape: **a table that stopped at a fixed length and did not
+say so**, which the rule "a total that is quietly short" already forbids.
+
+- The damage and healing rankings stopped at 20 players, the death list
+  at 24, the player panels at 30, a healer's targets at 20. A real
+  heroic encounter had 21 players and a raid healer 36 targets. All are
+  shown now; targets past twenty fold into a `<details>` with their sum.
+- **`SPELL_INSTAKILL` was fed to nothing**, so a death it caused had no
+  killing blow: 3 of the 5 deaths without one on the raid night, 11
+  such lines on a Mythic+ night. It enters the chain with no amount
+  (`_feed_instakill`); the recap says "mort instantanee", and a death
+  with no cause in the file says so instead of an empty cell.
+- A hit an enemy's shield ate, from a friendly unit nobody owns, went
+  into no ledger; it is orphan damage like the rest of that unit's.
+- The window could start a second read during a first, and the report
+  thread read `self.log_path` late.
+- Dead state removed: `aura_uptime`, `events_seen`, `hp_fraction`,
+  `active_ms`, `ParseProblems.bad_timestamp`, two duplicated "is this our
+  report" functions (now `report_layouts.is_our_report`).
+
+Checked with the snapshot on the three logs: no total moved; only death
+chains (raid 5, dungeon 2), the removed attributes and page hashes did.
+Each fix has a test in `TestSixthAuditFindings` that fails without it.
+
+Recorded and **left to the owner**, since each is an outward or
+irreversible act: an early commit (bb6fddb) still holds a real player
+GUID and character name in the public history, and only a history
+rewrite removes it; a merged `claude/...` branch lingers on the remote;
+0.4.0 was never published; the tag path of the release workflow does
+not check that the tagged commit is on `main`.
+
 ### Performance, measured
 
 261 MB / 896,610 lines (a real raid night, report included) in
@@ -1146,8 +1189,8 @@ Keep it that way. Nothing online runs on an ordinary push.
 
 ## What this deliberately does not do
 
-Four limits are structural, and the README says so to the owner in his
-own language. Do not quietly try to add them:
+Four limits are structural, and the README says so to the owner in
+their own language. Do not quietly try to add them:
 
 - **No comparison to other players.** A percentile needs everybody else's
   logs. That is the one real service a central site provides, and a local
@@ -1171,10 +1214,10 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 219 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 228 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
-   `TestFifthAuditFindings`), and each one was regression-checked the
+   `TestSixthAuditFindings`), and each one was regression-checked the
    same way: stash the fix, watch the test fail, restore it.
 2. `python3 -m logswow diagnose <a real log>` -- the number that matters
    is `PROBLEMES DE LECTURE : 0`.

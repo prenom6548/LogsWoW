@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """The ledgers one segment keeps: what the analysis adds up *into*.
 
 Split out of analysis.py, which had grown to hold both the data and
@@ -225,8 +226,8 @@ class Player:
         "support_damage", "support_healing", "support_by_ability", "moved_health",
         "damage_to_bosses",
         "first_cast_ts", "last_cast_ts", "downtime_ms",
-        "longest_gaps", "recent", "hp_fraction", "min_hp_fraction", "max_hp",
-        "active_ms", "died_at", "label", "cast_log", "cast_log_full", "triggered",
+        "longest_gaps", "recent", "min_hp_fraction", "max_hp",
+        "died_at", "label", "cast_log", "cast_log_full", "triggered",
     )
 
     def __init__(self, guid, name):
@@ -287,10 +288,8 @@ class Player:
         self.downtime_ms = 0
         self.longest_gaps = []
         self.recent = deque(maxlen=DEATH_CHAIN_LENGTH)
-        self.hp_fraction = None
         self.min_hp_fraction = None
         self.max_hp = 0
-        self.active_ms = 0
         self.died_at = []
         # The name the page shows: the realm-less name, made unique
         # within the segment ("Tisane", "Tisane (2)") by SegmentAnalysis.

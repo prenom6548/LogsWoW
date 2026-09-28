@@ -103,7 +103,7 @@ Résumé de ce qui existe déjà dans `logswow/segment.py` et
   tronqué par une coupure du fichier se termine sur le dernier événement
   réellement présent plutôt que sur une durée de zéro.
 - **Découpage intra-clé par silence** : `PULL_GAP_MS = 6000` -- un pull
-  se termine après 6 secondes sans que le groupe n'infocte ni ne subisse
+  se termine après 6 secondes sans que le groupe n'inflige ni ne subisse
   de dégâts. Réglable par `--pull-gap` en ligne de commande, avec un
   plancher d'une seconde.
 - **Les miettes sont jetées, pas cachées** : `MIN_PULL_SHARE = 0.001`
@@ -201,4 +201,21 @@ a fait des questions de la section 4 :
 3. **Deux boss homonymes consécutifs** : toujours pas observés.
 4. **`enemies` par pull** : inchangé, aucun besoin ne s'en est dégagé.
 5. **API GraphQL de Warcraft Logs** : non consultée ; ce n'était pas
-   l'objet d'un audit de code.
+   l'objet d'un audit de code. (Elle l'a été le lendemain : voir la
+   section 7.)
+
+## 7. Ce que l'API de Warcraft Logs a montré, le 2026-09-28
+
+Le propriétaire a donné à une session l'accès à un client API à son nom,
+pour comparer cinq de ses clés avec les tables et les événements du site
+(section « The same night through Warcraft Logs' API » de `CLAUDE.md`).
+Ce qui concerne le découpage :
+
+- **Aucun écart de dégâts, de soins ou de morts ne venait du découpage.**
+  Tous tenaient à la lecture de certaines lignes (mêlée reçue, soins
+  mangés par un affaiblissement, surplus des coups fatals, boucliers
+  ennemis, Lien d'esprit, Feinte de mort) et ont été corrigés en 0.7.0.
+- **Le découpage des pulls de trash n'a pas été comparé** : ce n'était
+  pas la question posée, et le seuil de Warcraft Logs reste inconnu. Les
+  questions 2 à 4 de la section 4 restent donc ouvertes telles que la
+  section 6 les laisse.

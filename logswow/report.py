@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """One self-contained HTML file, written next to the log it describes.
 
 No CDN, no web font, no script fetched from anywhere: the whole report
@@ -169,7 +170,6 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         )
 
     def _overview(self, link=None):
-        layout = self.log.layout
         rows = []
         for segment in self.segments:
             analysis = segment.analysis
@@ -217,7 +217,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 fmt.number(self.log.event_count),
                 generated,
                 __version__,
-                self._stats(layout),
+                self._stats(),
                 "".join(rows),
             )
         )
@@ -236,7 +236,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 pulls.setdefault(start, (success, fought))
         return pulls
 
-    def _stats(self, layout):
+    def _stats(self):
         pulls = self._boss_pulls()
         keys = [segment for segment in self.segments if segment.kind == "keystone"]
         # Two counters, not one "Echecs": a depleted key and a boss wipe
@@ -291,8 +291,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         parts["pulls"] = self._pulls(analysis)
         parts["schools"] = self._schools(analysis)
         parts["rankings"] = "<div class=cols>%s%s</div>" % (
-            self._ranking(analysis, "damage_done", "Degats infliges", "DPS", seconds),
-            self._ranking(analysis, "healing_done", "Soins effectifs", "HPS", seconds))
+            self._ranking(analysis, "damage_done", "Degats infliges", "DPS"),
+            self._ranking(analysis, "healing_done", "Soins effectifs", "HPS"))
         parts["taken"] = self._taken(analysis)
         parts["enemy_casts"] = self._enemy_casts(analysis)
         parts["deaths"] = self._deaths(analysis)
@@ -393,7 +393,9 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
             )
         )
 
-    def _ranking(self, analysis, key, title, rate_label, seconds):
+    def _ranking(self, analysis, key, title, rate_label):
+        # Everyone, not the first twenty: a real heroic encounter had 21
+        # players, and the twenty-first vanished from the table unannounced.
         rows = analysis.ranked_players(key)
         if not rows:
             return ""
@@ -405,7 +407,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         absorbs = healing and any(player.absorb_done for player, _v, _r in rows)
         peak = rows[0][1]
         lines = []
-        for player, value, rate in rows[:20]:
+        for player, value, rate in rows:
             extra = ""
             if healing and player.overheal_rate:
                 extra = (" <span class=dim>(%s de surguerison)</span>"
@@ -493,15 +495,18 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
             return ""
         blocks = []
         start = analysis.first_ts or 0
-        for death in analysis.deaths[:24]:
+        # Every death: a raid wipe is twenty of them at once, and the list
+        # used to stop at twenty-four without saying so.
+        for death in analysis.deaths:
             chain = []
             for moment in death["chain"]:
                 ts, source, spell, delta, fraction = moment[:5]
                 overkill = moment[5] if len(moment) > 5 else 0
-                css = "hit" if delta < 0 else "heal"
+                css = "hit" if delta <= 0 else "heal"
                 hp = (" → %s" % fmt.percent(fraction)) if fraction is not None else ""
                 # The log marks the hit that killed with a positive
-                # overkill; every other hit writes -1.
+                # overkill; every other hit writes -1. An instant kill
+                # carries no amount at all (see `_feed_instakill`).
                 mark = " <b>coup fatal</b>" if overkill > 0 else ""
                 chain.append(
                     "<li><span class=dim>%s</span> <span class=%s>%s%s</span> "
@@ -510,7 +515,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                         format_duration(ts - start),
                         css,
                         "+" if delta > 0 else "",
-                        fmt.number(abs(delta)),
+                        fmt.number(abs(delta)) if delta else "mort instantanee",
                         fmt.esc(spell or "Attaque"),
                         fmt.esc(source or ""),
                         hp,
@@ -523,7 +528,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 % (
                     fmt.esc(death["player"]),
                     format_duration(death["ts"] - start),
-                    fmt.esc(death["killing_blow"]),
+                    fmt.esc(death["killing_blow"] or "cause non ecrite dans le journal"),
                     "".join(chain) or "<li class=dim>Rien avant la mort dans le journal.</li>",
                 )
             )
@@ -579,7 +584,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
             "Disposition detectee dans ce fichier&nbsp;: bloc avance de %d champs, "
             "champ de degats bruts %s, champ hideCaster %s. "
             "Lignes non comprises&nbsp;: %s. Evenements inconnus&nbsp;: %s.<br>"
-            "GPLv3 ou ulterieure. Aucune donnee ne quitte cette machine."
+            "Licence AGPL-3.0 ou ulterieure&nbsp;; code source&nbsp;: "
+            "github.com/prenom6548/LogsWoW. Aucune donnee ne quitte cette machine."
             "</footer></div></body></html>"
             % (
                 __version__,

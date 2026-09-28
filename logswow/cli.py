@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """`python3 -m logswow` -- the whole tool, from one command.
 
 Deliberately dependency-free and deliberately offline: nothing here
@@ -17,7 +18,7 @@ from .analysis import SegmentAnalysis
 from .diagnose import run as run_diagnose
 from .parse import LogFile
 from .report import ReportWriter
-from .report_layouts import LAYOUTS
+from .report_layouts import LAYOUTS, is_our_report
 from .segment import Splitter
 from .timestamps import format_duration
 
@@ -191,16 +192,6 @@ def select_segments(segments, only):
     return chosen
 
 
-def _is_our_report(path):
-    """True when the file at `path` is a page this program wrote."""
-    try:
-        with open(path, "rb") as handle:
-            head = handle.read(512)
-    except OSError:
-        return False
-    return head.startswith(b"<!doctype html>") and b"<title>LogsWoW" in head
-
-
 def _refuse_to_overwrite(out, log, force):
     """Why the report must not be written at `out`, or None.
 
@@ -218,7 +209,7 @@ def _refuse_to_overwrite(out, log, force):
                 "Choisissez un autre nom avec -o.\n" % out)
     if os.path.isdir(out):
         return "%s est un dossier : donnez un nom de fichier avec -o.\n" % out
-    if not force and not _is_our_report(out):
+    if not force and not is_our_report(out):
         return ("%s existe et n'est pas un rapport LogsWoW : refus de l'ecraser. "
                 "Choisissez un autre nom, ou ajoutez --force si c'est voulu.\n" % out)
     return None
@@ -241,7 +232,7 @@ def _refuse_folder(folder, log, force):
                 "Donnez un autre dossier avec -o.\n" % folder)
     if force or not os.listdir(folder):
         return None
-    if _is_our_report(os.path.join(folder, "index.html")):
+    if is_our_report(os.path.join(folder, "index.html")):
         return None
     return ("%s contient deja autre chose qu'un rapport LogsWoW : refus d'y ecrire. "
             "Choisissez un autre dossier, ou ajoutez --force si c'est voulu.\n" % folder)
@@ -394,7 +385,7 @@ def _seconds(text):
     try:
         value = float(text)
     except ValueError:
-        raise argparse.ArgumentTypeError("%r n'est pas un nombre de secondes" % text)
+        raise argparse.ArgumentTypeError("%r n'est pas un nombre de secondes" % text) from None
     if not math.isfinite(value) or value < 0 or value > 86400:
         raise argparse.ArgumentTypeError(
             "%r : il faut un nombre de secondes entre 0 et 86400" % text)
@@ -406,7 +397,7 @@ def _positive(text):
     try:
         value = int(text)
     except ValueError:
-        raise argparse.ArgumentTypeError("%r n'est pas un nombre entier" % text)
+        raise argparse.ArgumentTypeError("%r n'est pas un nombre entier" % text) from None
     if value < 1:
         raise argparse.ArgumentTypeError("%r : il faut un nombre superieur a zero" % text)
     return value

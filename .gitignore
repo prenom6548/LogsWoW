@@ -8,3 +8,6 @@ WoWCombatLog*.txt
 
 # What tools/build-pyz writes; a release uploads it, the repository never holds it.
 dist/
+
+# The split files a log splitter writes are real logs too.
+Split-*.txt

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Reading a combat log file as a stream of events.
 
 Streaming matters here rather than being a style choice: a raid night
@@ -217,8 +218,8 @@ class ParseProblems:
     Counted rather than raised. One malformed line in ten million must
     not stop a report from being produced, but it must not vanish either.
 
-    **One line is one problem.** `by_reason` is the only ledger; the two
-    counters below are views of it. They used to be incremented
+    **One line is one problem.** `by_reason` is the only ledger;
+    `unsplittable` and `total` are views of it. They used to be incremented
     *alongside* it, so every unsplittable line and every unreadable
     timestamp was reported twice -- the example log's two bad lines came
     out as three problems in `diagnose`, in the report's footer and in
@@ -230,7 +231,7 @@ class ParseProblems:
         self.unknown_subevents = {}
         self.samples = []
 
-    def note(self, reason, event=None, line_number=None, text=""):
+    def note(self, reason, line_number=None, text=""):
         """Count one line the reader could not place, keeping a few as samples."""
         self.by_reason[reason] = self.by_reason.get(reason, 0) + 1
         if len(self.samples) < 25:
@@ -242,10 +243,6 @@ class ParseProblems:
     @property
     def unsplittable(self):
         return self.by_reason.get(NO_SEPARATOR, 0)
-
-    @property
-    def bad_timestamp(self):
-        return self.by_reason.get(BAD_TIMESTAMP, 0)
 
     @property
     def total(self):

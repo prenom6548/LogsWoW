@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Physical or magic: the share of each in what the group took and dealt.
 
 Asked for by the owner on 2026-09-27 ("un résumé des dégâts physiques /
@@ -93,8 +94,9 @@ class SchoolsMixin:
             "<table><tr><th></th><th>Répartition</th>%s</tr>%s</table>%s%s"
             "<p class=dim style='margin:10px 0 0;font-size:12px'>L'école de chaque coup est "
             "celle que le journal écrit sur la ligne. « Mixte »%s: physique et magique à la "
-            "fois (Ombre-frappe, Chaos...). Les dégâts absorbés par un bouclier ne sont pas "
-            "comptés, comme dans le reste du rapport.</p></div>"
+            "fois (Ombre-frappe, Chaos...). Comme dans le reste du rapport, un coup qu'un "
+            "bouclier ennemi a mangé compte dans les dégâts infligés, et la part qu'un "
+            "bouclier du groupe a mangée ne compte pas dans les dégâts subis.</p></div>"
             % (legend, heads, rows, detail, self._schools_by_pull(analysis, kinds), fmt.NBSP)
         )
 

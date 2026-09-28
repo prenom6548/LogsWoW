@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """The order a player cast their spells in, pull by pull, as coloured chips.
 
 Asked for by the owner on 2026-09-27, from a screenshot of an online
@@ -21,11 +22,12 @@ reason this project already had:
 import re
 
 from . import fmt
-from .castorder import split_by_pull
+from .castorder import (TRIGGER_FASTER_THAN_MS, TRIGGER_MAX_MEDIAN_GAP_MS, TRIGGER_MIN_CASTS,
+                        TRIGGER_SHARE, split_by_pull)
 from .timestamps import format_duration
 from .wowhead import spell_url
 
-# Short words a two-letter abbreviation skips: "Lame du Vide" -> "LV".
+# Short words a two-letter abbreviation skips: "Lame du Vide" -> "Lv".
 _SMALL_WORDS = frozenset(
     "a au aux d de des du en et l la le les of on sur the to un une".split())
 
@@ -139,14 +141,18 @@ class CastOrderMixin:
         if groups["declenches"]:
             note = ("<p class=dim style='font-size:12px;margin:4px 0 0'>Le journal écrit "
                     "de la même façon un sort appuyé et un sort que le jeu déclenche seul. "
-                    "Sont lus comme déclenchés, parmi les sorts lancés au moins 8 fois dans "
-                    "ce combat sans jamais coûter de ressource%s: ceux qui, à 80%s au moins, "
-                    "partent en même temps qu'un sort payé, avec un écart médian de 30 "
+                    "Sont lus comme déclenchés, parmi les sorts lancés au moins %d fois dans "
+                    "ce combat sans jamais coûter de ressource%s: ceux qui, à %d%s%% au moins, "
+                    "partent en même temps qu'un sort payé, avec un écart médian de %d "
                     "secondes au plus entre deux lancers%s; ceux dont l'écart médian est sous "
-                    "la demi-seconde, plus vite qu'aucun bouton%s; et la seconde copie d'un "
+                    "%s%ss, plus vite qu'aucun bouton%s; et la seconde copie d'un "
                     "sort que le journal écrit deux fois, sous le "
                     "même nom, au même instant. C'est une lecture du fichier%s: cliquez pour "
-                    "les afficher.</p>" % (fmt.NBSP, fmt.NBSP + "%", fmt.NBSP, fmt.NBSP, fmt.NBSP))
+                    "les afficher.</p>"
+                    % (TRIGGER_MIN_CASTS, fmt.NBSP, round(TRIGGER_SHARE * 100), fmt.NBSP,
+                       TRIGGER_MAX_MEDIAN_GAP_MS // 1000, fmt.NBSP,
+                       ("%g" % (TRIGGER_FASTER_THAN_MS / 1000.0)).replace(".", ","),
+                       fmt.NBSP, fmt.NBSP, fmt.NBSP))
         return ("<div class=legend><p class=dim style='font-size:12px;margin:0'>Cliquez sur "
                 "un sort pour le masquer ou l'afficher.</p>%s%s</div>" % (body, note))
 

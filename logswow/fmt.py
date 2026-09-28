@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Small formatters the report is written with, French typography included.
 
 Kept apart from report.py so the page builder reads as layout rather

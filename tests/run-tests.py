@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Run every test. No dependencies, no network: `python3 tests/run-tests.py`."""
 
 import os

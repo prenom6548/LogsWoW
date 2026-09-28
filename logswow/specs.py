@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Specialization ids, so the report can say who tanked and who healed.
 
 `COMBATANT_INFO` writes the player's current specialization id as its

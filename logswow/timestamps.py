@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Combat log timestamps -> milliseconds.
 
 The client has written several shapes over the years, and a log can be

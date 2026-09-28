@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """The timeline, the pooled enemy health, and the main target's curve.
 
 Everything the analysis keeps *in time* rather than in totals: damage
