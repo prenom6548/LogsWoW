@@ -177,6 +177,8 @@ journal écrit de deux façons qui ne concordent pas.
 
 ## 0.4.0 — 2026-09-27
 
+*Jamais publiée seule : son contenu est arrivé avec la 0.5.0.*
+
 **Une fenêtre, pour ne plus passer par le terminal.**
 
 - Lancé sans rien d'autre — double-clic sur le fichier sous Windows,
