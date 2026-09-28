@@ -43,11 +43,30 @@ class PanelsMixin:
         tail = (" et %s" % fmt.plural(others, "autre")) if others else ""
         return "%s <span class=dim>%s%s</span>" % (fmt.esc(name), fmt.percent(share), tail)
 
-    def _ability_table(self, abilities, casts_by_spell, seconds, mode, total=None):
-        """One ability table. `mode` is damage, healing or taken."""
+    def _ability_table(self, abilities, casts_by_spell, seconds, mode, total=None, limit=None):
+        """One ability table. `mode` is damage, healing or taken.
+
+        Past `limit` rows the rest is not dropped: it folds into a line
+        that opens on the others. A rogue's Mutilate, split by the client
+        into a main-hand and an off-hand row, fell below a hard cut of
+        sixteen on a real key and vanished from the page without a word.
+        """
         if not abilities:
             return "<p class=dim>Rien.</p>"
         grand = total if total is not None else sum(a.total for a in abilities)
+        shown, rest = (abilities[:limit], abilities[limit:]) if limit else (abilities, [])
+        table = self._ability_rows(shown, casts_by_spell, seconds, mode, grand)
+        if not rest:
+            return table
+        hidden = sum(a.total for a in rest)
+        return table + (
+            "<details class=more><summary>%s de plus &middot; %s (%s)</summary>%s</details>"
+            % (fmt.plural(len(rest), "sort"), fmt.compact(hidden),
+               fmt.percent(hidden / grand) if grand else "0 %",
+               self._ability_rows(rest, casts_by_spell, seconds, mode, grand)))
+
+    def _ability_rows(self, abilities, casts_by_spell, seconds, mode, grand):
+        """The table itself, header included."""
         rows = []
         for ability in abilities:
             casts = (casts_by_spell or {}).get(ability.spell_id, 0)
@@ -115,7 +134,7 @@ class PanelsMixin:
         )
         blocks = []
         for player in rows[:30]:
-            if not (player.damage_done or player.healing_done or player.casts):
+            if not analysis.took_part(player):
                 continue
             blocks.append(self._one_player(analysis, player, seconds))
         return "<h3>Detail par joueur</h3>%s" % "".join(blocks)
@@ -156,23 +175,23 @@ class PanelsMixin:
 
         if player.absorb_by_ability:
             sections_absorb = [("Ce que ses boucliers ont absorbe", self._ability_table(
-                analysis.top_abilities(player.absorb_by_ability, 12),
-                None, seconds, "taken", player.absorb_done))]
+                analysis.top_abilities(player.absorb_by_ability, None),
+                None, seconds, "taken", player.absorb_done, limit=12))]
         else:
             sections_absorb = []
         sections = [
             ("Ses degats", self._ability_table(
-                analysis.top_abilities(player.damage_by_ability, 16),
-                player.casts_by_spell, seconds, "damage", player.damage_done)),
+                analysis.top_abilities(player.damage_by_ability, None),
+                player.casts_by_spell, seconds, "damage", player.damage_done, limit=16)),
         ]
         if player.healing_done or player.overhealing:
             sections.append(("Ses soins", self._ability_table(
-                analysis.top_abilities(player.healing_by_ability, 16),
-                player.casts_by_spell, seconds, "healing", player.healing_done)))
+                analysis.top_abilities(player.healing_by_ability, None),
+                player.casts_by_spell, seconds, "healing", player.healing_done, limit=16)))
             sections.append(("Qui il a soigne", self._targets_table(player.healing_to)))
         sections.append(("Ce qu'il a pris", self._ability_table(
-            analysis.top_abilities(player.taken_by_ability, 16),
-            None, seconds, "taken", player.damage_taken)))
+            analysis.top_abilities(player.taken_by_ability, None),
+            None, seconds, "taken", player.damage_taken, limit=16)))
         sections.extend(sections_absorb)
         if player.support_damage or player.support_healing:
             sections.append(("Soutien que le jeu lui credite", self._support(
@@ -240,8 +259,8 @@ class PanelsMixin:
         table = ""
         if player.support_by_ability:
             table = self._ability_table(
-                analysis.top_abilities(player.support_by_ability, 10),
-                None, seconds, "damage", player.support_damage)
+                analysis.top_abilities(player.support_by_ability, None),
+                None, seconds, "damage", player.support_damage, limit=10)
         return (
             "%s<p class=dim style='font-size:12px;margin:4px 0 0'>Le journal credite "
             "cet evocateur de %s de degats et %s de soins portes par d'autres joueurs"
@@ -281,12 +300,12 @@ class PanelsMixin:
             sections = []
             if enemy.damage_by_ability:
                 sections.append(("Ce qu'il inflige", self._ability_table(
-                    analysis.top_abilities(enemy.damage_by_ability, 10),
-                    None, seconds, "damage", enemy.damage_done)))
+                    analysis.top_abilities(enemy.damage_by_ability, None),
+                    None, seconds, "damage", enemy.damage_done, limit=10)))
             if enemy.taken_by_ability:
                 sections.append(("Ce qu'il a subi", self._ability_table(
-                    analysis.top_abilities(enemy.taken_by_ability, 10),
-                    None, seconds, "taken", enemy.damage_taken)))
+                    analysis.top_abilities(enemy.taken_by_ability, None),
+                    None, seconds, "taken", enemy.damage_taken, limit=10)))
             if enemy.casts_by_spell:
                 ranked = sorted(enemy.casts_by_spell.items(), key=lambda item: -item[1])[:16]
                 peak = ranked[0][1] or 1

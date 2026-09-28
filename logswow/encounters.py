@@ -63,7 +63,10 @@ class EncounterLedger:
         showing a boss fight with no damage on the boss.
         """
         encounter, self._encounter = self._encounter, None
-        self.encounters.append((encounter["label"], encounter["start"], end, success))
+        # (label, start, end, success, fought): what the page's counters
+        # read, so a key selected alone still says how many bosses it held.
+        fought = bool(encounter["named"] or encounter["window"])
+        self.encounters.append((encounter["label"], encounter["start"], end, success, fought))
         for block in reversed(self.blocks):
             if block.end_ts < encounter["start"]:
                 break

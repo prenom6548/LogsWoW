@@ -806,6 +806,54 @@ Left as they are, because the file cannot say: Shadowy Apparition (a
 proc alone at a button's pace) and Windstrike (always beside a *paid*
 Lightning Bolt; which of the two set the other off is not in the line).
 
+### What the owner found in their own reports (2026-09-28)
+
+The owner read a report of their own night, sent the log, a Warcraft
+Logs events export and the page, and listed what looked wrong. Every
+point was checked on the file before anything was changed, and two of
+their readings turned out to be something else than they seemed:
+
+- **Nalorakk's echoes were a player's summons.** The log writes
+  `SPELL_SUMMON` *with the player as source* for "Echo de Nalorakk",
+  and the echo's casts then went into that player's cast order.
+  Nothing in the flags separates it from a real summon: measured on
+  three logs, type (guardian vs NPC), reaction and affiliation all
+  overlap with real summons (a raid's ghouls, imps and rune weapons are
+  written as outsider NPCs too). What does separate them is the instant:
+  the echo came to three players in the same millisecond, 24 summons
+  of 24, and "Orbes gravitationnels" in another dungeon 9 of 9, where
+  two warlocks' imps met by chance at most 1.4% of the time. A summoning
+  spell with at least 3 summons in a segment, 80% of them within 20 ms
+  of another player's, is the encounter's (`_note_summon`,
+  `_disown_mechanics`); its units' casts go to the enemy, and their hits
+  on the group are the enemy's. The first version of that last rule took
+  *every* summon hitting an ally for the enemy's, and the snapshot showed
+  Spirit Link Totem and a Rune Weapon among the enemies: it is limited
+  to the units the instant rule caught. `Player.cast_log` entries now
+  carry the summon's GUID in their last field ("" for the player), which
+  is what lets the casts be taken back at the end of the segment.
+- **"Estropier is missing from the damage":** it was counted, in two
+  rows (main hand 5374, off hand 27576), both under a silent cut of
+  sixteen rows. Every ability table now folds the rest into a
+  `<details>` line with its total and share; "Ce qui a fait mal au
+  groupe" says how much it leaves out.
+- **"Two players in a dungeon who never appeared":** not an unclosed key.
+  The key closed where the log says; two players joining for the next
+  key cast a buff in its last seconds. `took_part()` (damage either way,
+  healing, shields, support, a death) decides who is in the group, and
+  `bystanders()` are named under the composition.
+- **"0 boss" and "2 failures":** the tiles counted only encounter
+  segments that were ticked, and summed every failure. They now count
+  the encounter windows inside the chosen fights (keyed by start, so a
+  boss chosen with its key counts once) and split "Wipes de boss" from
+  "Cles hors des temps". The owner added that a very short pull with no
+  hit is how a group resets a boss for its cooldowns: such an encounter
+  is "sans combat", never a wipe.
+
+The snapshot before and after, on five inputs: no damage, healing or
+death total moved; 22 cast sequences lost the echoes' and orbs' casts;
+every other cast-log difference is the new last field.
+
 ### Physical or magic, and the fall that carried a GUID (2026-09-27)
 
 Asked for by the owner: the physical/magic split of damage taken over a
@@ -1010,7 +1058,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 201 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 206 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestFifthAuditFindings`), and each one was regression-checked the

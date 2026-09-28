@@ -59,6 +59,9 @@ details{margin:8px 0}
 summary{cursor:pointer;padding:8px 10px;background:var(--panel);border:1px solid var(--line);
 border-radius:8px;font-weight:600;font-size:14px}
 summary:hover{border-color:var(--accent)}
+details.more{margin:4px 0 0}
+details.more>summary{font-weight:400;font-size:12.5px;padding:4px 8px;background:none;
+border:1px dashed var(--line);color:var(--muted)}
 details[open] summary{border-radius:8px 8px 0 0;border-bottom:none}
 .body{border:1px solid var(--line);border-top:none;border-radius:0 0 8px 8px;
 padding:4px 16px 16px;background:var(--panel)}
@@ -181,7 +184,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin):
                     fmt.compact(analysis.total_damage),
                     fmt.compact(analysis.total_healing),
                     len(analysis.blocks) if analysis.has_several_pulls else "1",
-                    len(analysis.players),
+                    len(analysis.participants()),
                     len(analysis.deaths),
                 )
             )
@@ -215,16 +218,35 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin):
             )
         )
 
+    def _boss_pulls(self):
+        """{start: (success, fought)} of every boss encounter the chosen fights hold.
+
+        Counted from each fight's own encounter windows, not from which
+        fights were ticked: a key chosen alone showed "0 pulls de boss"
+        with three bosses killed inside it. Keyed by the encounter's start,
+        so a boss chosen together with its key counts once.
+        """
+        pulls = {}
+        for segment in self.segments:
+            for _label, start, _end, success, fought in segment.analysis.encounters:
+                pulls.setdefault(start, (success, fought))
+        return pulls
+
     def _stats(self, layout):
-        pulls = sum(1 for segment in self.segments if segment.kind == "encounter")
-        keys = sum(1 for segment in self.segments if segment.kind == "keystone")
-        wipes = sum(1 for segment in self.segments if segment.is_wipe)
+        pulls = self._boss_pulls()
+        keys = [segment for segment in self.segments if segment.kind == "keystone"]
+        # Two counters, not one "Echecs": a depleted key and a boss wipe
+        # inside it are two different failures, and a single sum read as
+        # the same dungeon counted twice.
+        late = sum(1 for segment in keys if segment.success is False)
+        wipes = sum(1 for success, fought in pulls.values() if success is False and fought)
         cells = [
             ("Taille du fichier", "%s Mo" % round(self.log.size_bytes / 1048576.0, 1)),
             ("Duree couverte", format_duration(self.log.duration_ms)),
-            ("Pulls de boss", str(pulls)),
-            ("Cles mythiques", str(keys)),
-            ("Echecs", str(wipes)),
+            ("Pulls de boss", str(len(pulls))),
+            ("Wipes de boss", str(wipes)),
+            ("Cles mythiques", str(len(keys))),
+            ("Cles hors des temps", str(late)),
             ("Lignes incomprises", fmt.number(self.log.problems.total)),
         ]
         return "".join(
@@ -247,7 +269,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin):
                 fmt.esc(segment.label),
                 "<span class='pill %s'>%s</span>" % (css, fmt.esc(outcome)) if outcome else "",
                 format_duration(analysis.duration_ms),
-                fmt.plural(len(analysis.players), "joueur"),
+                fmt.plural(len(analysis.participants()), "joueur"),
                 fmt.compact(analysis.total_damage),
                 fmt.compact(analysis.total_healing),
                 fmt.plural(len(analysis.deaths), "mort"),
@@ -419,11 +441,12 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin):
     def _taken(self, analysis):
         # Abilities that dealt nothing (a link, a shield that ate it all)
         # are real events but noise in a table about what hurt.
-        abilities = [
+        hurting = [
             ability
-            for ability in analysis.top_abilities(analysis.enemy_damage_by_ability, 18)
+            for ability in analysis.top_abilities(analysis.enemy_damage_by_ability, None)
             if ability.total > 0
-        ][:14]
+        ]
+        abilities, rest = hurting[:14], hurting[14:]
         if not abilities:
             return ""
         peak = abilities[0].total
@@ -441,11 +464,15 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin):
         return (
             "<h3>Ce qui a fait mal au groupe</h3><div class=card><table>"
             "<tr><th>Capacite</th><th class=n>Degats</th><th class=n>Coups</th>"
-            "<th class=n>Joueurs touches</th></tr>%s</table>"
+            "<th class=n>Joueurs touches</th></tr>%s</table>%s"
             "<p class=dim style='margin:10px 0 0;font-size:12px'>Le fichier dit qui a ete "
             "touche et combien. Il ne dit pas si le coup etait evitable&nbsp;: cela demande "
             "de connaitre le boss, ce que cet outil ne pretend pas savoir.</p></div>"
-            % "".join(lines)
+            % ("".join(lines), (
+                "<p class=dim style='margin:8px 0 0;font-size:12.5px'>Et %s de plus, "
+                "%s de degats en tout.</p>"
+                % (fmt.plural(len(rest), "capacite"), fmt.compact(sum(a.total for a in rest))))
+               if rest else "")
         )
 
     def _deaths(self, analysis):
@@ -507,11 +534,26 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin):
                 % (fmt.esc(label), names)
             )
         return (
-            "<h3>Composition du groupe</h3><div class=card><table>%s</table>"
+            "<h3>Composition du groupe</h3><div class=card><table>%s</table>%s"
             "<p class=dim style='margin:10px 0 0;font-size:12px'>Le role vient de la "
             "specialisation que le client ecrit au debut du combat. Une specialisation "
             "que cet outil ne connait pas est affichee par son numero.</p></div>"
-            % "".join(rows)
+            % ("".join(rows), self._bystanders(analysis))
+        )
+
+    @staticmethod
+    def _bystanders(analysis):
+        """Players the file shows only casting, named so nothing is silently dropped."""
+        present = analysis.bystanders()
+        if not present:
+            return ""
+        return (
+            "<p style='margin:10px 0 0;font-size:12.5px'>Aussi presents dans le journal, "
+            "sans prendre part au combat (ni degats, ni soins, ni coups recus)%s: %s.</p>"
+            % (NBSP, ", ".join(
+                "<span class=name>%s</span> <span class=dim>(%s)</span>"
+                % (fmt.esc(player.short_name), fmt.plural(player.casts, "sort"))
+                for player in present))
         )
 
     # -- the enemies -------------------------------------------------------

@@ -2339,7 +2339,7 @@ class TestCastOrder(unittest.TestCase):
         player = analysis.players[self.GUID]
         self.assertEqual(len(player.cast_log), player.casts)
         self.assertEqual([entry[1] for entry in player.cast_log], [10, 11, 12, 13, 11])
-        self.assertEqual([entry[4] for entry in player.cast_log],
+        self.assertEqual([bool(entry[4]) for entry in player.cast_log],
                          [False, False, True, False, False])
         groups = split_by_pull(player.cast_log, analysis.blocks, analysis.pull_gap_ms)
         self.assertEqual([[entry[1] for entry in casts] for _block, casts in groups],
@@ -2353,6 +2353,9 @@ class TestCastOrder(unittest.TestCase):
         for i in range(10):
             payloads.append((i * 2500, self._cast(100, "Frappe", "2500")))
             payloads.append((i * 2500 + 5, self._cast(200, "Eclat")))
+        # One hit, so the player took part in the fight and gets a panel.
+        payloads.append((26000, 'SPELL_DAMAGE,%s,%s,100,"Frappe",0x1,500,500,-1,1,0,0,0,'
+                                'nil,nil,nil,ST' % (self.PLAYER, self.MOB)))
         payloads.append((30000, 'ENCOUNTER_END,1,"Golem",16,5,1,30000'))
         segments = self._run(payloads)
         log, _fixture = run_fixture()
@@ -2866,6 +2869,134 @@ class TestPhysicalOrMagic(unittest.TestCase):
         self.assertIn("Physique ou magique", page)
         self.assertIn("Subis par école", page)
         self.assertRegex(page, r"\d+ %")
+
+
+class TestOwnerFeedback(unittest.TestCase):
+    """What the owner found reading their own reports (2026-09-28)."""
+
+    A = 'Player-9999-00000001,"Ardoise-Dalaran-EU",0x512,0x0'
+    B = 'Player-9999-00000002,"Tisane-Dalaran-EU",0x512,0x0'
+    C = 'Player-9999-00000003,"Braise-Dalaran-EU",0x512,0x0'
+    MOB = 'Creature-0-9999-2222-1111-70000-0000111111,"Golem",0xa48,0x0'
+
+    @staticmethod
+    def _echo(n):
+        return 'Creature-0-9999-2222-1111-247301-00000000%02d,"Echo",0xa28,0x0' % n
+
+    def _run(self, timed_payloads):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, (ms, payload) in enumerate(timed_payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ms, fields, index + 1))
+        return splitter.finish()
+
+    def _hit(self, ms, source, dest, amount=1000):
+        return (ms, 'SPELL_DAMAGE,%s,%s,100,"Frappe",0x1,%d,%d,-1,1,0,0,0,nil,nil,nil,ST'
+                % (source, dest, amount, amount))
+
+    def _summon(self, ms, player, unit, spell=1242953, name="Echo de Nalorakk"):
+        return (ms, 'SPELL_SUMMON,%s,%s,%d,"%s",0x20' % (player, unit, spell, name))
+
+    def _echo_fight(self):
+        lines = [(0, 'ENCOUNTER_START,1,"Nalorakk",8,5,2000')]
+        for i, player in enumerate((self.A, self.B, self.C)):
+            lines.append(self._hit(10 + i, player, self.MOB))
+        for wave in range(2):
+            for i, player in enumerate((self.A, self.B, self.C)):
+                lines.append(self._summon(1000 + wave * 5000, player, self._echo(wave * 3 + i)))
+            for i in range(3):
+                lines.append((1100 + wave * 5000,
+                              'SPELL_CAST_SUCCESS,%s,0000000000000000,nil,0x80000000,0x80000000,'
+                              '1242976,"Mutilation des echos",0x1' % self._echo(wave * 3 + i)))
+        lines.append(self._hit(1200, self._echo(0), self.A, 5000))
+        lines.append(self._hit(7000, self.A, self.MOB))
+        lines.append((8000, 'ENCOUNTER_END,1,"Nalorakk",8,5,1,8000'))
+        return self._run(lines)[0].analysis
+
+    def test_an_encounter_that_summons_through_players_owns_its_units(self):
+        """Echo de Nalorakk came to three players in the same millisecond,
+        24 times of 24; its casts were in a player's sequence."""
+        analysis = self._echo_fight()
+        self.assertEqual(analysis.disowned_units, 6)
+        for player in analysis.players.values():
+            self.assertFalse([e for e in player.cast_log if "echos" in e[2]])
+            self.assertEqual(player.pet_casts, 0)
+            self.assertEqual(player.casts, len(player.cast_log))
+        echo = analysis.enemies["Echo"]
+        self.assertEqual(echo.casts, 6)
+        self.assertEqual(echo.damage_done, 5000)          # its hit is the enemy's
+        self.assertEqual(analysis.players["Player-9999-00000001"].damage_taken, 5000)
+
+    def test_a_players_own_summons_stay_theirs(self):
+        """Two warlocks' imps met by chance at most 1.4% of the time."""
+        lines = [(0, 'ENCOUNTER_START,1,"Golem",8,5,2000')]
+        for i in range(10):
+            imp = 'Creature-0-9999-2222-1111-55659-00000001%02d,"Diablotin",0xa28,0x0' % i
+            player = self.A if i % 2 else self.B
+            ms = 100 + i * 700 + (0 if i != 3 else -690)     # one pair lands together
+            lines.append(self._summon(ms, player, imp, 104317, "Diablotin sauvage"))
+            lines.append(self._hit(ms + 50, imp, self.MOB))
+        lines.append((9000, 'ENCOUNTER_END,1,"Golem",8,5,1,9000'))
+        analysis = self._run(lines)[0].analysis
+        self.assertEqual(analysis.disowned_units, 0)
+        self.assertEqual(analysis.total_damage, 10000)
+
+    def test_a_player_who_only_cast_a_buff_is_not_in_the_group(self):
+        """Two players joining for the next key cast a buff in the last
+        seconds of a failed +14: seven listed in a five-player dungeon."""
+        lines = [(0, 'CHALLENGE_MODE_START,"Allee",2000,500,14,[9]'),
+                 self._hit(100, self.A, self.MOB),
+                 (200, 'SPELL_CAST_SUCCESS,%s,%s,1459,"Intelligence",0x40' % (self.B, self.B)),
+                 (300, 'CHALLENGE_MODE_END,2000,0,14,300')]
+        analysis = self._run(lines)[0].analysis
+        self.assertEqual([p.short_name for p in analysis.participants()], ["Ardoise"])
+        self.assertEqual([p.short_name for p in analysis.bystanders()], ["Tisane"])
+        self.assertEqual([name for _label, players in analysis.composition()
+                          for name in (p.short_name for p in players)], ["Ardoise"])
+
+    def test_no_spell_is_cut_from_a_table_without_a_word(self):
+        """Mutilate, split in two rows, fell under a hard cut of sixteen."""
+        import tempfile
+
+        lines = [(0, 'ENCOUNTER_START,1,"Golem",8,5,2000')]
+        for spell in range(20):
+            lines.append((10 + spell, 'SPELL_DAMAGE,%s,%s,%d,"Sort %d",0x1,%d,%d,-1,1,0,0,0,'
+                          'nil,nil,nil,ST' % (self.A, self.MOB, 500 + spell, spell,
+                                              10000 - spell, 10000 - spell)))
+        lines.append((100, 'ENCOUNTER_END,1,"Golem",8,5,1,100'))
+        segments = self._run(lines)
+        log, _fixture = run_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "r.html")
+            ReportWriter(log, segments, target, wowhead="off", cast_order=False).write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertIn("4 sorts de plus", page)
+        self.assertIn("Sort 19", page)
+
+    def test_the_counters_see_the_bosses_inside_a_key_and_tell_failures_apart(self):
+        """A key chosen alone showed '0 pulls de boss'; a depleted key with a
+        boss wipe inside read as one dungeon failed twice."""
+        import tempfile
+
+        lines = [(0, 'CHALLENGE_MODE_START,"Allee",2000,500,14,[9]')]
+        for n, (start, success) in enumerate(((1000, 0), (5000, 1), (9000, 1))):
+            lines += [(start, 'ENCOUNTER_START,%d,"Boss %d",8,5,2000' % (n, n)),
+                      self._hit(start + 10, self.A, self.MOB),
+                      (start + 900, 'ENCOUNTER_END,%d,"Boss %d",8,5,%d,900' % (n, n, success))]
+        lines.append((12000, 'CHALLENGE_MODE_END,2000,0,14,12000'))
+        segments = self._run(lines)
+        key = [segment for segment in segments if segment.kind == "keystone"]
+        log, _fixture = run_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "r.html")
+            for chosen, bosses in ((key, "3"), (segments, "3")):
+                ReportWriter(log, chosen, target, wowhead="off", cast_order=False).write()
+                with open(target, encoding="utf-8") as handle:
+                    page = handle.read()
+                self.assertIn("<b>%s</b><span>Pulls de boss" % bosses, page)
+                self.assertIn("<b>1</b><span>Wipes de boss", page)
+                self.assertIn("<b>1</b><span>Cles hors des temps", page)
 
 
 if __name__ == "__main__":

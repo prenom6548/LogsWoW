@@ -48,6 +48,12 @@ DOWNTIME_THRESHOLD_MS = 2000
 # enough to separate two trash packs in a Mythic+ key.
 PULL_GAP_MS = 6000
 
+# Summons an encounter makes players cast (see SegmentAnalysis._note_summon).
+SUMMON_INSTANT_MS = 20
+MECHANIC_MIN_SUMMONS = 3
+MECHANIC_SHARE = 0.8
+MAX_SUMMONS = 50000
+
 # A "pull" worth a line has to be a meaningful share of the run. A real
 # key produced two blocks of 7.9k and 14.1k damage against a 531M total:
 # a dot finishing on something already dead, or a critter. One part in a
@@ -65,6 +71,11 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self.pull_gap_ms = max(1000, int(pull_gap_ms))
         self.players = {}
         self.pet_owner = {}
+        # Summons, to tell a player's own from an encounter's: see
+        # `_note_summon` and `_disown_mechanics`.
+        self._recent_summons = []
+        self._summoned_by = {}          # unit GUID -> (summoning spell id, unit name)
+        self._shared_summons = set()    # units summoned in the same instant as another player's
         self.enemy_damage_by_ability = {}  # what hit the group, raid-wide
         self.deaths = []
         self.first_ts = None
@@ -134,6 +145,8 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self._bucket_ms = 1000
         self.events_seen = 0
         self.landed_seen = 0
+        # Units a player "summoned" that turned out to be the encounter's.
+        self.disowned_units = 0
         # {school mask: amount} over the whole segment, crumbs included:
         # what the group took (players and their summons) and dealt.
         self.taken_by_school = {}
@@ -298,6 +311,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         if (event.subevent == "SPELL_SUMMON" and event.source.is_player
                 and event.dest.guid):
             self.pet_owner[event.dest.guid] = event.source.guid
+            self._note_summon(event)
         if event.advanced is not None:
             owner = event.advanced.owner_guid
             info = event.advanced.info_guid
@@ -310,6 +324,78 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
                 and info not in self.pet_owner
             ):
                 self.pet_owner[info] = owner
+
+    def _note_summon(self, event):
+        """Remember a player's summon, and whether another player's came with it.
+
+        An encounter can make players "summon" its own units: the log
+        writes SPELL_SUMMON with the player as the source, and Nalorakk's
+        echoes then cast in that player's name. Nothing in the flags tells
+        them apart from a real summon (measured 2026-09-28 on three logs:
+        type, reaction and affiliation all overlap). What does is the
+        instant: Echo de Nalorakk came to three players in the same
+        millisecond, 24 summons of 24, and "Orbes gravitationnels" 9 of 9,
+        where two warlocks' imps met by chance at most 1.4% of the time.
+        """
+        if len(self._summoned_by) >= MAX_SUMMONS:
+            return
+        ts, spell_id = event.ts, event.spell_id
+        self._recent_summons = [entry for entry in self._recent_summons
+                                if ts - entry[0] <= SUMMON_INSTANT_MS]
+        for _ts, other_spell, other_player, other_unit in self._recent_summons:
+            if other_spell == spell_id and other_player != event.source.guid:
+                self._shared_summons.update((other_unit, event.dest.guid))
+        self._recent_summons.append((ts, spell_id, event.source.guid, event.dest.guid))
+        self._summoned_by[event.dest.guid] = (spell_id, event.dest.name)
+
+    def _disown_mechanics(self):
+        """Hand back to the encounter the units it made players summon.
+
+        A summoning spell is the encounter's when, in this segment, it
+        brought units at least MECHANIC_MIN_SUMMONS times and at least
+        MECHANIC_SHARE of them in the same instant as another player's.
+        Their casts leave the players' sequences and counts and become the
+        enemy's; their hits on the group already went to the enemy (see
+        `_feed_damage`).
+        """
+        units = {}
+        for unit, (spell_id, _name) in self._summoned_by.items():
+            units.setdefault(spell_id, []).append(unit)
+        disowned = {}
+        for spell_id, members in units.items():
+            shared = sum(1 for unit in members if unit in self._shared_summons)
+            if len(members) >= MECHANIC_MIN_SUMMONS and shared >= MECHANIC_SHARE * len(members):
+                for unit in members:
+                    disowned[unit] = self._summoned_by[unit][1]
+        if not disowned:
+            return
+        self.disowned_units = len(disowned)
+        for player in self.players.values():
+            kept = []
+            for entry in player.cast_log:
+                unit = entry[4]
+                if unit not in disowned:
+                    kept.append(entry)
+                    continue
+                player.casts -= 1
+                player.pet_casts -= 1
+                spell_id, name = entry[1], entry[2]
+                ability = player.casts_by_ability.get((spell_id, name))
+                if ability is not None:
+                    ability.hits -= 1
+                    if ability.hits <= 0:
+                        del player.casts_by_ability[(spell_id, name)]
+                left = player.casts_by_spell.get(spell_id, 0) - 1
+                if left > 0:
+                    player.casts_by_spell[spell_id] = left
+                else:
+                    player.casts_by_spell.pop(spell_id, None)
+                enemy = self._enemy(Actor(unit, disowned[unit], 0, 0))
+                if enemy is not None:
+                    enemy.casts += 1
+                    if name in enemy.casts_by_spell or len(enemy.casts_by_spell) < 60:
+                        enemy.casts_by_spell[name] = enemy.casts_by_spell.get(name, 0) + 1
+            player.cast_log = kept
 
     def _feed_cast_success(self, event):
         """A cast that completed: an enemy's resolves its pending start."""
@@ -369,6 +455,14 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         amount = event.amount
         source_ours = self._is_ours(event.source)
         dest_ours = self._is_ours(event.dest)
+        if source_ours and dest_ours and event.source.guid in self._shared_summons:
+            # A unit the encounter made several players summon at once (see
+            # `_note_summon`) hitting the group: the enemy's damage, not a
+            # player's friendly fire. Only those: a first version took every
+            # summon hitting an ally for the enemy's, and the snapshot showed
+            # Spirit Link Totem, a Rune Weapon and an Arcane Phoenix among
+            # the enemies of a real key.
+            source_ours = False
         if (
             not source_ours
             and not dest_ours
@@ -700,8 +794,12 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             advanced = event.advanced
             paid = (advanced is not None and advanced.info_guid == event.source.guid
                     and advanced.paid_power)
+            # The last field is "" for the player's own casts and the
+            # summon's GUID for a summon's: still false and true where it
+            # is read as a flag, and what `_disown_mechanics` looks for.
             player.cast_log.append((event.ts, event.spell_id, event.spell_name or "?",
-                                    bool(paid), not event.source.is_player))
+                                    bool(paid), "" if event.source.is_player
+                                    else event.source.guid))
         else:
             player.cast_log_full = True
         if player.last_cast_ts is not None:
@@ -772,6 +870,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             self._bank_aura(guid, spell_id, opened, end)
         self.aura_open = {}
 
+        self._disown_mechanics()
         self._close_downtime(segment, end)
         self._collapse_timeline()
         for player in self.players.values():
@@ -842,14 +941,35 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         rows.sort(key=lambda enemy: -getattr(enemy, key))
         return rows[:limit]
 
+    @staticmethod
+    def took_part(player):
+        """True when a player did or suffered something in the fight itself.
+
+        Casting is not enough: on the owner's failed +14, two players who
+        had joined the group for the next key cast a buff in the last
+        seconds before CHALLENGE_MODE_END, and a five-player dungeon was
+        listed with seven. They are named apart (`bystanders`), not hidden.
+        """
+        return bool(player.damage_done or player.healing_done or player.damage_taken
+                    or player.absorb_done or player.absorbed_taken or player.pet_damage_taken
+                    or player.deaths or player.support_damage or player.support_healing)
+
+    def participants(self):
+        """The players who took part, in no particular order."""
+        return [player for player in self.players.values() if self.took_part(player)]
+
+    def bystanders(self):
+        """Players the file shows only casting: present, but not in the fight."""
+        return sorted((player for player in self.players.values()
+                       if player.casts and not self.took_part(player)),
+                      key=lambda player: player.short_name.lower())
+
     def composition(self):
         """[(label, [players])] -- tanks, healers, then everyone else."""
         from .specs import DPS, HEAL, TANK, role_of
 
         groups = {TANK: [], HEAL: [], DPS: [], "": []}
-        for player in self.players.values():
-            if not (player.damage_done or player.healing_done or player.casts):
-                continue
+        for player in self.participants():
             groups.setdefault(role_of(player.spec_id), []).append(player)
         for players in groups.values():
             players.sort(key=lambda player: player.short_name.lower())

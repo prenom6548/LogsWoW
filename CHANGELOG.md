@@ -3,7 +3,36 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
-## 0.5.0 — 2026-09-27
+## 0.5.1 — 2026-09-28
+
+**Corrigé, d'après vos retours sur vos propres rapports.**
+
+- **Les Échos de Nalorakk étaient pris pour des invocations de joueurs.**
+  Le boss fait « invoquer » ses Échos par plusieurs joueurs à la fois,
+  et le journal l'écrit ainsi ; leurs sorts (« Mutilation des échos »,
+  « Entaille spectrale ») apparaissaient dans l'ordre des sorts du
+  joueur. Un sort d'invocation qui touche presque toujours plusieurs
+  joueurs au même instant est désormais reconnu comme une mécanique de
+  la rencontre : ses unités sont rendues au boss, avec leurs sorts et
+  leurs coups. Même chose pour les « Orbes gravitationnels » de l'Arène
+  de la Cicatrice du Vide. Aucun total de dégâts ou de soins ne change.
+- **Un sort pouvait disparaître d'un tableau sans rien dire.** Les
+  tableaux s'arrêtaient à 16 lignes ; « Estropier », que le jeu écrit en
+  deux lignes (main droite, main gauche), passait dessous. Le reste se
+  déplie maintenant sous chaque tableau (« 8 sorts de plus · 5,3 M »).
+- **Des joueurs sans rôle dans le combat comptaient dans le groupe.**
+  Deux joueurs arrivés pour la clé suivante avaient lancé un buff dans
+  les dernières secondes d'une clé ratée : 7 joueurs dans un donjon.
+  Ne compte plus que qui a infligé ou subi des dégâts, soigné, protégé
+  ou est mort ; les autres sont nommés à part, sous la composition.
+- **« 0 pull de boss » pour une clé choisie seule** : les boss vus à
+  l'intérieur des combats choisis sont comptés, une fois chacun.
+- **« Échecs » devient deux compteurs** : « Wipes de boss » et « Clés
+  hors des temps ». Une clé ratée avec un wipe dedans ne se lit plus
+  comme un donjon compté deux fois. Une rencontre ouverte et refermée
+  sans un coup (un reset volontaire du boss) n'est jamais un wipe.
+
+
 
 **Physique ou magique, en pourcentage.**
 
