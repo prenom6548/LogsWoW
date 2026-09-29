@@ -120,6 +120,7 @@ class CombatBlock:
     __slots__ = (
         "start_ts", "end_ts", "damage_done", "damage_boss", "damage_taken",
         "deaths", "enemies", "encounters", "taken_by_school", "done_by_school",
+        "opening", "first_hits",
     )
 
     def __init__(self, start_ts):
@@ -136,6 +137,14 @@ class CombatBlock:
         # (encounter name, success) for each boss encounter this pull
         # overlapped, as the segment's own markers bound it.
         self.encounters = []
+        # (ms before the first damage, "groupe" | "ennemi", player ledger,
+        # spell name, enemy name, by a summon, help): who opened this pull,
+        # as SegmentAnalysis._note_opening read it. None when nothing did.
+        self.opening = None
+        # {enemy guid: (ts, player guid, spell, by a summon, enemy name)}
+        # while reading; at the end, [(ts, enemy name, player ledger, spell,
+        # by a summon)] in order: the first hit each enemy unit took.
+        self.first_hits = {}
 
     @property
     def damage_trash(self):

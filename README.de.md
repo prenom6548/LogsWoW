@@ -124,10 +124,26 @@ wäre schlimmer als gar kein Bericht.
   Grenzen einer Begegnung kommen aus dem Protokoll selbst: Eine
   Begegnung, nach der keine Einheit benannt ist (ein Rat, ein Duo),
   rechnet dem Boss den gesamten Schaden während ihrer Dauer zu, und die
-  Seite sagt es. Ein Pull endet nach sechs Sekunden ohne Schaden in
+  Seite sagt es. Ein Pull endet nach drei Sekunden ohne Schaden in
   beide Richtungen, außer innerhalb einer Bossbegegnung, die immer ein
   einziger Pull bleibt; `--pull-gap` ändert diese Schwelle, wenn Ihre
   Gruppe Packs aneinanderreiht.
+- **Wer jeden Pull eröffnet hat**, unter seiner Zeile: die erste
+  Handlung, die die Gruppe seit dem Ende des vorigen Pulls mit einem
+  Gegner verbindet, mit dem Spieler, seiner Rolle, dem Zauber (der einer
+  Beschwörung zählt für ihren Meister) und dem Vorsprung vor dem ersten
+  Treffer. Das Protokoll hat keine Bedrohungszeile: Ein durch Nähe
+  angelockter Gegner ist nur an dem zu erkennen, was er danach tut, und
+  die Zeile, als **Beta** markiert, sagt dann „Golem handelte zuerst,
+  gegen Tisane“. Da eine Heilung, Stärkung oder Bannung im Kampf den
+  Gegner auf den lenkt, der sie gegeben hat, sagt sie auch, wenn dieses
+  Ziel gerade eine gegeben hatte, und wem: Das ist oft der eigentliche
+  Auslöser. Fakten, kein Urteil.
+- **Der erste Treffer, den jeder Gegner erhielt**, in jedem Pull, Bosse
+  eingeschlossen, unter seiner Zeile aufklappbar: wer ihn zuerst
+  getroffen hat (auch ein verfehlter Treffer zählt), mit welchem Zauber,
+  zu welchem Zeitpunkt. Dieser ist sicher: Das Protokoll schreibt ihn
+  genau so.
 - **Schaden und Heilung** pro Spieler, mit DPS, HPS und dem Anteil der
   Heilung, der durch Überheilung verloren ging. **Schilde** haben eine
   eigene Spalte: Was sie absorbiert haben, ist im Protokoll keine

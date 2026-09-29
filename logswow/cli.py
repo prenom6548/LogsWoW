@@ -14,7 +14,7 @@ import sys
 import time
 
 from . import __version__, fmt
-from .analysis import SegmentAnalysis
+from .analysis import PULL_GAP_MS, SegmentAnalysis
 from .diagnose import run as run_diagnose
 from .i18n import LANGUAGES, _, set_language
 from .parse import LogFile
@@ -463,9 +463,9 @@ def build_parser():
             type=_seconds,
             default=None,
             metavar=_("SECONDES"),
-            help=_("silence nécessaire pour séparer deux pulls (défaut 6 s) ; "
+            help=_("silence nécessaire pour séparer deux pulls (défaut %d s) ; "
                    "baissez-le si vos packs sont regroupés, montez-le si un pull "
-                   "unique est coupé en deux"),
+                   "unique est coupé en deux") % (PULL_GAP_MS // 1000),
         )
         return subparser
 

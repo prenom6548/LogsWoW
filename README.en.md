@@ -114,9 +114,22 @@ misread file would be worse than no report at all.
   dragged along with it. An encounter's bounds come from the log itself:
   an encounter no unit is named after (a council, a duo) counts on the
   boss all the damage dealt while it lasted, and the page says so. A pull
-  ends after six seconds without damage either way, except inside a boss
+  ends after three seconds without damage either way, except inside a boss
   encounter, which always stays one pull; `--pull-gap` changes that
   threshold if your group chains packs.
+- **Who opened each pull**, under its row: the first act linking the
+  group and an enemy since the previous pull ended, with the player,
+  their role, the spell (a summon's counts for its master) and how long
+  before the first hit. The log has no threat line: an enemy drawn by
+  proximity only shows in what it does next, and the line then says
+  "Golem acted first, on Tisane", marked **beta**. Since a heal, a buff or
+  a dispel given in combat draws the enemy towards whoever gave it, it
+  also says when that target had just given one, and to whom: that
+  player is often the real puller. Facts, no verdict.
+- **The first hit each enemy took** in each pull, bosses included, to
+  unfold under its row: who touched it first (a missed hit counts), with
+  which spell, at what moment. That one is certain: the log writes it as
+  such.
 - **Damage and healing** per player, with DPS, HPS and the share of
   healing lost to overhealing. **Shields** have their own column: what
   they absorbed is not a heal in the log, since they prevent damage

@@ -87,8 +87,8 @@ TEXTS = {
         'year, for logs whose timestamps carry none',
     'SECONDES':
         'SECONDS',
-    'silence nécessaire pour séparer deux pulls (défaut 6 s) ; baissez-le si vos packs sont regroupés, montez-le si un pull unique est coupé en deux':
-        'silence needed to separate two pulls (default 6 s); lower it if your packs are grouped together, raise it if a single pull is cut in two',
+    'silence nécessaire pour séparer deux pulls (défaut %d s) ; baissez-le si vos packs sont regroupés, montez-le si un pull unique est coupé en deux':
+        'silence needed to separate two pulls (default %d s); lower it if your packs are grouped together, raise it if a single pull is cut in two',
     'produit le rapport HTML':
         'writes the HTML report',
     'fichier de sortie (.html)':
@@ -300,6 +300,26 @@ TEXTS = {
         "<span class='pill ok'>boss &middot; kill</span>",
     "<span class='pill ko'>boss &middot; échec</span>":
         "<span class='pill ko'>boss &middot; wipe</span>",
+    'tank':
+        'tank',
+    'soigneur':
+        'healer',
+    'DPS':
+        'DPS',
+    ', par une invocation':
+        ', through a summon',
+    'Ouvert par %s%s: %s':
+        'Opened by %s%.0s: %s',
+    'bêta':
+        'beta',
+    '<b>%s</b> a agi en premier, sur %s%s: %s':
+        '<b>%s</b> acted first, on %s%.0s: %s',
+    ', %s%ss avant le premier coup':
+        ', %s%ss before the first hit',
+    '%s; %s%ss plus tôt, %s avait aidé <b>%s</b> (%s)':
+        '%.0s; %s%ss earlier, %s had helped <b>%s</b> (%s)',
+    'Premier coup reçu par chaque ennemi (%s)':
+        'First hit each enemy took (%s)',
     ' %s%s: aucune unité ne porte le nom de la rencontre (un conseil, par exemple), donc tous les dégâts infligés pendant sa durée sont comptés sur le boss.':
         " %s%.0s: no unit bears the encounter's name (a council, for instance), so all the damage dealt while it lasted counts as on the boss.",
     '<tr><td colspan=7 class=dim>Aucun combat délimité dans ce fichier.</td></tr>':
@@ -340,6 +360,8 @@ TEXTS = {
         "<h3>%s</h3><div class=card><table><tr><th class=n>#</th><th class=n>Start</th><th class=n>Duration</th><th>What was engaged</th><th class=n>Damage</th>%s<th class=n>Taken</th><th class=n>Deaths</th></tr>%s</table><p class=dim style='margin:10px 0 0;font-size:12px'>A pull ends when the group goes more than %s without dealing or taking damage. A group that chains packs without a pause will therefore see them grouped%.0s: <code>--pull-gap</code> changes that threshold, except inside a boss encounter, which always stays one pull.%s%s</p></div>",
     " %s écarté%s, trop petits pour compter (moins d'un millième des dégâts de la course).":
         " %s dropped%.0s, too small to count (less than a thousandth of the run's damage).",
+    " Sous chaque pull, le premier acte qui lie le groupe à un ennemi depuis la fin du pull précédent%s: le journal n'a aucune ligne de menace, donc un ennemi pris par proximité ne s'y voit qu'à ce qu'il fait ensuite. Quand c'est l'ennemi qui agit en premier, sa première cible est un fort indice de qui l'a attiré, pas une preuve (une zone au sol laissée par le pack précédent, par exemple)%s; et un soin, un renfort ou une dissipation donné en combat attire l'ennemi vers celui qui l'a donné, si bien que la ligne dit aussi quand cette cible venait d'en donner un. Cette lecture est en bêta. Le premier coup reçu par chaque ennemi, lui, est écrit tel quel dans le journal.":
+        ' Under each pull, the first act linking the group and an enemy since the previous pull ended%.0s: the log has no threat line, so an enemy drawn by proximity only shows in what it does next. When the enemy acts first, its first target is a strong hint of who drew it, not a proof (a ground effect left by the previous pack, for instance)%.0s; and a heal, a buff or a dispel given in combat draws the enemy towards whoever gave it, so the line also says when that target had just given one. This reading is in beta. The first hit each enemy took, on the other hand, is written as such in the log.',
     ' <span class=dim>(%s de surguérison)</span>':
         ' <span class=dim>(%s overhealing)</span>',
     '<th>Joueur</th><th class=n>Total</th>':

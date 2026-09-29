@@ -116,9 +116,23 @@ lu serait pire que pas de rapport du tout.
   d'une rencontre viennent du journal lui-même : une rencontre dont aucune
   unité ne porte le nom (un conseil, un duo) compte sur le boss tous les
   dégâts infligés pendant sa durée, et la page le dit. Un pull se termine
-  après six secondes sans dégâts de part ni d'autre, sauf à l'intérieur
+  après trois secondes sans dégâts de part ni d'autre, sauf à l'intérieur
   d'une rencontre de boss, qui reste toujours un seul pull ; `--pull-gap`
   change ce seuil si votre groupe enchaîne les packs.
+- **Qui a ouvert chaque pull**, sous sa ligne : le premier acte qui lie
+  le groupe à un ennemi depuis la fin du pull précédent, avec le joueur,
+  son rôle, le sort (celui d'une invocation compte pour son maître) et
+  l'avance sur le premier coup. Le journal n'a aucune ligne de menace :
+  un ennemi pris par proximité ne se voit qu'à ce qu'il fait ensuite, et
+  la ligne, marquée **bêta**, dit alors « Golem a agi en premier, sur
+  Tisane ». Comme un soin, un renfort ou une dissipation donné en combat
+  attire l'ennemi vers celui qui l'a donné, elle dit aussi quand cette
+  cible venait d'en donner un, et à qui : le vrai responsable est souvent
+  celui-là. Des faits, pas de verdict.
+- **Le premier coup reçu par chaque ennemi** de chaque pull, boss compris,
+  à déplier sous sa ligne : qui l'a touché en premier (un coup manqué
+  compte), avec quel sort, à quel moment. Celui-là est sûr : le journal
+  l'écrit tel quel.
 - **Dégâts et soins** par joueur, avec le DPS, le HPS et la part de soin
   perdue en surguérison. Les **boucliers** ont leur propre colonne : ce
   qu'ils ont absorbé n'est pas un soin dans le journal, puisqu'ils

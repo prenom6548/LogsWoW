@@ -87,8 +87,8 @@ TEXTS = {
         'año, para los registros cuya marca de tiempo no lo lleva',
     'SECONDES':
         'SEGUNDOS',
-    'silence nécessaire pour séparer deux pulls (défaut 6 s) ; baissez-le si vos packs sont regroupés, montez-le si un pull unique est coupé en deux':
-        'silencio necesario para separar dos pulls (6 s por defecto); bájelo si sus packs van agrupados, súbalo si un solo pull queda partido en dos',
+    'silence nécessaire pour séparer deux pulls (défaut %d s) ; baissez-le si vos packs sont regroupés, montez-le si un pull unique est coupé en deux':
+        'silencio necesario para separar dos pulls (%d s por defecto); bájelo si sus packs van agrupados, súbalo si un solo pull queda partido en dos',
     'produit le rapport HTML':
         'genera el informe HTML',
     'fichier de sortie (.html)':
@@ -300,6 +300,26 @@ TEXTS = {
         "<span class='pill ok'>jefe &middot; victoria</span>",
     "<span class='pill ko'>boss &middot; échec</span>":
         "<span class='pill ko'>jefe &middot; derrota</span>",
+    'tank':
+        'tanque',
+    'soigneur':
+        'sanador',
+    'DPS':
+        'DPS',
+    ', par une invocation':
+        ', mediante una invocación',
+    'Ouvert par %s%s: %s':
+        'Abierto por %s%.0s: %s',
+    'bêta':
+        'beta',
+    '<b>%s</b> a agi en premier, sur %s%s: %s':
+        '<b>%s</b> actuó primero, sobre %s%.0s: %s',
+    ', %s%ss avant le premier coup':
+        ', %s%ss antes del primer golpe',
+    '%s; %s%ss plus tôt, %s avait aidé <b>%s</b> (%s)':
+        '%.0s; %s%ss antes, %s había ayudado a <b>%s</b> (%s)',
+    'Premier coup reçu par chaque ennemi (%s)':
+        'Primer golpe recibido por cada enemigo (%s)',
     ' %s%s: aucune unité ne porte le nom de la rencontre (un conseil, par exemple), donc tous les dégâts infligés pendant sa durée sont comptés sur le boss.':
         ' %s%.0s: ninguna unidad lleva el nombre del encuentro (un consejo, por ejemplo), así que todo el daño infligido mientras dura se cuenta sobre el jefe.',
     '<tr><td colspan=7 class=dim>Aucun combat délimité dans ce fichier.</td></tr>':
@@ -340,6 +360,8 @@ TEXTS = {
         "<h3>%s</h3><div class=card><table><tr><th class=n>#</th><th class=n>Inicio</th><th class=n>Duración</th><th>Lo que se ha atacado</th><th class=n>Daño</th>%s<th class=n>Recibido</th><th class=n>Muertes</th></tr>%s</table><p class=dim style='margin:10px 0 0;font-size:12px'>Un pull termina cuando el grupo pasa más de %s sin infligir ni recibir daño. Un grupo que encadena packs sin pausa los verá por tanto agrupados%.0s: <code>--pull-gap</code> cambia ese umbral, salvo dentro de un encuentro con un jefe, que siempre es un solo pull.%s%s</p></div>",
     " %s écarté%s, trop petits pour compter (moins d'un millième des dégâts de la course).":
         ' %s descartado%s, demasiado pequeños para contar (menos de una milésima del daño de la mazmorra).',
+    " Sous chaque pull, le premier acte qui lie le groupe à un ennemi depuis la fin du pull précédent%s: le journal n'a aucune ligne de menace, donc un ennemi pris par proximité ne s'y voit qu'à ce qu'il fait ensuite. Quand c'est l'ennemi qui agit en premier, sa première cible est un fort indice de qui l'a attiré, pas une preuve (une zone au sol laissée par le pack précédent, par exemple)%s; et un soin, un renfort ou une dissipation donné en combat attire l'ennemi vers celui qui l'a donné, si bien que la ligne dit aussi quand cette cible venait d'en donner un. Cette lecture est en bêta. Le premier coup reçu par chaque ennemi, lui, est écrit tel quel dans le journal.":
+        ' Bajo cada pull, el primer acto que vincula al grupo con un enemigo desde el final del pull anterior%.0s: el registro no tiene ninguna línea de amenaza, así que un enemigo atraído por proximidad solo se ve por lo que hace después. Cuando el enemigo actúa primero, su primer objetivo es un fuerte indicio de quién lo atrajo, no una prueba (un efecto en el suelo dejado por el pack anterior, por ejemplo)%.0s; y una sanación, un beneficio o una disipación dados en combate atraen al enemigo hacia quien los dio, así que la línea también indica cuándo ese objetivo acababa de dar uno. Esta lectura está en beta. El primer golpe que recibió cada enemigo, en cambio, está escrito tal cual en el registro.',
     ' <span class=dim>(%s de surguérison)</span>':
         ' <span class=dim>(%s de sobresanación)</span>',
     '<th>Joueur</th><th class=n>Total</th>':

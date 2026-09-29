@@ -24,4 +24,4 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 Source code: https://github.com/prenom6548/LogsWoW
 """
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"

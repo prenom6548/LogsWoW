@@ -45,10 +45,36 @@ NULL_GUID = "0000000000000000"
 DOWNTIME_THRESHOLD_MS = 2000
 
 # How long the group has to stop dealing and taking damage before what
-# follows counts as a new pull. Six seconds is long enough to survive a
-# ranged gap-close or a cast finishing after the last mob dies, and short
-# enough to separate two trash packs in a Mythic+ key.
-PULL_GAP_MS = 6000
+# follows counts as a new pull. Six seconds until 0.11.0; the owner, who
+# plays these keys, found three closer to what the group actually does
+# (2026-09-29), and `--pull-gap` still lets a reader choose.
+PULL_GAP_MS = 3000
+
+# Who opened a pull: the first act linking the group and an enemy after
+# the previous pull's last damage. Measured on 150 pulls of three real
+# dungeon logs: a tank's opener comes a median 0.35 s before the first
+# damage, and 13 s at the most; nothing earlier than this is taken. When
+# nothing came before, the first act within this long after it is.
+OPENING_LOOKBACK_MS = 15000
+OPENING_WAIT_MS = 2000
+# Healing and buffing a player in combat draws the enemy's attention to the
+# healer (the owner, 2026-09-29): an enemy's first target may have inherited
+# the aggro of the player it had just helped. On 27 pulls of three real
+# logs where the enemy acted first, one heal came 0.2 s before; the next
+# nearest help was a paladin aura reapplying itself at 2.8 s. So: two.
+OPENING_HELP_MS = 2000
+# The first hit each enemy unit took from the group, per pull. A hit that
+# missed draws the enemy all the same, so it counts; a pull keeps at most
+# this many units (a real key's largest pull had far fewer).
+FIRST_HIT_KINDS = frozenset({"_DAMAGE", "_MISSED"})
+MAX_FIRST_HITS = 300
+# The acts that can open a pull. An aura *ending* cannot: on those logs the
+# first "link" before a pull was, 23 times in 68, a debuff falling off the
+# last pack's corpses.
+OPENING_KINDS = frozenset({
+    "_DAMAGE", "_DAMAGE_LANDED", "_MISSED", "_CAST_SUCCESS", "_AURA_APPLIED",
+    "_AURA_APPLIED_DOSE", "_INSTAKILL", "_INTERRUPT", "_DRAIN", "_LEECH",
+})
 
 # Summons an encounter makes players cast (see SegmentAnalysis._note_summon).
 SUMMON_INSTANT_MS = 20
@@ -139,6 +165,16 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self._pool_last_index = None
         self._pending_casts = {}
         self._block = None
+        # The first act linking the group and an enemy since the last
+        # damage, and a pull still waiting for its opener (_note_opening).
+        self._opening_pending = None
+        self._opening_wait = None
+        # {player guid: (ts, helped player's ledger, spell)}: the last heal
+        # or buff each player gave another, for the opener's context.
+        self._last_help = {}
+        # {enemy guid: first hit} noted after the last damage, for the pull
+        # the next damage opens (_note_first_hit).
+        self._first_hits_pending = {}
         self._enemy_damage = {}
         self._enemy_names = {}
         self._hp_samples = {}
@@ -303,6 +339,12 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             self._feed_absorbed(event)
         elif subevent == "ENCOUNTER_END":
             self._feed_encounter_end(event)
+        if kind in OPENING_KINDS:
+            self._note_opening(event)
+        if kind in ("_HEAL", "_AURA_APPLIED", "_DISPEL"):
+            self._note_help(event)
+        if kind in FIRST_HIT_KINDS:
+            self._note_first_hit(event)
 
         # The health curve of whatever the group actually spent the fight
         # killing. Picking the unit with the biggest health pool was a
@@ -873,8 +915,149 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             block = CombatBlock(event.ts)
             self._block = block
             self.blocks.append(block)
+            self._open_with(block)
+        else:
+            # Still the same pull: whatever was noted since its last damage
+            # was part of it, not the opening of the next.
+            self._opening_pending = None
+            if self._first_hits_pending:
+                for guid, hit in self._first_hits_pending.items():
+                    block.first_hits.setdefault(guid, hit)
+                self._first_hits_pending = {}
         block.end_ts = max(block.end_ts, event.ts)
         return block
+
+    # -- who opened each pull ----------------------------------------------
+
+    def _open_with(self, block):
+        """Give a new pull the act noted before its first damage, or wait for one."""
+        early, self._first_hits_pending = self._first_hits_pending, {}
+        for guid, hit in early.items():
+            if block.start_ts - hit[0] <= OPENING_LOOKBACK_MS:
+                block.first_hits[guid] = hit
+        pending, self._opening_pending = self._opening_pending, None
+        self._opening_wait = None
+        if pending is not None and block.start_ts - pending[0] <= OPENING_LOOKBACK_MS:
+            block.opening = (block.start_ts - pending[0],) + pending[1:]
+        else:
+            self._opening_wait = block
+
+    def _note_opening(self, event):
+        """The first act linking the group and an enemy, in either direction.
+
+        The file has no threat line: an enemy that aggroes a player who
+        merely came close is visible only by what it does next -- its first
+        swing, cast or debuff on that player, before anyone touched it. The
+        report says which side acted first and leaves the verdict to the
+        reader: the enemy's first target is a strong hint of who drew it,
+        never a proof.
+        """
+        if event.ts is None:
+            return
+        link = self._link_of(event)
+        if link is None:
+            return
+        wait = self._opening_wait
+        if wait is not None:
+            self._opening_wait = None
+            if event.ts - wait.start_ts <= OPENING_WAIT_MS:
+                wait.opening = (0,) + link
+                return
+        block = self._block
+        if self._opening_pending is None and (block is None or event.ts > block.end_ts):
+            self._opening_pending = (event.ts,) + link
+
+    def _link_of(self, event):
+        """(side, player, spell, enemy, by a summon, help) or None.
+
+        `side` is "groupe" when the group acted on the enemy, "ennemi" when
+        the enemy acted on the group; `player` is the player's ledger, a
+        summon's owner when a summon acted or was hit. `help`, only when the
+        enemy acted first: (ms before, helped player, spell) if its target
+        had just healed or buffed another player -- the aggro it may have
+        inherited.
+        """
+        # GUIDs only while reading, turned into ledgers by
+        # `_resolve_openings`: opening a ledger here would change what the
+        # aura code banks (it banks only for players already known), and
+        # the first version of this did, by a few hundred milliseconds.
+        source, dest = event.source, event.dest
+        if dest.is_hostile and not source.is_hostile and self._is_ours(source):
+            return ("groupe", self.pet_owner.get(source.guid, source.guid), event.spell_name,
+                    self._name_of(dest), not source.is_player, None)
+        if source.is_hostile and not dest.is_hostile and self._is_ours(dest):
+            target = self.pet_owner.get(dest.guid, dest.guid)
+            helped = self._last_help.get(target)
+            if helped is not None and 0 <= event.ts - helped[0] <= OPENING_HELP_MS:
+                helped = (event.ts - helped[0],) + helped[1:]
+            else:
+                helped = None
+            return ("ennemi", target, event.spell_name, self._name_of(source),
+                    not dest.is_player, helped)
+        return None
+
+    def _note_help(self, event):
+        """A heal that healed, a buff or a dispel, from one player to another.
+
+        What draws an enemy's attention to the helper, in the owner's words
+        (2026-09-29): a heal received, a buff (damage, defence, speed), a
+        debuff removed.
+        """
+        source, dest = event.source, event.dest
+        if (event.ts is None or not source.is_player or not dest.is_player
+                or source.guid == dest.guid or source.is_hostile or dest.is_hostile):
+            return
+        if event.suffix_kind == "_HEAL":
+            if event.effective_healing <= 0:
+                return     # a full-health player: no healing, no threat
+        elif event.suffix_kind == "_AURA_APPLIED" and (event.aura_type or "BUFF") != "BUFF":
+            return
+        self._last_help[source.guid] = (event.ts, dest.guid, event.spell_name)
+
+    def _note_first_hit(self, event):
+        """The first hit, landed or missed, each enemy unit takes in a pull.
+
+        Unlike the opener, this is certain: the line says who hit whom. A
+        summon's hit is its owner's. GUIDs only, resolved at the end.
+        """
+        source, dest = event.source, event.dest
+        if (event.ts is None or not dest.is_hostile or source.is_hostile
+                or not self._is_ours(source) or not dest.guid):
+            return
+        hit = (event.ts, self.pet_owner.get(source.guid, source.guid), event.spell_name,
+               not source.is_player, self._name_of(dest))
+        block = self._block
+        if block is not None and event.ts <= block.end_ts:
+            hits = block.first_hits
+        else:
+            hits = self._first_hits_pending
+        if dest.guid not in hits and len(hits) < MAX_FIRST_HITS:
+            hits[dest.guid] = hit
+
+    def _resolve_openings(self):
+        """The GUIDs noted by `_note_opening`, as ledgers; None if nobody is known."""
+        for block in self.blocks:
+            if block.opening is None or not isinstance(block.opening[2], str):
+                continue
+            lead, side, guid, spell, enemy, by_summon, helped = block.opening
+            player = self.players.get(guid)
+            if player is None:
+                block.opening = None
+                continue
+            if helped is not None:
+                other = self.players.get(helped[1])
+                helped = (helped[0], other, helped[2]) if other is not None else None
+            block.opening = (lead, side, player, spell, enemy, by_summon, helped)
+        for block in self.blocks:
+            if isinstance(block.first_hits, list):
+                continue      # already resolved: finish() may run twice
+            resolved = []
+            hits = sorted(block.first_hits.values(), key=lambda hit: hit[0])
+            for ts, guid, spell, by_summon, enemy in hits:
+                player = self.players.get(guid)
+                if player is not None:
+                    resolved.append((ts, enemy, player, spell, by_summon))
+            block.first_hits = resolved
 
     def _feed_instakill(self, event):
         """A player killed outright: the cause of death, with no amount at all.
@@ -1056,6 +1239,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         # bucket is named for what is known rather than guessed at.
         self.enemy_casts["autre"] += len(self._pending_casts)
         self._pending_casts = {}
+        self._resolve_openings()
 
         self._drop_crumbs()
         # An aura still up when the pull ended counts to the end of it,

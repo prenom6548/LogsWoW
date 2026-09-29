@@ -6,6 +6,38 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.11.0 — 2026-09-29
+
+**The first hit each enemy took**, pull by pull, bosses included: for
+each monster, the player who touched it first (a missed hit counts too,
+it draws the monster just the same), with which spell and when in the
+pull. A pet's, a summon's or a totem's spell counts for its master. The
+log writes this as such: it is certain. The list unfolds under each row
+of the pull table, and under the heading of a boss fight on its own.
+
+**Who opened each pull.** Under each row of the pull table, the first
+act linking the group and an enemy since the previous pull ended:
+"Opened by Tisane (tank): Death Grip, 0.4 s before the first hit". A
+pet's, a summon's or a totem's spell counts for its master, and the
+player's role is written beside their name. The log has no threat line:
+an enemy drawn by proximity (a body pull) only shows in what it does
+next, and the line then says "Golem acted first, on Braise", marked
+**beta** until players have said how it reads. Since a heal, a buff or
+a dispel given in combat draws the enemy towards whoever gave it, it
+adds, when that is the case, that this target had just helped another
+player, and which one: that player is often the puller.
+Facts, no verdict: a ground effect left by the previous pack can also
+make an enemy act first.
+
+Measured on three real dungeon logs (159 pulls): the tank opens most
+pulls, typically 0.3 to 0.6 s before the first hit; the enemy acts
+first in about one pull in six.
+
+**A pull ends after 3 seconds without damage**, instead of 6: closer to
+what a group does in the game. `--pull-gap` and the window's setting
+still let you choose another. Totals do not change; only the cutting
+into pulls is finer.
+
 ## 0.10.0 — 2026-09-28
 
 **LogsWoW speaks German and Spanish too.** The window, the commands,

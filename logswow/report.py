@@ -18,8 +18,8 @@ from . import __version__
 from . import fmt
 from .fmt import NBSP
 from .fmt import bar_row as _bar_row
-from .i18n import _, language, spell_label
-from .specs import label_of
+from .i18n import N_, _, language, spell_label
+from .specs import DPS, HEAL, TANK, label_of, role_of
 from .timestamps import format_duration
 from .report_casts import CastOrderMixin, chip_rules
 from .report_panels import PanelsMixin
@@ -108,6 +108,79 @@ def _boss_pill(outcome):
     if outcome is False:
         return _("<span class='pill ko'>boss &middot; échec</span>")
     return "<span class='pill'>boss</span>"
+
+
+# How a role is written beside a name, in the reader's language.
+ROLE_WORDS = {TANK: N_("tank"), HEAL: N_("soigneur"), DPS: N_("DPS")}
+
+
+def opening_text(opening):
+    """'Ouvert par Tisane (tank) : Caresse de la mort, 0,4 s avant le premier
+    coup', or the enemy's first act on the group -- '' when nothing opened.
+
+    Plain facts, no verdict: the file has no threat line, so an enemy that
+    acted first may have been drawn by proximity, a body pull or a ground
+    effect left by the last pack. The reader knows which; the page does not.
+    """
+    if not opening:
+        return ""
+    lead, side, player, spell, enemy, by_summon, helped = opening
+    role = ROLE_WORDS.get(role_of(player.spec_id))
+    who = "<b>%s</b>" % fmt.esc(player.short_name)
+    if role:
+        who += " (%s)" % _(role)
+    if by_summon:
+        who += _(", par une invocation")
+    what = fmt.esc(spell_label(spell))
+    if side == "groupe":
+        text = _("Ouvert par %s%s: %s") % (who, NBSP, what)
+    else:
+        # Bêta, at the owner's request: the file shows what the enemy did,
+        # never why, so this reading waits for players' feedback.
+        text = "<span class=pill>%s</span> " % _("bêta") + _(
+            "<b>%s</b> a agi en premier, sur %s%s: %s") % (fmt.esc(enemy), who, NBSP, what)
+    if lead >= 100:
+        text += _(", %s%ss avant le premier coup") % (fmt.decimal(round(lead / 1000.0, 1)), NBSP)
+    if helped:
+        before, other, help_spell = helped
+        text += _("%s; %s%ss plus tôt, %s avait aidé <b>%s</b> (%s)") % (
+            NBSP, fmt.decimal(round(before / 1000.0, 1)), NBSP, fmt.esc(player.short_name),
+            fmt.esc(other.short_name), fmt.esc(spell_label(help_spell)))
+    return text
+
+
+def first_hits_html(block):
+    """The first hit each enemy unit of a pull took: who, with what, when.
+
+    Certain, unlike the opener: the line names both ends. Units sharing a
+    name are numbered in the order they were first hit.
+    """
+    hits = block.first_hits
+    if not hits:
+        return ""
+    counts = {}
+    for _ts, enemy, _player, _spell, _summon in hits:
+        counts[enemy] = counts.get(enemy, 0) + 1
+    seen = {}
+    rows = []
+    for ts, enemy, player, spell, by_summon in hits:
+        name = fmt.esc(enemy)
+        if counts[enemy] > 1:
+            seen[enemy] = seen.get(enemy, 0) + 1
+            name += " (%d)" % seen[enemy]
+        role = ROLE_WORDS.get(role_of(player.spec_id))
+        who = "<b>%s</b>" % fmt.esc(player.short_name)
+        if role:
+            who += " (%s)" % _(role)
+        if by_summon:
+            who += _(", par une invocation")
+        offset = (ts - block.start_ts) / 1000.0
+        rows.append("<li>%s &mdash; %s%s: %s, %s%s%ss</li>" % (
+            name, who, NBSP if language() == "fr" else "", fmt.esc(spell_label(spell)),
+            "+" if offset >= 0 else "&minus;", fmt.decimal(round(abs(offset), 1)), NBSP))
+    return ("<details class=more><summary>%s</summary><ul style='margin:4px 0 0'>%s</ul>"
+            "</details>" % (_("Premier coup reçu par chaque ennemi (%s)")
+                            % fmt.plural(len(hits), "ennemi"), "".join(rows)))
 
 
 def _council_note(names):
@@ -337,7 +410,14 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
     def _pulls(self, analysis):
         """The pulls inside a run. Only worth showing when there are several."""
         if not analysis.has_several_pulls:
-            return ""
+            # One pull (a boss fight on its own): no table, but who opened
+            # it and who first hit each enemy still say something.
+            block = analysis.blocks[0] if analysis.blocks else None
+            if block is None or not (block.opening or block.first_hits):
+                return ""
+            opened = opening_text(block.opening)
+            return "<div class=card style='font-size:13px'>%s%s</div>" % (
+                opened, first_hits_html(block))
         start = analysis.first_ts or 0
         bosses = analysis.boss_names
         any_boss = any(block.has_boss(bosses) for block in analysis.blocks)
@@ -347,6 +427,10 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
             label = fmt.esc(block.label(boss_names=bosses)) or "<span class=dim>?</span>"
             if block.has_boss(bosses):
                 label = _boss_pill(block.outcome) + " " + label
+            opened = opening_text(block.opening)
+            if opened:
+                label += "<br><span class=dim style='font-size:12px'>%s</span>" % opened
+            label += first_hits_html(block)
             boss_cells = ""
             if any_boss:
                 # Trash is often funnelled onto a boss and killed there:
@@ -395,7 +479,19 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                  % (analysis.dropped_pulls,
                     "s" if analysis.dropped_pulls > 1 else ""))
                 if analysis.dropped_pulls else "",
-                _council_note(analysis.window_encounters),
+                _council_note(analysis.window_encounters) + (
+                    _(" Sous chaque pull, le premier acte qui lie le groupe à un ennemi "
+                      "depuis la fin du pull précédent%s: le journal n'a aucune ligne de "
+                      "menace, donc un ennemi pris par proximité ne s'y voit qu'à ce "
+                      "qu'il fait ensuite. Quand c'est l'ennemi qui agit en premier, sa "
+                      "première cible est un fort indice de qui l'a attiré, pas une "
+                      "preuve (une zone au sol laissée par le pack précédent, par "
+                      "exemple)%s; et un soin, un renfort ou une dissipation donné en "
+                      "combat attire l'ennemi vers celui qui l'a donné, si bien que la "
+                      "ligne dit aussi quand cette cible venait d'en donner un. Cette "
+                      "lecture est en bêta. Le premier coup reçu par chaque ennemi, "
+                      "lui, est écrit tel quel dans le journal.") % (NBSP, NBSP)
+                    if any(block.opening for block in analysis.blocks) else ""),
             )
         )
 

@@ -87,8 +87,8 @@ TEXTS = {
         'Jahr, für Protokolle, deren Zeitstempel keines enthalten',
     'SECONDES':
         'SEKUNDEN',
-    'silence nécessaire pour séparer deux pulls (défaut 6 s) ; baissez-le si vos packs sont regroupés, montez-le si un pull unique est coupé en deux':
-        'Pause, die zwei Pulls trennt (Standard 6 s); senken Sie sie, wenn Ihre Packs zusammengezogen werden, erhöhen Sie sie, wenn ein einzelner Pull in zwei geteilt wird',
+    'silence nécessaire pour séparer deux pulls (défaut %d s) ; baissez-le si vos packs sont regroupés, montez-le si un pull unique est coupé en deux':
+        'Pause, die zwei Pulls trennt (Standard %d s); senken Sie sie, wenn Ihre Packs zusammengezogen werden, erhöhen Sie sie, wenn ein einzelner Pull in zwei geteilt wird',
     'produit le rapport HTML':
         'erstellt den HTML-Bericht',
     'fichier de sortie (.html)':
@@ -300,6 +300,26 @@ TEXTS = {
         "<span class='pill ok'>Boss &middot; Kill</span>",
     "<span class='pill ko'>boss &middot; échec</span>":
         "<span class='pill ko'>Boss &middot; Wipe</span>",
+    'tank':
+        'Tank',
+    'soigneur':
+        'Heiler',
+    'DPS':
+        'DPS',
+    ', par une invocation':
+        ', über eine Beschwörung',
+    'Ouvert par %s%s: %s':
+        'Eröffnet von %s%.0s: %s',
+    'bêta':
+        'Beta',
+    '<b>%s</b> a agi en premier, sur %s%s: %s':
+        '<b>%s</b> handelte zuerst, gegen %s%.0s: %s',
+    ', %s%ss avant le premier coup':
+        ', %s%ss vor dem ersten Treffer',
+    '%s; %s%ss plus tôt, %s avait aidé <b>%s</b> (%s)':
+        '%.0s; %s%ss vorher hatte %s <b>%s</b> geholfen (%s)',
+    'Premier coup reçu par chaque ennemi (%s)':
+        'Erster Treffer, den jeder Gegner erhielt (%s)',
     ' %s%s: aucune unité ne porte le nom de la rencontre (un conseil, par exemple), donc tous les dégâts infligés pendant sa durée sont comptés sur le boss.':
         ' %s%.0s: Keine Einheit trägt den Namen der Begegnung (zum Beispiel ein Rat), daher wird der gesamte Schaden während ihrer Dauer dem Boss zugerechnet.',
     '<tr><td colspan=7 class=dim>Aucun combat délimité dans ce fichier.</td></tr>':
@@ -340,6 +360,8 @@ TEXTS = {
         "<h3>%s</h3><div class=card><table><tr><th class=n>#</th><th class=n>Beginn</th><th class=n>Dauer</th><th>Was angegriffen wurde</th><th class=n>Schaden</th>%s<th class=n>Erlitten</th><th class=n>Tode</th></tr>%s</table><p class=dim style='margin:10px 0 0;font-size:12px'>Ein Pull endet, wenn die Gruppe länger als %s weder Schaden verursacht noch erleidet. Eine Gruppe, die Packs ohne Pause aneinanderreiht, sieht sie daher zusammengefasst%.0s: <code>--pull-gap</code> ändert diese Schwelle, außer innerhalb einer Bossbegegnung, die immer ein einziger Pull bleibt.%s%s</p></div>",
     " %s écarté%s, trop petits pour compter (moins d'un millième des dégâts de la course).":
         ' %s verworfen%.0s, zu klein, um zu zählen (weniger als ein Tausendstel des Schadens des Durchgangs).',
+    " Sous chaque pull, le premier acte qui lie le groupe à un ennemi depuis la fin du pull précédent%s: le journal n'a aucune ligne de menace, donc un ennemi pris par proximité ne s'y voit qu'à ce qu'il fait ensuite. Quand c'est l'ennemi qui agit en premier, sa première cible est un fort indice de qui l'a attiré, pas une preuve (une zone au sol laissée par le pack précédent, par exemple)%s; et un soin, un renfort ou une dissipation donné en combat attire l'ennemi vers celui qui l'a donné, si bien que la ligne dit aussi quand cette cible venait d'en donner un. Cette lecture est en bêta. Le premier coup reçu par chaque ennemi, lui, est écrit tel quel dans le journal.":
+        ' Unter jedem Pull steht die erste Handlung, die die Gruppe seit dem Ende des vorigen Pulls mit einem Gegner verbindet%.0s: Das Protokoll hat keine Bedrohungszeile, daher ist ein Gegner, der durch Nähe angelockt wurde, nur an dem zu erkennen, was er danach tut. Handelt der Gegner zuerst, ist sein erstes Ziel ein starker Hinweis darauf, wer ihn angelockt hat, kein Beweis (etwa ein Bodeneffekt, den das vorige Pack hinterlassen hat)%.0s; und eine Heilung, Stärkung oder Bannung im Kampf lenkt den Gegner auf den, der sie gegeben hat, daher sagt die Zeile auch, wenn dieses Ziel gerade eine gegeben hatte. Diese Lesart ist in der Beta. Der erste Treffer, den jeder Gegner erhielt, steht dagegen genau so im Protokoll.',
     ' <span class=dim>(%s de surguérison)</span>':
         ' <span class=dim>(%s Überheilung)</span>',
     '<th>Joueur</th><th class=n>Total</th>':

@@ -3,6 +3,40 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.11.0 — 2026-09-29
+
+**Le premier coup reçu par chaque ennemi**, pull par pull et boss
+compris : pour chaque monstre, le joueur qui l'a touché en premier (un
+coup manqué compte aussi, il attire le monstre tout autant), avec quel
+sort et à quel moment du pull. Le sort d'un familier, d'une invocation
+ou d'un totem compte pour son maître. C'est écrit tel quel dans le
+journal : c'est sûr. La liste se déplie sous chaque ligne du tableau des
+pulls, et sous l'en-tête d'un combat de boss seul.
+
+**Qui a ouvert chaque pull.** Sous chaque ligne du tableau des pulls, le
+premier acte qui lie le groupe à un ennemi depuis la fin du pull
+précédent : « Ouvert par Tisane (tank) : Caresse de la mort, 0,4 s avant
+le premier coup ». Le sort d'un familier, d'une invocation ou d'un totem
+compte pour son maître, et le rôle du joueur est écrit à côté de son
+nom. Le journal n'a aucune ligne de menace : un ennemi pris par
+proximité (un body pull) ne s'y voit qu'à ce qu'il fait ensuite, et la
+ligne dit alors « Golem a agi en premier, sur Braise », marquée **bêta**
+en attendant vos retours. Comme un soin, un renfort ou une dissipation
+donné en combat attire l'ennemi vers celui qui l'a donné, elle ajoute,
+quand c'est le cas, que cette cible venait d'aider un autre joueur, et
+lequel : c'est souvent lui qui a tiré. Des faits, pas de verdict : une
+zone au sol laissée par le pack précédent peut aussi faire agir un
+ennemi en premier.
+
+Mesuré sur trois de vos journaux de donjon (159 pulls) : le tank ouvre
+la plupart des pulls, typiquement 0,3 à 0,6 s avant le premier coup ;
+l'ennemi agit en premier dans environ un pull sur six.
+
+**Un pull se termine après 3 secondes sans dégâts**, au lieu de 6 : c'est
+plus proche de ce que fait un groupe en jeu. `--pull-gap` et le réglage
+de la fenêtre permettent toujours d'en choisir un autre. Les totaux ne
+changent pas ; seul le découpage en pulls est plus fin.
+
 ## 0.10.0 — 2026-09-28
 
 **LogsWoW parle aussi allemand et espagnol.** La fenêtre, les commandes,

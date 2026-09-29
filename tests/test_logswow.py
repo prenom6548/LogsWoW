@@ -3082,6 +3082,118 @@ class TestOwnerFeedback(unittest.TestCase):
                 self.assertIn("<b>0</b><span>Clés non terminées", page)
 
 
+class TestWhoOpenedThePull(unittest.TestCase):
+    """The first act of each pull, and the three-second gap (2026-09-29)."""
+
+    A = 'Player-9999-00000001,"Ardoise-Dalaran-EU",0x512,0x0'
+    B = 'Player-9999-00000002,"Tisane-Dalaran-EU",0x512,0x0'
+    C = 'Player-9999-00000003,"Braise-Dalaran-EU",0x512,0x0'
+    PET = 'Pet-0-9999-2222-1111-165189-0000000001,"Loup",0x1112,0x0'
+
+    @staticmethod
+    def _mob(n):
+        return 'Creature-0-9999-2222-1111-70000-00001111%02d,"Golem",0xa48,0x0' % n
+
+    def _hit(self, ms, source, dest):
+        return (ms, 'SPELL_DAMAGE,%s,%s,100,"Frappe",0x1,1000,1000,-1,1,0,0,0,nil,nil,nil,ST'
+                % (source, dest))
+
+    def _key(self):
+        lines = [
+            (0, 'CHALLENGE_MODE_START,"Allee",2000,500,14,[9]'),
+            (500, 'SPELL_SUMMON,%s,%s,883,"Appel du familier",0x1' % (self.A, self.PET)),
+            self._hit(1000, self.A, self._mob(1)),
+            self._hit(2000, self._mob(1), self.A),
+            # The last pack's debuff falling off its corpse opens nothing.
+            (3000, 'SPELL_AURA_REMOVED,%s,%s,55078,"Peste de sang",0x20,DEBUFF'
+             % (self.A, self._mob(1))),
+            (9000, 'SPELL_CAST_SUCCESS,%s,%s,49576,"Caresse de la mort",0x1'
+             % (self.B, self._mob(2))),
+            # A miss draws the enemy as surely as a hit: it is the first one.
+            (9200, 'SWING_MISSED,%s,%s,MISS,nil' % (self.A, self._mob(2))),
+            self._hit(9400, self.B, self._mob(2)),
+            # 4.6 s after the last hit: a new pull at three seconds, the same
+            # pull at the six that were the default until 0.11.0.
+            # The healer who is hit first had just healed Ardoise: the aggro
+            # a heal draws. A heal that healed nothing draws none.
+            (13800, 'SPELL_HEAL,%s,%s,2061,"Soins rapides",0x2,800,800,0,0,nil'
+             % (self.C, self.A)),
+            (13900, 'SPELL_HEAL,%s,%s,2061,"Soins rapides",0x2,500,500,500,0,nil'
+             % (self.C, self.B)),
+            self._hit(14000, self._mob(3), self.C),
+            self._hit(14100, self.C, self._mob(3)),
+            self._hit(20000, self.PET, self._mob(4)),
+            self._hit(20100, self.C, self._mob(5)),
+            (30000, "CHALLENGE_MODE_END,2000,1,14,30000"),
+        ]
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, (ms, payload) in enumerate(lines):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ms, fields, index + 1))
+        return splitter.finish()
+
+    def test_each_pull_says_who_acted_first_and_how_early(self):
+        analysis = self._key()[0].analysis
+        self.assertEqual(len(analysis.blocks), 4)
+        openings = [(o[0], o[1], o[2].short_name, o[3], o[5])
+                    for o in (block.opening for block in analysis.blocks)]
+        self.assertEqual(openings, [
+            (0, "groupe", "Ardoise", "Frappe", False),
+            (400, "groupe", "Tisane", "Caresse de la mort", False),
+            (0, "ennemi", "Braise", "Frappe", False),
+            (0, "groupe", "Ardoise", "Frappe", True),
+        ])
+        self.assertEqual(analysis.blocks[2].opening[4], "Golem")
+        before, helped, spell = analysis.blocks[2].opening[6]
+        self.assertEqual((before, helped.short_name, spell), (200, "Ardoise", "Soins rapides"))
+        self.assertIsNone(analysis.blocks[1].opening[6])
+        firsts = [[(ts, enemy, player.short_name, spell, summon)
+                   for ts, enemy, player, spell, summon in block.first_hits]
+                  for block in analysis.blocks]
+        self.assertEqual(firsts, [
+            [(1000, "Golem", "Ardoise", "Frappe", False)],
+            [(9200, "Golem", "Ardoise", "Attaque", False)],
+            [(14100, "Golem", "Braise", "Frappe", False)],
+            [(20000, "Golem", "Ardoise", "Frappe", True),
+             (20100, "Golem", "Braise", "Frappe", False)],
+        ])
+
+    def test_the_pull_gap_is_three_seconds_unless_asked_otherwise(self):
+        from logswow.analysis import PULL_GAP_MS
+
+        self.assertEqual(PULL_GAP_MS, 3000)
+        splitter = Splitter(analysis_factory=lambda segment: SegmentAnalysis(
+            segment, pull_gap_ms=6000))
+        self.assertEqual(SegmentAnalysis(Splitter()._new("keystone", "x", 0)).pull_gap_ms,
+                         3000)
+        del splitter
+
+    def test_the_pull_table_writes_it_under_each_pull(self):
+        import tempfile
+
+        segments = self._key()
+        log, _fixture = run_fixture()
+        with tempfile.TemporaryDirectory() as folder:
+            target = os.path.join(folder, "r.html")
+            ReportWriter(log, segments, target, wowhead="off", cast_order=False,
+                         layout="longue").write()
+            with open(target, encoding="utf-8") as handle:
+                page = handle.read()
+        self.assertIn("Ouvert par <b>Tisane</b>\u202f: Caresse de la mort, "
+                      "0,4\u202fs avant le premier coup", page)
+        self.assertIn("<span class=pill>bêta</span> <b>Golem</b> a agi en premier, "
+                      "sur <b>Braise</b>", page)
+        self.assertIn("Premier coup reçu par chaque ennemi (2 ennemis)", page)
+        self.assertIn("<li>Golem (2) &mdash; <b>Braise</b>\u202f: Frappe, +0,1\u202fs</li>",
+                      page)
+        self.assertIn("<li>Golem &mdash; <b>Ardoise</b>\u202f: Attaque, &minus;0,2\u202fs</li>",
+                      page)
+        self.assertIn("<b>Ardoise</b>, par une invocation", page)
+        self.assertIn("\u202f; 0,2\u202fs plus tôt, Braise avait aidé "
+                      "<b>Ardoise</b> (Soins rapides)", page)
+        self.assertIn("aucune ligne de menace", page)
+
+
 class TestLayouts(unittest.TestCase):
     """Tabs, a folder of pages, or the long page (2026-09-28)."""
 

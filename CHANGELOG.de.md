@@ -8,6 +8,42 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.11.0 — 2026-09-29
+
+**Der erste Treffer, den jeder Gegner erhielt**, Pull für Pull, Bosse
+eingeschlossen: für jedes Monster der Spieler, der es zuerst getroffen
+hat (auch ein verfehlter Treffer zählt, er lockt das Monster genauso an),
+mit welchem Zauber und zu welchem Zeitpunkt des Pulls. Der Zauber eines
+Begleiters, einer Beschwörung oder eines Totems zählt für seinen
+Meister. Das Protokoll schreibt es genau so: Es ist sicher. Die Liste
+klappt unter jeder Zeile der Pull-Tabelle auf, und unter der Überschrift
+eines einzelnen Bosskampfs.
+
+**Wer jeden Pull eröffnet hat.** Unter jeder Zeile der Pull-Tabelle steht
+die erste Handlung, die die Gruppe seit dem Ende des vorigen Pulls mit
+einem Gegner verbindet: „Eröffnet von Tisane (Tank): Todesgriff, 0,4 s
+vor dem ersten Treffer“. Der Zauber eines Begleiters, einer Beschwörung
+oder eines Totems zählt für seinen Meister, und die Rolle des Spielers
+steht neben seinem Namen. Das Protokoll hat keine Bedrohungszeile: Ein
+durch Nähe angelockter Gegner (ein Body-Pull) ist nur an dem zu
+erkennen, was er danach tut, und die Zeile sagt dann „Golem handelte
+zuerst, gegen Braise“, als **Beta** markiert, bis Rückmeldungen
+vorliegen. Da eine Heilung, Stärkung oder Bannung im Kampf den Gegner auf
+den lenkt, der sie gegeben hat, fügt sie gegebenenfalls hinzu, dass
+dieses Ziel gerade einem anderen Spieler geholfen hatte, und welchem: Oft
+ist das der eigentliche Auslöser. Fakten, kein Urteil:
+Auch ein Bodeneffekt, den das vorige Pack hinterlassen hat, kann einen
+Gegner zuerst handeln lassen.
+
+Gemessen an drei echten Dungeon-Protokollen (159 Pulls): Der Tank
+eröffnet die meisten Pulls, typischerweise 0,3 bis 0,6 s vor dem ersten
+Treffer; in etwa einem von sechs Pulls handelt der Gegner zuerst.
+
+**Ein Pull endet nach 3 Sekunden ohne Schaden** statt nach 6: näher an
+dem, was eine Gruppe im Spiel tut. `--pull-gap` und die Einstellung im
+Fenster erlauben weiterhin einen anderen Wert. Die Summen ändern sich
+nicht; nur die Einteilung in Pulls ist feiner.
+
 ## 0.10.0 — 2026-09-28
 
 **LogsWoW spricht auch Deutsch und Spanisch.** Das Fenster, die Befehle,

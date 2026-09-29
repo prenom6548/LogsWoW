@@ -160,11 +160,12 @@ Both files now read with **zero unresolved lines and zero read problems**.
 ### Pulls inside a run, and why the thresholds are what they are
 
 Added 2026-09-18 after the owner asked whether the pulls of a Mythic+ key
-could be seen. A pull ends after `PULL_GAP_MS` (6 s) with the group
-neither dealing nor taking damage. Measured on the owner's keys, that
-gives 5 to 10 pulls for a 20-minute run, because this group chain-pulls;
-`--pull-gap` exists so the threshold is the reader's judgement rather
-than a hidden constant.
+could be seen. A pull ends after `PULL_GAP_MS` with the group neither
+dealing nor taking damage: 6 s until 0.11.0, **3 s since** (2026-09-29),
+at the owner's request after comparing both with what their group does
+in the game. At 6 s, the owner's keys gave 5 to 10 pulls for a
+20-minute run, because this group chain-pulls; `--pull-gap` exists so
+the threshold is the reader's judgement rather than a hidden constant.
 
 `MIN_PULL_SHARE` (one part in a thousand of the run's damage) drops the
 crumbs: a real key produced two "pulls" of 7.9k and 14.1k damage against
@@ -1257,6 +1258,60 @@ CHANGELOG were then written in German and Spanish too (`README.de.md`,
 `README.es.md`, `CHANGELOG.de.md`, `CHANGELOG.es.md`, from 0.10.0),
 then the installation guide (`INSTALL.de.md`, `INSTALL.es.md`).
 
+### Who opened each pull, and the three-second gap (2026-09-29)
+
+The owner asked whether the first hit of each pull could be shown, to
+spot pulls that failed on a bad aggro -- adding that aggro need not be a
+hit at all: coming close to an enemy is enough. **The file has no threat
+line**, so what it can show is the first act linking the group and an
+enemy, in either direction. Measured before building it, on 150 pulls of
+three real dungeon logs:
+
+- The first "link" before a pull was, 23 times in 68, a debuff **falling
+  off** the last pack's corpses. Endings never open a pull
+  (`OPENING_KINDS`), and nothing before the previous pull's last damage
+  counts (`_opening_pending` is cleared whenever a damage extends the
+  current pull).
+- The group acts first in five pulls of six, most often the tank's cast
+  a median 0.35 s before the first damage (Death Grip, Dark Command,
+  Judgment -- a `SPELL_CAST_SUCCESS` written before any damage). The
+  longest lead was 13 s, so `OPENING_LOOKBACK_MS` is 15 s; with nothing
+  before, the first act within `OPENING_WAIT_MS` (2 s) after it.
+- **The enemy acts first in about one pull in six**: a swing, a cast or
+  a debuff on a player before anyone touched it -- the only trace a body
+  pull leaves. One was a mob leaping on a DPS 4.5 s before any damage;
+  another, 14.8 s ahead, was a boss mechanic. So the lead is printed,
+  and the page never says "failed pull".
+
+The owner then pointed out that a heal or a buff given in combat draws
+the enemy to the healer, so the enemy's first target may not be who
+pulled. Measured on the 27 enemy-first pulls: the target had helped
+another player within 5 s three times -- one heal 0.2 s before (their
+case), one paladin aura reapplying itself (2.8 s), one buff (2.8 s). The
+line names the helped player when the target had given, within
+`OPENING_HELP_MS` (2 s), a heal that healed (a heal on a full-health
+player draws no threat) or a buff (`_note_help`). A summon's act is its
+owner's, marked "par une invocation". `CombatBlock.opening` holds
+(lead, side, player, spell, enemy, by summon, help). The owner then
+asked for the part that is certain to stand on its own: **the first hit
+each enemy unit took**, per pull and per boss (`_note_first_hit`,
+`CombatBlock.first_hits`; a miss counts, since it draws the enemy just
+the same), and for the enemy-first reading to be marked "bêta" until
+players have said how it reads. They also listed what draws an enemy to
+a helper: a heal received, a buff (damage, defence, speed), a debuff
+removed -- so a `_DISPEL` counts as help too.
+
+**A side effect caught by the snapshot.** The first version called
+`_player()` while reading, which opens a ledger; the aura code banks
+only for ledgers that already exist, so a few auras that used to be
+dropped came back (a few hundred milliseconds, on two logs). Everything
+new keeps GUIDs while reading and `_resolve_openings` turns them into
+ledgers at the end. After that, the snapshot on five inputs moves only
+what was meant to move: the openings, the first hits, and the pull
+cutting from the 3 s gap -- no total, no aura, no player figure. Every
+invariant holds on four real logs, and 600 rounds of fuzzing raise
+nothing.
+
 ### Performance, measured
 
 261 MB / 896,610 lines (a real raid night, report included) in
@@ -1383,7 +1438,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 242 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 245 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSixthAuditFindings`), and each one was regression-checked the

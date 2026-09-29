@@ -120,10 +120,24 @@ que ningún informe.
   al trash** arrastrado con él. Los límites de un encuentro vienen del
   propio registro: un encuentro al que ninguna unidad da nombre (un
   consejo, un dúo) cuenta sobre el jefe todo el daño infligido mientras
-  dura, y la página lo dice. Un pull termina tras seis segundos sin daño
+  dura, y la página lo dice. Un pull termina tras tres segundos sin daño
   en ningún sentido, salvo dentro de un encuentro con un jefe, que
   siempre es un solo pull; `--pull-gap` cambia ese umbral si su grupo
   encadena packs.
+- **Quién abrió cada pull**, bajo su fila: el primer acto que vincula al
+  grupo con un enemigo desde el final del pull anterior, con el jugador,
+  su rol, el hechizo (el de una invocación cuenta para su amo) y la
+  antelación sobre el primer golpe. El registro no tiene ninguna línea
+  de amenaza: un enemigo atraído por proximidad solo se ve por lo que
+  hace después, y la línea, marcada como **beta**, dice entonces «Golem
+  actuó primero, sobre Tisane». Como una sanación, un beneficio o una
+  disipación dados en combate atraen al enemigo hacia quien los dio,
+  también indica cuándo ese objetivo acababa de dar uno, y a quién: ese
+  suele ser el verdadero responsable. Hechos, no veredictos.
+- **El primer golpe que recibió cada enemigo** en cada pull, jefes
+  incluidos, desplegable bajo su fila: quién lo tocó primero (un golpe
+  fallado cuenta), con qué hechizo, en qué momento. Ese es seguro: el
+  registro lo escribe tal cual.
 - **Daño y sanación** por jugador, con DPS, HPS y la parte de la sanación
   perdida en sobresanación. **Los escudos** tienen su propia columna: lo
   que absorbieron no es una sanación en el registro, ya que evitan daño en
