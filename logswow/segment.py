@@ -25,11 +25,25 @@ FIGHT_KINDS = frozenset({"_DAMAGE", "_DAMAGE_LANDED", "_MISSED", "_SHIELD", "_SP
 
 # A key's success flag says it was *completed*, not that it was timed: the
 # owner's late Val Aveuglant +13 (30:23) carries a 1 like every timed key.
-# What tells them apart is the run's score, the next field: on 15 completed
-# keys of six real logs (levels 10 to 14), the 14 timed ones scored from
-# 0 to 14 points above 15 x level + 185, and the late one 61 below.
-KEY_SCORE_BASE = 185
+# What tells them apart is the run's score, the next field: a timed key
+# scores at least its level's base score, a late one less. The base is
+# Raider.IO's published table (+2 to +30): 125 + 15 per level, plus 15 at
+# each affix step, levels 4, 7, 10 and 12 -- the formula gives all 29 rows.
+# On 14 completed keys of real logs (levels 10 to 14), the 13 timed ones
+# scored from 3 to 15 points above it -- 15 is the most speed adds, and a
+# +10 in 19:16 scored exactly 335.0 -- and the late one 60 below; the
+# season's timers, as Raider.IO's API gives them, agree on every one.
+KEY_SCORE_START = 125
 KEY_SCORE_PER_LEVEL = 15
+KEY_SCORE_STEPS = (4, 7, 10, 12)
+
+
+def key_base_score(level):
+    """The score a key of this level is worth when timed, before the
+    bonus for speed: what a completed key must reach to be in time."""
+    steps = sum(1 for step in KEY_SCORE_STEPS if level >= step)
+    return KEY_SCORE_START + KEY_SCORE_PER_LEVEL * (level + steps)
+
 
 # Difficulty ids, as the client writes them. Anything unlisted is shown
 # by number rather than guessed at.
@@ -397,7 +411,7 @@ class Splitter:
         segment.score = score
         level = as_int(fields[3], 0) if len(fields) > 3 else 0
         if score is not None and level:
-            segment.success = score >= KEY_SCORE_PER_LEVEL * level + KEY_SCORE_BASE
+            segment.success = score >= key_base_score(level)
 
     def _abandon(self, kinds, end_ts):
         """Close the open segments of these kinds: a key abandoned, a pull truncated."""

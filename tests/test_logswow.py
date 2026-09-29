@@ -37,7 +37,7 @@ from logswow.events import Advanced, Layout, build_event, decompose  # noqa: E40
 from logswow.parse import LogFile, detect_layout  # noqa: E402
 from logswow.fmt import plural  # noqa: E402
 from logswow.report import ReportWriter  # noqa: E402
-from logswow.segment import Splitter, difficulty_name  # noqa: E402
+from logswow.segment import Splitter, difficulty_name, key_base_score  # noqa: E402
 from logswow.timestamps import TimestampReader, format_duration  # noqa: E402
 from logswow.tokenize import looks_like_guid, split_fields, split_line  # noqa: E402
 
@@ -414,7 +414,7 @@ class TestSegments(unittest.TestCase):
         """The success flag says completed, not timed: the owner's late Val
         Aveuglant +13 (30:23) carries a 1 like their timed one (27:26). Only
         the score tells them apart: 383.2 against 319.5, where a timed +13
-        scores at least 15 x 13 + 185 = 380 (2026-09-29)."""
+        scores at least 380 (2026-09-29)."""
         keys = self._keys([
             (1, 'CHALLENGE_MODE_START,"Le val",2859,584,13,[9,10,147]'),
             (100, "CHALLENGE_MODE_END,2859,1,13,1646811,383.191437,3170.274658"),
@@ -428,6 +428,22 @@ class TestSegments(unittest.TestCase):
                          ["dans les temps", "hors des temps", "terminée"])
         self.assertEqual([k.completed for k in keys], [True, True, True])
         self.assertAlmostEqual(keys[1].score, 319.510925)
+
+    def test_the_base_score_is_raider_io_s_table(self):
+        """Raider.IO's published base score for every level from +2 to +30.
+        The first rule, 15 x level + 185, was right from +12 up and asked
+        15 to 30 points too many below: a timed +10 scoring 330 read late."""
+        table = [155, 170, 200, 215, 230, 260, 275, 290, 320, 335, 365, 380,
+                 395, 410, 425, 440, 455, 470, 485, 500, 515, 530, 545, 560,
+                 575, 590, 605, 620, 635]
+        self.assertEqual([key_base_score(level) for level in range(2, 31)], table)
+        keys = self._keys([
+            (1, 'CHALLENGE_MODE_START,"Allee",2813,587,10,[9,10,147]'),
+            (100, "CHALLENGE_MODE_END,2813,1,10,1156000,330.000000,3000.000000"),
+            (200, 'CHALLENGE_MODE_START,"Allee",2813,587,11,[9,10,147]'),
+            (300, "CHALLENGE_MODE_END,2813,1,11,1156000,334.900000,3000.000000"),
+        ])
+        self.assertEqual([k.outcome for k in keys], ["dans les temps", "hors des temps"])
 
     def test_a_key_the_file_ends_in_is_cut_short_and_a_new_one_abandons_it(self):
         keys = self._keys([

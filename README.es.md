@@ -180,11 +180,14 @@ que ningún informe.
 - **A tiempo o fuera de tiempo**: el registro dice que una llave se
   completó, nunca si fue a tiempo, y no escribe el cronómetro de la
   mazmorra. El veredicto viene de la puntuación que el juego escribe al
-  final de la llave: una llave a tiempo da al menos 15 × nivel + 185 (380
-  para un +13), una tardía menos. Medido en 15 llaves completadas: las 14
-  a tiempo de 0 a 14 puntos por encima, la única tardía 61 puntos por
-  debajo. Sin puntuación (formato antiguo), la llave solo está
-  «completada».
+  final de la llave: una llave a tiempo da al menos la puntuación base de
+  su nivel, la de la tabla que publica Raider.IO (125 + 15 × nivel, más
+  15 en cada escalón de afijos: +4, +7, +10 y +12; 320 para un +10, 380
+  para un +13), una tardía menos. Medido en 14 llaves completadas: las 13
+  a tiempo de 3 a 15 puntos por encima, la única tardía 60 puntos por
+  debajo, y los temporizadores de la temporada que da Raider.IO confirman
+  cada uno de estos veredictos. Sin puntuación (formato antiguo), la
+  llave solo está «completada».
 - **Físico o mágico**: la parte del daño recibido e infligido que fue
   física, mágica o ambas, en porcentaje, en todo el combate y luego pull a
   pull, con el detalle por escuela (Sombras, Fuego, Naturaleza…).

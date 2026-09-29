@@ -169,10 +169,13 @@ misread file would be worse than no report at all.
 - **In time or over time**: the log says a key was completed, never
   whether in time, and does not write the dungeon's timer. The verdict
   comes from the score the game writes when the key ends: a timed key
-  earns at least 15 × level + 185 (380 for a +13), a late one less.
-  Measured on 15 completed keys: the 14 timed ones 0 to 14 points above,
-  the only late one 61 points below. With no score (older format), the
-  key is only "completed".
+  earns at least its level's base score, from the table Raider.IO
+  publishes (125 + 15 × level, plus 15 at each affix step: +4, +7, +10
+  and +12; 320 for a +10, 380 for a +13), a late one less. Measured on
+  14 completed keys: the 13 timed ones 3 to 15 points above, the only
+  late one 60 points below, and the season's timers as Raider.IO gives
+  them confirm every one of these verdicts. With no score (older format),
+  the key is only "completed".
 - **Physical or magic**: the share of damage taken and dealt that was
   physical, magic or both, as percentages, over the whole fight then pull
   by pull, with the detail by school (Shadow, Fire, Nature…).

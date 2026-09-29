@@ -6,6 +6,19 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.12.1 — 2026-09-29
+
+**Fix: the "in time" threshold was too strict from +2 to +11.** The
+0.12.0 rule, 15 × level + 185, was right from +12 up but asked 15 to 30
+points too many below: a timed +10 scoring 330 would have read "over
+time". The threshold is now the base score Raider.IO publishes for every
+level from +2 to +30: 125 + 15 × level, plus 15 at each affix step (+4,
++7, +10 and +12), so 320 for a +10 and 335 for a +11 (+12 and above do
+not change). No key in the owner's logs changes verdict, but a Murder
+Row +10 in 19:16, at exactly 335 points, passed only by a tie. The
+season's timers, as Raider.IO's API gives them, confirm all 14 verdicts
+of those logs.
+
 ## 0.12.0 — 2026-09-29
 
 **Fix: "in time" was wrong for a key finished late.** A Val Aveuglant +13

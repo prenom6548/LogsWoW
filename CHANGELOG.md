@@ -3,6 +3,20 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.12.1 — 2026-09-29
+
+**Correction : le seuil « dans les temps » était trop exigeant de +2 à
++11.** La règle de la 0.12.0, 15 × niveau + 185, tombait juste à partir
+de +12 mais demandait 15 à 30 points de trop en dessous : un +10 dans les
+temps à 330 points aurait été affiché « hors des temps ». Le seuil est
+maintenant le score de base que Raider.IO publie pour chaque niveau, de
++2 à +30 : 125 + 15 × niveau, plus 15 à chaque palier d'affixe (+4, +7,
++10 et +12), soit 320 pour un +10 et 335 pour un +11 (les +12 et plus ne
+changent pas). Aucune de vos clés ne change de verdict, mais votre
+Allée du meurtre +10 en 19:16, à 335 points pile, ne passait que par
+égalité. Les chronomètres de la saison, tels que les donne l'API de
+Raider.IO, confirment les 14 verdicts de vos journaux.
+
 ## 0.12.0 — 2026-09-29
 
 **Correction : « dans les temps » était faux pour une clé finie en

@@ -1324,11 +1324,9 @@ line marks the timer running out (Xal'atath's words, which the owner
 remembered, are chat, not combat log), and the start line carries the
 level and the affixes but not the time limit. What does is the next
 field, the run's score: 383.2 for the run in 27:26, 319.5 for the one in
-30:23. On 15 completed keys of six real logs (levels 10 to 14), the 14
-timed ones scored 0 to 14 points above `15 x level + 185`, the late one
-61 below (`KEY_SCORE_*` in `segment.py`). One late key is thin evidence,
-so the rule and its numbers are written in the README, and a key with no
-score (the older four-field line) is only "terminée" (`completed`).
+30:23. The first threshold, `15 x level + 185`, was fitted on keys of
++10 to +14 and is wrong below +12 (0.12.1, below). A key with no score
+(the older four-field line) is only "terminée" (`completed`).
 **A table of timers was tried against the logs and set aside.** The owner
 found where MPlusTimer gets the limit: `C_ChallengeMode.GetMapUIInfo`, a
 live in-game API; its SavedVariables keep best times and per-level
@@ -1342,6 +1340,25 @@ took 26:46 between START and END lines, the field says 30:23, likely the
 death penalties. The owner chose to keep the score and to read the limit
 in game on the next run; a table would come back only if it gets every
 known key right.
+
+**0.12.1: the threshold is Raider.IO's, and so are the timers that
+confirm it.** The owner pointed at Raider.IO's support article on base
+scores and at its API. The article's table, +2 to +30, is exactly
+`125 + 15 x level + 15 x (steps reached among 4, 7, 10, 12)` -- all 29
+rows (`key_base_score`, and a test holds the table). The 0.12.0 rule
+agrees from +12 up and asks 15 to 30 points too many from +2 to +11: the
+owner's Murder Row +10 in 19:16 scored exactly 335.0, which is base 320
+plus the 15 that speed adds at most, and passed the old rule only by a
+tie. The API's static data for the season (`challengeModeID`, the START
+line's third field, to `keystone_timer_seconds`) gives Val Aveuglant
+(584) **30:00**, not the 31:00 of the table above, and Sethraliss (250)
+32:00, not 33:00; with those, a timer comparison of the `CHALLENGE_MODE_END`
+time agrees with the score on every completed key still at hand -- 14
+distinct keys, 13 timed from 3 to 15 points over their base, the late
+one 60 under. (0.12.0 said 15 and 14; the logs kept in the session hold
+14 distinct ones, the split files repeating the night's.) The score
+still decides: timers change each season and would need a table kept up
+to date, the score needs nothing. No verdict moved on the real logs.
 The fixture's key line gained a score; the synthetic stress key has
 none and turned "terminée", the only figure the snapshot moved.
 

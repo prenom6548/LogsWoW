@@ -7,6 +7,20 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.12.1 — 2026-09-29
+
+**Corrección: el umbral «a tiempo» era demasiado exigente de +2 a +11.**
+La regla de la 0.12.0, 15 × nivel + 185, acertaba desde +12 pero pedía
+por debajo de 15 a 30 puntos de más: un +10 a tiempo con 330 puntos
+habría aparecido «fuera de tiempo». El umbral es ahora la puntuación base
+que Raider.IO publica para cada nivel de +2 a +30: 125 + 15 × nivel, más
+15 en cada escalón de afijos (+4, +7, +10 y +12), es decir 320 para un
++10 y 335 para un +11 (de +12 en adelante nada cambia). Ninguna llave de
+los registros del propietario cambia de veredicto, pero un Murder Row
++10 en 19:16, con 335 puntos justos, solo pasaba por empate. Los
+temporizadores de la temporada, tal como los da la API de Raider.IO,
+confirman los 14 veredictos de esos registros.
+
 ## 0.12.0 — 2026-09-29
 
 **Corrección: «a tiempo» era falso para una llave terminada tarde.** Un

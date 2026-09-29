@@ -178,11 +178,14 @@ lu serait pire que pas de rapport du tout.
 - **Dans les temps ou hors des temps** : le journal dit qu'une clé est
   terminée, jamais si elle l'a été dans les temps, et n'écrit pas le
   chronomètre du donjon. Le verdict vient du score que le jeu écrit en
-  fin de clé : une clé dans les temps rapporte au moins 15 × niveau +
-  185 (380 pour un +13), une clé en retard moins. Mesuré sur 15 clés
-  terminées : les 14 dans les temps de 0 à 14 points au-dessus, la seule
-  en retard 61 points en dessous. Sans score (ancien format), la clé est
-  seulement « terminée ».
+  fin de clé : une clé dans les temps rapporte au moins le score de base
+  de son niveau, celui de la table publiée par Raider.IO (125 + 15 ×
+  niveau, plus 15 à chaque palier d'affixe : +4, +7, +10 et +12 ; 320
+  pour un +10, 380 pour un +13), une clé en retard moins. Mesuré sur 14
+  clés terminées : les 13 dans les temps de 3 à 15 points au-dessus, la
+  seule en retard 60 points en dessous, et les chronomètres de la saison
+  donnés par Raider.IO confirment chacun de ces verdicts. Sans score
+  (ancien format), la clé est seulement « terminée ».
 - **Physique ou magique** : la part des dégâts subis et infligés qui
   était physique, magique ou les deux, en pourcentage, sur tout le combat
   puis pull par pull, avec le détail par école (Ombre, Feu, Nature…).

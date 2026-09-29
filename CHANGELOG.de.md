@@ -8,6 +8,20 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.12.1 — 2026-09-29
+
+**Korrektur: Die Schwelle „in der Zeit“ war von +2 bis +11 zu streng.**
+Die Regel aus 0.12.0, 15 × Stufe + 185, stimmte ab +12, verlangte darunter
+aber 15 bis 30 Punkte zu viel: Ein +10 in der Zeit mit 330 Punkten wäre
+als „über der Zeit“ erschienen. Die Schwelle ist jetzt die Basiswertung,
+die Raider.IO für jede Stufe von +2 bis +30 veröffentlicht: 125 + 15 ×
+Stufe, plus 15 an jeder Affix-Stufe (+4, +7, +10 und +12), also 320 für
++10 und 335 für +11 (ab +12 ändert sich nichts). Kein Schlüssel in den
+Protokollen des Besitzers ändert sein Urteil, aber ein Murder Row +10 in
+19:16 mit genau 335 Punkten kam nur durch Gleichstand durch. Die Timer
+der Saison, wie die API von Raider.IO sie angibt, bestätigen alle 14
+Urteile dieser Protokolle.
+
 ## 0.12.0 — 2026-09-29
 
 **Korrektur: „in der Zeit“ war falsch für einen verspätet beendeten

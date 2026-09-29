@@ -193,10 +193,14 @@ wäre schlimmer als gar kein Bericht.
   Schlüssel abgeschlossen wurde, nie ob in der Zeit, und schreibt den
   Timer des Dungeons nicht. Das Urteil stammt aus der Wertung, die das
   Spiel am Ende des Schlüssels schreibt: Ein Schlüssel in der Zeit bringt
-  mindestens 15 × Stufe + 185 (380 für +13), ein verspäteter weniger.
-  Gemessen an 15 abgeschlossenen Schlüsseln: die 14 in der Zeit 0 bis 14
-  Punkte darüber, der einzige verspätete 61 Punkte darunter. Ohne Wertung
-  (älteres Format) ist der Schlüssel nur „abgeschlossen“.
+  mindestens die Basiswertung seiner Stufe, aus der von Raider.IO
+  veröffentlichten Tabelle (125 + 15 × Stufe, plus 15 an jeder
+  Affix-Stufe: +4, +7, +10 und +12; 320 für +10, 380 für +13), ein
+  verspäteter weniger. Gemessen an 14 abgeschlossenen Schlüsseln: die 13
+  in der Zeit 3 bis 15 Punkte darüber, der einzige verspätete 60 Punkte
+  darunter, und die Timer der Saison, wie Raider.IO sie angibt,
+  bestätigen jedes dieser Urteile. Ohne Wertung (älteres Format) ist der
+  Schlüssel nur „abgeschlossen“.
 - **Physisch oder magisch**: der Anteil des erlittenen und verursachten
   Schadens, der physisch, magisch oder beides war, in Prozent, über den
   ganzen Kampf und dann Pull für Pull, mit dem Detail nach Schule
