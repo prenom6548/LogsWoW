@@ -3534,18 +3534,32 @@ class TestLanguages(unittest.TestCase):
                 self.assertEqual(sorted(set(table.TEXTS) - set(texts)), [])
                 self.assertEqual(sorted(set(nouns) - set(table.PLURALS)), [])
 
-    def test_the_current_version_is_told_in_english_too(self):
+    def test_the_current_version_is_told_in_every_language(self):
         import subprocess
 
         from logswow import __version__
 
-        with open(os.path.join(ROOT, "CHANGELOG.en.md"), encoding="utf-8") as handle:
-            headings = [line.split()[1] for line in handle if line.startswith("## ")]
-        self.assertEqual(headings[0], __version__)
+        for code in self.TABLES:
+            with self.subTest(language=code):
+                path = os.path.join(ROOT, "CHANGELOG.%s.md" % code)
+                with open(path, encoding="utf-8") as handle:
+                    headings = [line.split()[1] for line in handle if line.startswith("## ")]
+                self.assertEqual(headings[0], __version__)
         result = subprocess.run(
             [sys.executable, os.path.join(ROOT, "tools", "release-notes"), __version__],
             capture_output=True, text=True, timeout=60)
-        self.assertIn("**English**", result.stdout)
+        for title in ("**English**", "**Deutsch**", "**Español**"):
+            self.assertIn(title, result.stdout)
+
+    def test_every_readme_points_to_the_three_others(self):
+        names = ["README.md"] + ["README.%s.md" % code for code in self.TABLES]
+        for name in names:
+            with open(os.path.join(ROOT, name), encoding="utf-8") as handle:
+                head = handle.read(600)
+            with self.subTest(readme=name):
+                for other in names:
+                    if other != name:
+                        self.assertIn("(%s)" % other, head)
 
     def test_every_specialization_has_its_name_in_every_language(self):
         import importlib

@@ -1,6 +1,6 @@
 # LogsWoW
 
-*English version: [README.en.md](README.en.md)*
+*English version: [README.en.md](README.en.md) · Deutsche Fassung: [README.de.md](README.de.md) · Versión en español: [README.es.md](README.es.md)*
 
 Lire ses propres journaux de combat de World of Warcraft, **sur sa
 machine**, sans compte, sans envoi, sans connexion.
@@ -37,8 +37,9 @@ manque). Les commandes n'en ont pas besoin.
 et le rapport parlent la langue de votre machine quand LogsWoW la
 connaît, l'anglais sinon. `--langue fr`, `en`, `de` ou `es` impose l'une
 d'elles, et la variable d'environnement `LOGSWOW_LANGUE` fixe un choix
-une fois pour toutes. La documentation existe en français et en
-anglais. Les noms de sorts, de boss et de joueurs
+une fois pour toutes. Ce README et le journal des versions existent en
+français, anglais, allemand et espagnol ; le guide d'installation en
+français et en anglais. Les noms de sorts, de boss et de joueurs
 restent ceux du journal, dans la langue de votre client de jeu.
 
 ## Ce qu'il faut avant
@@ -227,11 +228,17 @@ python3 -m logswow report WoWCombatLog.txt --only "Allée du meurtre"
   l'autre donne un pourcentage crédible et faux. Ce qui est réellement
   dans le fichier, et qui est affiché, ce sont les **dégâts absorbés**
   par les boucliers.
-- **Il ne calcule pas d'aDPS au sens de FF Logs.** Rendre à celui qui
-  l'a donnée la part des dégâts due à une Furie sanguinaire, une Infusion
-  de puissance ou un buff de raid demande de savoir ce que chaque coup
-  aurait fait sans elle ; le journal ne l'écrit que pour les renforts d'un
-  Évocateur, et c'est exactement ce que montre la colonne **Réattribué**.
+- **Il ne calcule pas d'aDPS au sens de FF Logs.** FF Logs ne lit pas
+  la part d'un buff dans le journal : il la calcule, à partir d'une table
+  maintenue du multiplicateur de chaque buff et, pour un buff de coup
+  critique, de la probabilité que le critique soit venu de lui. Le journal
+  de WoW n'écrit lui-même cette part que pour les renforts d'un
+  Évocateur, et c'est exactement ce que montre la colonne **Réattribué** :
+  la formule du rDPS (dégâts − part venue des buffs des autres + part
+  donnée aux autres), limitée à ces renforts. Pour les autres, il faudrait
+  la même table maintenue ; et une accélération (Furie sanguinaire,
+  Infusion de puissance) change le nombre de coups, ce qu'aucune de ces
+  formules ne traite.
 - **Il ne juge pas votre rotation.** Il montre vos pauses, vos capacités
   et vos effets actifs. Dire « il fallait appuyer sur ceci » demande les
   règles de votre spécialisation, écrites et maintenues par quelqu'un qui
@@ -273,7 +280,7 @@ python3 tools/check-invariants.py WoWCombatLog.txt
 ln -s ../../tools/pre-push .git/hooks/pre-push     # une fois, pour les contributeurs
 ```
 
-Les tests, 237, tournent sans dépendance ni réseau sur
+Les tests tournent sans dépendance ni réseau sur
 `examples/exemple-combat.txt`, un journal **fabriqué** pour ce dépôt :
 aucun vrai journal n'y est versé, précisément à cause du rappel ci-dessus.
 
@@ -282,7 +289,9 @@ tiennent ensemble : les dégâts du groupe valent la somme de ceux des
 joueurs, ceux d'un joueur la somme de ses sorts, ceux d'un sort la somme
 sur ses cibles ; les soins de même ; les morts comptées trois fois
 donnent le même nombre ; aucune durée d'effet ne dépasse le combat ; les
-incantations ennemies commencées valent la somme de leurs issues. Il a
+incantations ennemies commencées valent la somme de leurs issues ; la
+part que le jeu crédite à un Évocateur vaut celle qui est retirée aux
+joueurs. Il a
 trouvé un bug à sa première exécution. Il ne dit pas si un chiffre est
 vrai, seulement si les chiffres sont cohérents entre eux. Il vérifie tout
 le fichier même après un premier échec, et fait le bilan à la fin.
@@ -298,7 +307,7 @@ avec les notes de la version. Elle n'utilise que ce que la machine de
 GitHub possède déjà, sans aucune action tierce.
 
 Ce qui change d'une version à l'autre est dans
-[`CHANGELOG.md`](CHANGELOG.md) (en anglais : [`CHANGELOG.en.md`](CHANGELOG.en.md)) ; le détail technique, daté et chiffré, dans
+[`CHANGELOG.md`](CHANGELOG.md) (en anglais : [`CHANGELOG.en.md`](CHANGELOG.en.md), en allemand : [`CHANGELOG.de.md`](CHANGELOG.de.md), en espagnol : [`CHANGELOG.es.md`](CHANGELOG.es.md)) ; le détail technique, daté et chiffré, dans
 les sections datées de `CLAUDE.md`.
 
 Le journal est lu tel que le jeu l'écrit, avec ses fins de ligne

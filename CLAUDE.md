@@ -5,7 +5,8 @@ repository: this file for how it is built and what was learned building
 it, `README.md` for what it does, `PROVENANCE.md` for where it comes
 from, `LOGS-SITES-RESEARCH.md` for why it exists, and
 `INSTALL.md` for how a player gets it running on Windows, Linux or macOS,
-`CHANGELOG.md` for what each published version changed,
+`CHANGELOG.md` for what each published version changed (with
+`README` and `CHANGELOG` also in `.en`, `.de` and `.es`),
 `PULL-DETECTION-RESEARCH.md` for what looking at Warcraft Logs' own pull
 segmentation (via WoWAnalyzer's open-source client) turned up, and what
 is still open about ours -- read before an audit of `segment.py`.
@@ -1244,6 +1245,18 @@ checker proves received == credited on every segment, so the group's
 total is unchanged. On the owner's raid night (one Devastation Evoker)
 8 fights of 9 carry it and it moves one player by 16.7%.
 
+The next day the owner sent Archon's article and joncho's "FFLogs Buff
+Allocation Math" as PDFs. Archon's definitions: rDPS = damage - share
+from others' buffs + share given by one's own; nDPS = damage - share
+from others' buffs; aDPS removes only a set of single-target buffs;
+cDPS = aDPS + share given. The column is rDPS on the one kind of buff
+this file attributes; nDPS would be `damage_done - support_received`,
+not shown. The math document is what settles the limit: FF Logs models
+every buff (see "What this deliberately does not do"). README and
+CHANGELOG were then written in German and Spanish too (`README.de.md`,
+`README.es.md`, `CHANGELOG.de.md`, `CHANGELOG.es.md`, from 0.10.0);
+the installation guide stays in French and English.
+
 ### Performance, measured
 
 261 MB / 896,610 lines (a real raid night, report included) in
@@ -1307,9 +1320,11 @@ workflow does the rest:
 1. Raise `__version__` in `logswow/__init__.py` (the report's footer
    prints it, so a page says which version wrote it).
 2. Add its section at the top of `CHANGELOG.md`, in French, written for
-   the player rather than the developer. A test fails while the current
-   version has no section, and the workflow refuses to publish without
-   one.
+   the player rather than the developer, and the same section in
+   `CHANGELOG.en.md`, `CHANGELOG.de.md` and `CHANGELOG.es.md`. A test
+   fails while the current version has no section in any of them, and
+   the workflow refuses to publish without the French one;
+   `tools/release-notes` puts the other three under it.
 3. Commit on `main` and push. Then either click **Actions -> Release ->
    Run workflow** on `main` (the workflow creates the tag `v<version>`
    on that commit), or `git tag v<version>` and `git push origin
@@ -1350,9 +1365,16 @@ their own language. Do not quietly try to add them:
 - **No "aDPS" beyond the Evoker's.** FF Logs gives buff damage back to
   whoever cast the buff; the owner asked on 2026-09-28. The file says
   what a buff added to a hit only in `*_SUPPORT` lines (Augmentation,
-  Bombardments), and the "Réattribué" column is exactly that. Bloodlust,
-  Power Infusion or a raid buff would need a model of every hit without
-  them, which is a simulation, not a reading.
+  Bombardments), and the "Réattribué" column is exactly that -- Archon's
+  rDPS formula restricted to those lines. FF Logs itself does not read
+  the share from its logs: it *computes* it from a maintained table of
+  each buff's multiplier (split between buffs by log-ratio) and, for
+  crit buffs, the likelihood that the crit came from the buff given the
+  player's own rate (joncho's "FFLogs Buff Allocation Math", last
+  updated October 2022). Doing that here is a maintained per-spell table
+  -- the same cost as the rotation verdict -- and haste (Bloodlust,
+  Power Infusion), which changes how many hits there are, is not in
+  that math at all.
 
 If the owner asks for one of these, say which of the five it is and what
 it would actually require, rather than approximating it.
@@ -1361,7 +1383,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 241 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 242 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSixthAuditFindings`), and each one was regression-checked the

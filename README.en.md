@@ -1,6 +1,6 @@
 # LogsWoW
 
-*Version française : [README.md](README.md)*
+*Version française : [README.md](README.md) · Deutsche Fassung: [README.de.md](README.de.md) · Versión en español: [README.es.md](README.es.md)*
 
 Read your own World of Warcraft combat logs **on your own machine**: no
 account, no upload, no connection.
@@ -38,7 +38,8 @@ missing). The commands do not need it.
 report speak your machine's language when LogsWoW knows it, English
 otherwise. `--langue en`, `fr`, `de` or `es` forces one of them, and the
 `LOGSWOW_LANGUE` environment variable sets a choice once and for all.
-The documentation exists in English and French.
+This README and the changelog exist in English, French, German and
+Spanish; the installation guide in English and French.
 Spell, boss and player names stay as the log wrote them, in your game
 client's language.
 
@@ -214,11 +215,16 @@ python3 -m logswow report WoWCombatLog.txt --only "Murder Row"
   crit — it is the amount before the critical multiplier. Dividing one by
   the other gives a believable, wrong percentage. What really is in the
   file, and is shown, is the **damage absorbed** by shields.
-- **It does not compute an FF Logs-style aDPS.** Giving back to whoever
-  cast it the share of damage a Bloodlust, a Power Infusion or a raid
-  buff produced takes knowing what each hit would have done without it;
-  the log writes that only for an Evoker's buffs, and that is exactly
-  what the **Reattributed** column shows.
+- **It does not compute an FF Logs-style aDPS.** FF Logs does not read a
+  buff's share in the log: it computes it, from a maintained table of
+  each buff's multiplier and, for a critical-strike buff, from the
+  likelihood that the crit came from it. WoW's log writes that share
+  itself only for an Evoker's buffs, and that is exactly what the
+  **Reattributed** column shows: the rDPS formula (damage − the share
+  from others' buffs + the share given to others), limited to those
+  buffs. The others would need the same maintained table; and a haste
+  buff (Bloodlust, Power Infusion) changes how many hits there are, which
+  none of those formulas handles.
 - **It does not judge your rotation.** It shows your pauses, your
   abilities and your active effects. Saying "you should have pressed
   this" takes your specialization's rules, written and maintained by
@@ -258,7 +264,7 @@ python3 tools/check-invariants.py WoWCombatLog.txt
 ln -s ../../tools/pre-push .git/hooks/pre-push     # once, for contributors
 ```
 
-The 237 tests run with no dependency and no network on
+The tests run with no dependency and no network on
 `examples/exemple-combat.txt`, a log **made up** for this repository: no
 real log is ever committed, precisely because of the reminder above. The
 tests read French whatever the machine's language; the English ones ask
@@ -269,7 +275,8 @@ hold together: the group's damage is the sum of the players', a player's
 the sum of their spells, a spell's the sum over its targets; the same for
 healing; deaths counted three ways give the same number; no effect's
 duration exceeds the fight; enemy casts begun equal the sum of their
-outcomes. It found a bug the first time it ran. It does not say whether a
+outcomes; the share the game credits to an Evoker equals the share taken
+from the players. It found a bug the first time it ran. It does not say whether a
 number is true, only whether the numbers agree with each other. It checks
 the whole file even after a first failure, and gives the tally at the
 end.
@@ -285,7 +292,7 @@ with the version's notes. It uses only what GitHub's machine already
 has, with no third-party action.
 
 What changes from one version to the next is in
-[`CHANGELOG.en.md`](CHANGELOG.en.md) (in French: [`CHANGELOG.md`](CHANGELOG.md));
+[`CHANGELOG.en.md`](CHANGELOG.en.md) (in French: [`CHANGELOG.md`](CHANGELOG.md), in German: [`CHANGELOG.de.md`](CHANGELOG.de.md), in Spanish: [`CHANGELOG.es.md`](CHANGELOG.es.md));
 the technical detail, dated and measured, in the dated sections of
 `CLAUDE.md`.
 
