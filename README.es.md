@@ -49,8 +49,7 @@ corrige en una línea.
 ## Lo que necesita antes
 
 **Las instrucciones paso a paso para Windows, Linux (incluido Linux
-Mint) y macOS están en [`INSTALL.en.md`](INSTALL.en.md)** (en inglés; en
-francés: [`INSTALL.md`](INSTALL.md)). Cada versión publicada incluye un
+Mint) y macOS están en [`INSTALL.es.md`](INSTALL.es.md).** Cada versión publicada incluye un
 único archivo, `logswow-<version>.pyz`, que funciona tal cual:
 `python3 logswow-0.10.0.pyz report WoWCombatLog.txt`.
 

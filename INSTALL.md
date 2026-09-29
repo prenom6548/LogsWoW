@@ -1,6 +1,6 @@
 # Installer et lancer LogsWoW
 
-*English version: [INSTALL.en.md](INSTALL.en.md)*
+*English version: [INSTALL.en.md](INSTALL.en.md) · Deutsche Fassung: [INSTALL.de.md](INSTALL.de.md) · Versión en español: [INSTALL.es.md](INSTALL.es.md)*
 
 LogsWoW n'a besoin que de **Python 3.8 ou plus récent**. Rien d'autre à
 installer : pas de bibliothèque, pas de compte, pas de connexion. Il

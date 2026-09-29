@@ -38,8 +38,8 @@ missing). The commands do not need it.
 report speak your machine's language when LogsWoW knows it, English
 otherwise. `--langue en`, `fr`, `de` or `es` forces one of them, and the
 `LOGSWOW_LANGUE` environment variable sets a choice once and for all.
-This README and the changelog exist in English, French, German and
-Spanish; the installation guide in English and French.
+This README, the installation guide and the changelog exist in English,
+French, German and Spanish.
 Spell, boss and player names stay as the log wrote them, in your game
 client's language.
 

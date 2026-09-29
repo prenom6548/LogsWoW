@@ -37,9 +37,8 @@ manque). Les commandes n'en ont pas besoin.
 et le rapport parlent la langue de votre machine quand LogsWoW la
 connaît, l'anglais sinon. `--langue fr`, `en`, `de` ou `es` impose l'une
 d'elles, et la variable d'environnement `LOGSWOW_LANGUE` fixe un choix
-une fois pour toutes. Ce README et le journal des versions existent en
-français, anglais, allemand et espagnol ; le guide d'installation en
-français et en anglais. Les noms de sorts, de boss et de joueurs
+une fois pour toutes. Ce README, le guide d'installation et le journal
+des versions existent en français, anglais, allemand et espagnol. Les noms de sorts, de boss et de joueurs
 restent ceux du journal, dans la langue de votre client de jeu.
 
 ## Ce qu'il faut avant

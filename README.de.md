@@ -50,8 +50,7 @@ falsch klingt, kann gemeldet werden: Er ist in einer Zeile korrigiert.
 ## Was Sie vorher brauchen
 
 **Die Schritt-für-Schritt-Anleitung für Windows, Linux (auch Linux Mint)
-und macOS steht in [`INSTALL.en.md`](INSTALL.en.md)** (auf Englisch; auf
-Französisch: [`INSTALL.md`](INSTALL.md)). Jede veröffentlichte Version
+und macOS steht in [`INSTALL.de.md`](INSTALL.de.md).** Jede veröffentlichte Version
 liefert eine einzige Datei, `logswow-<version>.pyz`, die so läuft, wie
 sie ist: `python3 logswow-0.10.0.pyz report WoWCombatLog.txt`.
 

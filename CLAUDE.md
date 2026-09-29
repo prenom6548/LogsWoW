@@ -6,7 +6,7 @@ it, `README.md` for what it does, `PROVENANCE.md` for where it comes
 from, `LOGS-SITES-RESEARCH.md` for why it exists, and
 `INSTALL.md` for how a player gets it running on Windows, Linux or macOS,
 `CHANGELOG.md` for what each published version changed (with
-`README` and `CHANGELOG` also in `.en`, `.de` and `.es`),
+`README`, `INSTALL` and `CHANGELOG` also in `.en`, `.de` and `.es`),
 `PULL-DETECTION-RESEARCH.md` for what looking at Warcraft Logs' own pull
 segmentation (via WoWAnalyzer's open-source client) turned up, and what
 is still open about ours -- read before an audit of `segment.py`.
@@ -1254,8 +1254,8 @@ this file attributes; nDPS would be `damage_done - support_received`,
 not shown. The math document is what settles the limit: FF Logs models
 every buff (see "What this deliberately does not do"). README and
 CHANGELOG were then written in German and Spanish too (`README.de.md`,
-`README.es.md`, `CHANGELOG.de.md`, `CHANGELOG.es.md`, from 0.10.0);
-the installation guide stays in French and English.
+`README.es.md`, `CHANGELOG.de.md`, `CHANGELOG.es.md`, from 0.10.0),
+then the installation guide (`INSTALL.de.md`, `INSTALL.es.md`).
 
 ### Performance, measured
 
