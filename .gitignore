@@ -9,5 +9,14 @@ WoWCombatLog*.txt
 # What tools/build-pyz writes; a release uploads it, the repository never holds it.
 dist/
 
+# A report being written: moved into place when whole, removed otherwise.
+*.partiel
+*.partiel-corps
+
+# What the audit tools leave behind (coverage, mypy).
+.coverage
+htmlcov/
+.mypy_cache/
+
 # The split files a log splitter writes are real logs too.
 Split-*.txt

@@ -81,6 +81,8 @@ TEXTS = {
         'idioma de la interfaz y del informe: auto (el del sistema, inglés para un idioma sin traducción), fr, en, de o es',
     'Lit un journal de combat de World of Warcraft, en local, sans rien envoyer nulle part.':
         'Lee un registro de combate de World of Warcraft, en local, sin enviar nada a ninguna parte.',
+    'sans la progression ni le résumé : seulement les erreurs':
+        'sin progreso ni resumen: solo los errores',
     'chemin du fichier WoWCombatLog.txt':
         'ruta del archivo WoWCombatLog.txt',
     "année, pour les journaux dont l'horodatage n'en porte pas":
@@ -122,8 +124,8 @@ TEXTS = {
     # diagnose
     'Fichier    : %s':
         'Archivo    : %s',
-    'Taille     : %.1f Mo, %d lignes, %d événements':
-        'Tamaño     : %.1f MB, %d líneas, %d eventos',
+    'Taille     : %s, %s lignes, %s événements':
+        'Tamaño     : %s, %s líneas, %s eventos',
     'Durée      : %s':
         'Duración   : %s',
     'DISPOSITION MESURÉE DANS CE FICHIER':
@@ -136,6 +138,8 @@ TEXTS = {
         '  campo baseAmount    : %s  (posición del -1: %s)',
     'présent':
         'presente',
+    'absent':
+        'ausente',
     '  champ hideCaster    : %s  (%s)':
         '  campo hideCaster    : %s  (%s)',
     '  journalisation avancée : %s':
@@ -296,6 +300,8 @@ TEXTS = {
     "nom d'événement illisible":
         'nombre de evento ilegible',
     # report
+    'aucun':
+        'ninguno',
     "<span class='pill ok'>boss &middot; réussite</span>":
         "<span class='pill ok'>jefe &middot; victoria</span>",
     "<span class='pill ko'>boss &middot; échec</span>":
@@ -328,8 +334,6 @@ TEXTS = {
         '<h1>Informe de combate</h1><p class=sub>%s &middot; %s líneas, %s eventos &middot; generado el %s por LogsWoW %s</p><div class=note><b>Todo se ha quedado en este equipo.</b> Este informe se ha generado leyendo directamente el archivo de registro: ningún envío, ninguna cuenta, ninguna conexión. La página es autónoma y se abre sin conexión.</div><div class=grid>%s</div><h2>Combates</h2><div class=card><table><tr><th>Combate</th><th class=n>Duración</th><th class=n>Daño</th><th class=n>Sanación</th><th class=n>Pulls</th><th class=n>Jugadores</th><th class=n>Muertes</th></tr>%s</table></div>',
     'Taille du fichier':
         'Tamaño del archivo',
-    '%s\u202fMo':
-        '%s\u202fMB',
     'Durée couverte':
         'Duración cubierta',
     'Pulls de boss':
@@ -358,8 +362,8 @@ TEXTS = {
         '<th class=n>al jefe</th><th class=n>al trash</th>',
     "<h3>%s</h3><div class=card><table><tr><th class=n>#</th><th class=n>Début</th><th class=n>Durée</th><th>Ce qui a été engagé</th><th class=n>Dégâts</th>%s<th class=n>Subis</th><th class=n>Morts</th></tr>%s</table><p class=dim style='margin:10px 0 0;font-size:12px'>Un pull se termine quand le groupe passe plus de %s sans infliger ni subir de dégâts. Un groupe qui enchaîne les packs sans pause les verra donc regroupés%s: <code>--pull-gap</code> change ce seuil, sauf à l'intérieur d'une rencontre de boss, qui reste toujours un seul pull.%s%s</p></div>":
         "<h3>%s</h3><div class=card><table><tr><th class=n>#</th><th class=n>Inicio</th><th class=n>Duración</th><th>Lo que se ha atacado</th><th class=n>Daño</th>%s<th class=n>Recibido</th><th class=n>Muertes</th></tr>%s</table><p class=dim style='margin:10px 0 0;font-size:12px'>Un pull termina cuando el grupo pasa más de %s sin infligir ni recibir daño. Un grupo que encadena packs sin pausa los verá por tanto agrupados%.0s: <code>--pull-gap</code> cambia ese umbral, salvo dentro de un encuentro con un jefe, que siempre es un solo pull.%s%s</p></div>",
-    " %s écarté%s, trop petits pour compter (moins d'un millième des dégâts de la course).":
-        ' %s descartado%s, demasiado pequeños para contar (menos de una milésima del daño de la mazmorra).',
+    " %s écarté%s, trop petit%s pour compter (moins d'un millième des dégâts de la course).":
+        ' %s descartado%s, demasiado pequeño%s para contar (menos de una milésima del daño de la mazmorra).',
     " Sous chaque pull, le premier acte qui lie le groupe à un ennemi depuis la fin du pull précédent%s: le journal n'a aucune ligne de menace, donc un ennemi pris par proximité ne s'y voit qu'à ce qu'il fait ensuite. Quand c'est l'ennemi qui agit en premier, sa première cible est un fort indice de qui l'a attiré, pas une preuve (une zone au sol laissée par le pack précédent, par exemple)%s; et un soin, un renfort ou une dissipation donné en combat attire l'ennemi vers celui qui l'a donné, si bien que la ligne dit aussi quand cette cible venait d'en donner un. Cette lecture est en bêta. Le premier coup reçu par chaque ennemi, lui, est écrit tel quel dans le journal.":
         ' Bajo cada pull, el primer acto que vincula al grupo con un enemigo desde el final del pull anterior%.0s: el registro no tiene ninguna línea de amenaza, así que un enemigo atraído por proximidad solo se ve por lo que hace después. Cuando el enemigo actúa primero, su primer objetivo es un fuerte indicio de quién lo atrajo, no una prueba (un efecto en el suelo dejado por el pack anterior, por ejemplo)%.0s; y una sanación, un beneficio o una disipación dados en combate atraen al enemigo hacia quien los dio, así que la línea también indica cuándo ese objetivo acababa de dar uno. Esta lectura está en beta. El primer golpe que recibió cada enemigo, en cambio, está escrito tal cual en el registro.',
     ' <span class=dim>(%s de surguérison)</span>':
@@ -570,6 +574,8 @@ TEXTS = {
     "<h3>Ce que le groupe a empêché</h3><div class=card><p class=dim style='margin:0 0 10px;font-size:12.5px'>%s sorts commencés par l'ennemi%s:</p><table><tr><th>Issue</th><th class=n>Nombre</th><th class=n>Part</th></tr>%s</table>%s<p class=dim style='margin:10px 0 0;font-size:12px'>Un sort instantané n'apparaît pas ici%s: seuls ceux qui ont un temps d'incantation laissent une trace. La dernière ligne regroupe tout le reste, contrôle compris%s: le journal ne dit nulle part qu'un sort est un étourdissement, donc rien ici ne prétend le savoir.</p></div>":
         "<h3>Lo que el grupo impidió</h3><div class=card><p class=dim style='margin:0 0 10px;font-size:12.5px'>%s hechizos iniciados por el enemigo%.0s:</p><table><tr><th>Resultado</th><th class=n>Número</th><th class=n>Parte</th></tr>%s</table>%s<p class=dim style='margin:10px 0 0;font-size:12px'>Un hechizo instantáneo no aparece aquí%.0s: solo dejan rastro los que tienen tiempo de lanzamiento. La última fila reúne todo lo demás, control incluido%.0s: el registro nunca dice que un hechizo sea un aturdimiento, así que nada aquí pretende saberlo.</p></div>",
     # report_schools
+    'autres %s':
+        'otras %s',
     'Physique':
         'Físico',
     'Magique':
@@ -612,6 +618,11 @@ TEXTS = {
         'Arcano',
     'école inconnue':
         'escuela desconocida',
+    # models
+    'et %d autre(s)':
+        'y %d más',
+    'autres':
+        'otros',
     # segment
     'Normal':
         'Normal',

@@ -7,7 +7,7 @@ than as number formatting. Nothing here knows what a fight is.
 
 import html
 
-from .i18n import language, plural_forms
+from .i18n import N_, _, language, plural_forms
 
 # The narrow no-break space French puts before ; : ! ? and inside numbers.
 NBSP = "\u202f"
@@ -54,6 +54,11 @@ def number(value):
     return "{:,}".format(int(value)).replace(",", style().thousands)
 
 
+def plain_number(value):
+    """25361906 -> '25 361 906' with a plain space: a console font may lack the narrow one."""
+    return number(value).replace(NBSP, " ")
+
+
 def compact(value):
     """25361906 -> '25,4 M'. One decimal, the language's units and comma.
 
@@ -86,6 +91,21 @@ def decimal(value):
 def one_decimal(value):
     """180.64 -> '180,6', or '180.6' in English."""
     return ("%.1f" % value).replace(".", style().decimal)
+
+
+def size(nbytes, space=NBSP):
+    """1234567 -> '1,2 Mo', '1.2 MB': decimal units, as their names mean.
+
+    The window used them while the report, `diagnose` and `where` divided
+    by 1,048,576: one 364 MB log read "364,4 Mo" in the window and "347,5
+    Mo" on its own page. A megabyte is a million bytes, and a Linux file
+    manager says so too. `space` is the narrow no-break one on the page, a
+    plain space where a font may lack it (the window, the terminal).
+    """
+    for unit, scale in ((N_("Go"), 1e9), (N_("Mo"), 1e6), (N_("Ko"), 1e3)):
+        if nbytes >= scale:
+            return "%s%s%s" % (one_decimal(nbytes / scale), space, _(unit))
+    return _("%d o") % nbytes
 
 
 def plural(count, singular, many=None):

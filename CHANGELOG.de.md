@@ -8,6 +8,55 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.13.0 — 2026-09-29
+
+Die vollständige Prüfung von 0.12.1, kontrolliert an Ihrem 364-MB-Log
+vom 29. September.
+
+**Korrektur: Die Pausen eines Spielers mit Begleiter waren verdeckt.**
+Jeder Zauber eines Begleiters, einer Beschwörung oder eines Totems
+beendete die Pause seines Besitzers: Ein Jäger, der vierzig Sekunden
+lang nichts wirkte, während sein Begleiter jede Sekunde biss, zeigte null
+Sekunden ohne Aktion. Nur die eigenen Zauber des Spielers zählen jetzt
+für die „Zeit ohne Aktion“ und die längsten Pausen; die seiner
+Beschwörungen bleiben, getrennt, bei den gewirkten Zaubern. In Ihrem Log
+ändern sich 14 von 25 Spielern; der am stärksten betroffene geht in
+einem Schlüssel von 283 s auf 458 s ohne Aktion.
+
+**Korrektur: Im PvP wurde der Gegner zur Gruppe gezählt.** In einer
+Arena oder auf einem Schlachtfeld schreibt das Log die Spieler der
+Gegenseite als außerhalb der Gruppe und feindlich; sie wurden wie
+Mitspieler behandelt: Der Gegner stand in der Rangliste, jeder
+ausgetauschte Schlag zählte als Treffer eines Verbündeten, und der
+verursachte Schaden blieb bei null. Sie sind jetzt Gegner, mit ihren
+Begleitern, ihren Zaubern (die eine Unterbrechung abbrechen kann) und
+ihren Toden. Ein Gruppenmitglied unter Gedankenkontrolle, oder das die
+Gruppe kurz verlässt, bleibt in der Gruppe. Matches werden noch nicht
+getrennt. In Ihrem Dungeon-Log ändert sich keine Zahl.
+
+**Einige Wörter blieben in den englischen, deutschen und spanischen
+Berichten französisch**: „et 3 autre(s)“ in der Pull-Tabelle, „autres“
+in der Aufteilung nach Schule und bei den Zielen eines Heilers, „aucun“
+und „absent“ am Seitenende und in `diagnose`, „Mo“ in `where`. Alles ist
+übersetzt.
+
+**Eine Dateigröße wird überall gleich geschrieben.** Das Fenster zählte
+ein Megabyte als eine Million Bytes; die Seite, `diagnose` und `where`
+als 1.048.576: Dasselbe Log hatte dort 364,4 MB und hier 347,5 MB. Es
+ist jetzt überall eine Million Bytes, wie der Name der Einheit sagt und
+wie ein Dateimanager unter Linux es anzeigt. `diagnose` schreibt seine
+Zahlen auch in der Schreibweise Ihrer Sprache („1.121.188 Zeilen“).
+
+**Weniger Speicher beim Schreiben des Berichts.** Die Seite wurde
+vollständig, mehrfach, im Speicher zusammengesetzt, bevor sie
+geschrieben wurde; jetzt geht sie Kampf für Kampf auf die Festplatte. In
+Ihrem Log: 252 MB → 89 MB in der Spitze für die Ansicht mit Reitern,
+149 MB → 88 MB für die lange Seite. Die geschriebene Seite ist bis aufs
+Byte gleich.
+
+Kleiner: `-q` hat seine Hilfezeile; die Tests laufen auch unter Python
+3.14.
+
 ## 0.12.1 — 2026-09-29
 
 **Korrektur: Die Schwelle „in der Zeit“ war von +2 bis +11 zu streng.**

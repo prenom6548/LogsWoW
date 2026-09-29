@@ -81,6 +81,8 @@ TEXTS = {
         'Sprache der Oberfläche und des Berichts: auto (die des Systems, Englisch für eine Sprache ohne Übersetzung), fr, en, de oder es',
     'Lit un journal de combat de World of Warcraft, en local, sans rien envoyer nulle part.':
         'Liest ein Kampfprotokoll von World of Warcraft, lokal, ohne irgendetwas irgendwohin zu senden.',
+    'sans la progression ni le résumé : seulement les erreurs':
+        'ohne Fortschritt und Zusammenfassung: nur Fehler',
     'chemin du fichier WoWCombatLog.txt':
         'Pfad zur Datei WoWCombatLog.txt',
     "année, pour les journaux dont l'horodatage n'en porte pas":
@@ -122,8 +124,8 @@ TEXTS = {
     # diagnose
     'Fichier    : %s':
         'Datei      : %s',
-    'Taille     : %.1f Mo, %d lignes, %d événements':
-        'Größe      : %.1f MB, %d Zeilen, %d Ereignisse',
+    'Taille     : %s, %s lignes, %s événements':
+        'Größe      : %s, %s Zeilen, %s Ereignisse',
     'Durée      : %s':
         'Dauer      : %s',
     'DISPOSITION MESURÉE DANS CE FICHIER':
@@ -136,6 +138,8 @@ TEXTS = {
         '  Feld baseAmount     : %s  (Position der -1: %s)',
     'présent':
         'vorhanden',
+    'absent':
+        'nicht vorhanden',
     '  champ hideCaster    : %s  (%s)':
         '  Feld hideCaster     : %s  (%s)',
     '  journalisation avancée : %s':
@@ -296,6 +300,8 @@ TEXTS = {
     "nom d'événement illisible":
         'unlesbarer Ereignisname',
     # report
+    'aucun':
+        'keine',
     "<span class='pill ok'>boss &middot; réussite</span>":
         "<span class='pill ok'>Boss &middot; Kill</span>",
     "<span class='pill ko'>boss &middot; échec</span>":
@@ -328,8 +334,6 @@ TEXTS = {
         '<h1>Kampfbericht</h1><p class=sub>%s &middot; %s Zeilen, %s Ereignisse &middot; erstellt am %s von LogsWoW %s</p><div class=note><b>Alles ist auf diesem Rechner geblieben.</b> Dieser Bericht wurde durch direktes Lesen der Protokolldatei erstellt: nichts gesendet, kein Konto, keine Verbindung. Die Seite ist eigenständig und öffnet sich offline.</div><div class=grid>%s</div><h2>Kämpfe</h2><div class=card><table><tr><th>Kampf</th><th class=n>Dauer</th><th class=n>Schaden</th><th class=n>Heilung</th><th class=n>Pulls</th><th class=n>Spieler</th><th class=n>Tode</th></tr>%s</table></div>',
     'Taille du fichier':
         'Dateigröße',
-    '%s\u202fMo':
-        '%s\u202fMB',
     'Durée couverte':
         'Erfasste Dauer',
     'Pulls de boss':
@@ -358,8 +362,8 @@ TEXTS = {
         '<th class=n>auf den Boss</th><th class=n>auf Trash</th>',
     "<h3>%s</h3><div class=card><table><tr><th class=n>#</th><th class=n>Début</th><th class=n>Durée</th><th>Ce qui a été engagé</th><th class=n>Dégâts</th>%s<th class=n>Subis</th><th class=n>Morts</th></tr>%s</table><p class=dim style='margin:10px 0 0;font-size:12px'>Un pull se termine quand le groupe passe plus de %s sans infliger ni subir de dégâts. Un groupe qui enchaîne les packs sans pause les verra donc regroupés%s: <code>--pull-gap</code> change ce seuil, sauf à l'intérieur d'une rencontre de boss, qui reste toujours un seul pull.%s%s</p></div>":
         "<h3>%s</h3><div class=card><table><tr><th class=n>#</th><th class=n>Beginn</th><th class=n>Dauer</th><th>Was angegriffen wurde</th><th class=n>Schaden</th>%s<th class=n>Erlitten</th><th class=n>Tode</th></tr>%s</table><p class=dim style='margin:10px 0 0;font-size:12px'>Ein Pull endet, wenn die Gruppe länger als %s weder Schaden verursacht noch erleidet. Eine Gruppe, die Packs ohne Pause aneinanderreiht, sieht sie daher zusammengefasst%.0s: <code>--pull-gap</code> ändert diese Schwelle, außer innerhalb einer Bossbegegnung, die immer ein einziger Pull bleibt.%s%s</p></div>",
-    " %s écarté%s, trop petits pour compter (moins d'un millième des dégâts de la course).":
-        ' %s verworfen%.0s, zu klein, um zu zählen (weniger als ein Tausendstel des Schadens des Durchgangs).',
+    " %s écarté%s, trop petit%s pour compter (moins d'un millième des dégâts de la course).":
+        ' %s verworfen%.0s, zu klein%.0s, um zu zählen (weniger als ein Tausendstel des Schadens des Durchgangs).',
     " Sous chaque pull, le premier acte qui lie le groupe à un ennemi depuis la fin du pull précédent%s: le journal n'a aucune ligne de menace, donc un ennemi pris par proximité ne s'y voit qu'à ce qu'il fait ensuite. Quand c'est l'ennemi qui agit en premier, sa première cible est un fort indice de qui l'a attiré, pas une preuve (une zone au sol laissée par le pack précédent, par exemple)%s; et un soin, un renfort ou une dissipation donné en combat attire l'ennemi vers celui qui l'a donné, si bien que la ligne dit aussi quand cette cible venait d'en donner un. Cette lecture est en bêta. Le premier coup reçu par chaque ennemi, lui, est écrit tel quel dans le journal.":
         ' Unter jedem Pull steht die erste Handlung, die die Gruppe seit dem Ende des vorigen Pulls mit einem Gegner verbindet%.0s: Das Protokoll hat keine Bedrohungszeile, daher ist ein Gegner, der durch Nähe angelockt wurde, nur an dem zu erkennen, was er danach tut. Handelt der Gegner zuerst, ist sein erstes Ziel ein starker Hinweis darauf, wer ihn angelockt hat, kein Beweis (etwa ein Bodeneffekt, den das vorige Pack hinterlassen hat)%.0s; und eine Heilung, Stärkung oder Bannung im Kampf lenkt den Gegner auf den, der sie gegeben hat, daher sagt die Zeile auch, wenn dieses Ziel gerade eine gegeben hatte. Diese Lesart ist in der Beta. Der erste Treffer, den jeder Gegner erhielt, steht dagegen genau so im Protokoll.',
     ' <span class=dim>(%s de surguérison)</span>':
@@ -570,6 +574,8 @@ TEXTS = {
     "<h3>Ce que le groupe a empêché</h3><div class=card><p class=dim style='margin:0 0 10px;font-size:12.5px'>%s sorts commencés par l'ennemi%s:</p><table><tr><th>Issue</th><th class=n>Nombre</th><th class=n>Part</th></tr>%s</table>%s<p class=dim style='margin:10px 0 0;font-size:12px'>Un sort instantané n'apparaît pas ici%s: seuls ceux qui ont un temps d'incantation laissent une trace. La dernière ligne regroupe tout le reste, contrôle compris%s: le journal ne dit nulle part qu'un sort est un étourdissement, donc rien ici ne prétend le savoir.</p></div>":
         "<h3>Was die Gruppe verhindert hat</h3><div class=card><p class=dim style='margin:0 0 10px;font-size:12.5px'>%s vom Gegner begonnene Zauber%.0s:</p><table><tr><th>Ergebnis</th><th class=n>Anzahl</th><th class=n>Anteil</th></tr>%s</table>%s<p class=dim style='margin:10px 0 0;font-size:12px'>Ein Spontanzauber erscheint hier nicht%.0s: Nur Zauber mit Zauberzeit hinterlassen eine Spur. Die letzte Zeile fasst alles Übrige zusammen, Kontrolleffekte eingeschlossen%.0s: Das Protokoll sagt nirgends, dass ein Zauber eine Betäubung ist, also behauptet hier nichts, es zu wissen.</p></div>",
     # report_schools
+    'autres %s':
+        'andere %s',
     'Physique':
         'Physisch',
     'Magique':
@@ -612,6 +618,11 @@ TEXTS = {
         'Arkan',
     'école inconnue':
         'unbekannte Schule',
+    # models
+    'et %d autre(s)':
+        'und %d weitere',
+    'autres':
+        'andere',
     # segment
     'Normal':
         'Normal',

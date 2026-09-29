@@ -219,3 +219,19 @@ Ce qui concerne le découpage :
   pas la question posée, et le seuil de Warcraft Logs reste inconnu. Les
   questions 2 à 4 de la section 4 restent donc ouvertes telles que la
   section 6 les laisse.
+
+## 8. Ce qui a changé depuis (2026-09-29)
+
+La section 3 décrit l'état du 26/27 septembre. Deux choses ont bougé
+depuis, à lire avant un nouvel audit de `segment.py` :
+
+- **`PULL_GAP_MS` vaut 3 000 depuis la 0.11.0**, et non plus 6 000 : le
+  propriétaire, qui joue ces clés, a jugé 3 s plus proche de ce que fait
+  son groupe en jeu. C'est un choix de lecteur, pas une mesure : le
+  seuil de Warcraft Logs reste inconnu, et `--pull-gap` permet toujours
+  d'en choisir un autre.
+- **Chaque pull de trash d'une clé est une vue à part entière depuis la
+  0.12.0** (`Splitter._follow_pulls`), analysée de l'événement qui l'a
+  ouvert jusqu'à ce qu'il ne puisse plus grandir ; le vérificateur
+  d'invariants prouve que chacun compte exactement les dégâts que sa
+  ligne du tableau de la clé lui donne.

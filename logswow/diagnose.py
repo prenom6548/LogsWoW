@@ -14,6 +14,7 @@ Run it first on any log from a client version this package has not seen.
 
 from collections import Counter
 
+from . import fmt
 from .events import BARE_EVENTS, SPECIAL_EVENTS, decompose
 from .i18n import _
 from .parse import LogFile
@@ -74,8 +75,9 @@ def run(path, default_year=None, limit=None):
     log = reading.log
     lines = [
         _("Fichier    : %s") % path,
-        _("Taille     : %.1f Mo, %d lignes, %d événements") % (
-            log.size_bytes / 1048576.0, log.line_count, log.event_count),
+        _("Taille     : %s, %s lignes, %s événements") % (
+            fmt.size(log.size_bytes, " "), fmt.plain_number(log.line_count),
+            fmt.plain_number(log.event_count)),
         _("Durée      : %s") % format_duration(log.duration_ms),
         "",
     ]
@@ -96,10 +98,10 @@ def _layout_section(reading):
         lines.append(_("    votes à égalité, départage par : %s")
                      % evidence["advanced_width_tiebreak"])
     lines.append(_("  champ baseAmount    : %s  (position du -1: %s)") % (
-        _("présent") if layout.has_base_amount else "absent",
+        _("présent") if layout.has_base_amount else _("absent"),
         evidence.get("overkill_position", {})))
     lines.append(_("  champ hideCaster    : %s  (%s)") % (
-        _("présent") if layout.hide_caster else "absent", evidence.get("hide_caster", {})))
+        _("présent") if layout.hide_caster else _("absent"), evidence.get("hide_caster", {})))
     lines.append(_("  journalisation avancée : %s") % (
         _("oui") if evidence.get("advanced_logging")
         else _("non -- positions et points de vie absents")))

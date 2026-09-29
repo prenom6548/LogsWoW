@@ -140,5 +140,5 @@ def _by_school(ledger):
              for mask, amount in ranked[:6]]
     rest = sum(max(0, amount) for _mask, amount in ranked[6:])
     if rest:
-        parts.append("autres %s" % _cell(sum(percent[m] for m, _a in ranked[6:]), rest))
+        parts.append(_("autres %s") % _cell(sum(percent[m] for m, _a in ranked[6:]), rest))
     return ", ".join(parts)

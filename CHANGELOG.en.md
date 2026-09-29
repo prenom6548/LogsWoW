@@ -6,6 +6,49 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.13.0 — 2026-09-29
+
+The full audit of 0.12.1, checked on your 364 MB log of 29 September.
+
+**Fix: the pauses of a player with a pet were hidden.** Every spell a
+pet, a summon or a totem cast ended its owner's pause: a hunter who cast
+nothing for forty seconds while the pet bit every second showed zero
+seconds without action. Only the player's own spells now count for
+"Time without action" and the longest pauses; their summons' spells are
+still counted, apart, among the spells cast. On your log, 14 players of
+25 change; the most affected goes from 283 s to 458 s without action on
+one key.
+
+**Fix: in PvP, the opponent was counted in the group.** In an arena or a
+battleground, the log writes the players of the other side outside the
+group and hostile; they were treated as teammates: the opponent stood in
+the ranking, every blow exchanged counted as one taken from an ally, and
+the damage dealt stayed at zero. They are now enemies, with their pets,
+their casts (which an interrupt can cut) and their deaths. A group
+member under a mind control, or who steps out of the group for a moment,
+stays in the group. Matches are not cut out yet. On your dungeon log, no
+figure moves.
+
+**Some words stayed French in the English, German and Spanish reports**:
+"et 3 autre(s)" in the table of pulls, "autres" in the breakdown by
+school and among a healer's targets, "aucun" and "absent" at the foot of
+the page and in `diagnose`, "Mo" in `where`. All are translated.
+
+**A file size is written the same way everywhere.** The window counted a
+megabyte as a million bytes; the page, `diagnose` and `where` as
+1,048,576: the same log read 364.4 MB in one and 347.5 MB in the others.
+It is a million bytes everywhere now, as the unit's name says and as a
+Linux file manager shows it. `diagnose` also writes its numbers in your
+language's style ("1,121,188 lines").
+
+**Less memory to write the report.** The page was assembled whole in
+memory, several times over, before being written; it now goes to disk
+one fight at a time. On your log: 252 MB → 89 MB at the peak for the
+tabbed layout, 149 MB → 88 MB for the long page. The page written is the
+same to the byte.
+
+Smaller: `-q` has its help line; the tests also pass on Python 3.14.
+
 ## 0.12.1 — 2026-09-29
 
 **Fix: the "in time" threshold was too strict from +2 to +11.** The

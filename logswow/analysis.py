@@ -22,9 +22,10 @@ What this can and cannot answer is worth being plain about:
 from .auras import AuraLedger
 from .castorder import MAX_CAST_LOG, classify_triggered
 from .encounters import EncounterLedger
-from .events import Actor, Event
+from .events import FLAGS_IN_GROUP, FLAGS_OPPONENT, Actor, Event
 from .i18n import _, spell_label
 from .models import (
+    OTHER_TARGETS,
     CombatBlock,
     Enemy,
     Player,
@@ -99,6 +100,10 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self.pull_gap_ms = max(1000, int(pull_gap_ms))
         self.players = {}
         self.pet_owner = {}
+        # Players by the side the file has shown them on, by GUID: in the
+        # group at least once, or outside it and hostile. See `_is_opponent`.
+        self._members = set()
+        self._opponents = set()
         # Summons, to tell a player's own from an encounter's: see
         # `_note_summon` and `_disown_mechanics`.
         self._recent_summons = []
@@ -291,10 +296,42 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         if not actor.guid or actor.guid == NULL_GUID:
             return False
         if actor.is_player:
-            return True
+            return not self._is_opponent(actor)
         if actor.guid in self.pet_owner:
             return True
         return False
+
+    def _is_opponent(self, actor):
+        """A player of the other side: outside the group, hostile, and never in it here.
+
+        Counted as the group until 2026-09-29: in an arena the opponent sat
+        in the ranking, every blow between the two teams was friendly fire,
+        and the damage dealt read zero. The flags say it -- outsider and
+        hostile together; a raid member under a mind control is hostile but
+        still in the raid -- on the line being read. A player the segment
+        has already shown in the group stays in it: on the owner's night a
+        cross-faction member who stepped out of the group at the end of a
+        key was written outside and hostile, and came back. An actor
+        rebuilt from a GUID alone (a shield's caster) carries no flags, and
+        is judged by what the file last said about that player.
+        """
+        guid = actor.guid
+        if guid in self._members or not actor.is_player:
+            return False
+        if actor.flags:
+            return actor.flags & FLAGS_OPPONENT == FLAGS_OPPONENT
+        return guid in self._opponents
+
+    def _note_sides(self, event):
+        """Remember which players the file shows in the group, and which against it."""
+        for actor in (event.source, event.dest):
+            flags = actor.flags
+            if flags & FLAGS_IN_GROUP:
+                if actor.guid.startswith("Player-") and len(self._members) < 5000:
+                    self._members.add(actor.guid)
+            elif (flags & FLAGS_OPPONENT == FLAGS_OPPONENT and actor.guid.startswith("Player-")
+                  and len(self._opponents) < 5000):
+                self._opponents.add(actor.guid)
 
     # -- the stream -------------------------------------------------------
 
@@ -365,9 +402,10 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         """Pets: SPELL_SUMMON names the owner directly, and the advanced
         block carries an ownerGUID on everything a pet does. Both are
         used, because a pet summoned before the pull has no summon line
-        inside the segment."""
+        inside the segment. An opposing player's summons are never ours."""
+        self._note_sides(event)
         if (event.subevent == "SPELL_SUMMON" and event.source.is_player
-                and event.dest.guid):
+                and self._is_ours(event.source) and event.dest.guid):
             self.pet_owner[event.dest.guid] = event.source.guid
             self._note_summon(event)
         if event.advanced is not None:
@@ -380,6 +418,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
                 owner.startswith("Player-")
                 and info.startswith(("Pet-", "Vehicle-", "Creature-"))
                 and info not in self.pet_owner
+                and (owner not in self._opponents or owner in self._members)
             ):
                 self.pet_owner[info] = owner
 
@@ -457,7 +496,8 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
 
     def _feed_cast_success(self, event):
         """A cast that completed: an enemy's resolves its pending start."""
-        if event.source.is_hostile and not event.source.is_player:
+        if event.source.is_hostile and (not event.source.is_player
+                                        or self._is_opponent(event.source)):
             self._resolve_enemy_cast(event.source.guid, event.spell_id, "aboutis")
             enemy = self._enemy(event.source)
             if enemy is not None:
@@ -481,11 +521,12 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             self.unconscious_seen += 1
             return
         self._pool.pop(event.dest.guid, None)
-        if not event.dest.is_player and event.dest.is_hostile:
+        opponent = self._is_opponent(event.dest)
+        if (not event.dest.is_player or opponent) and event.dest.is_hostile:
             enemy = self._enemy(event.dest)
             if enemy is not None:
                 enemy.deaths += 1
-        if not event.dest.is_player:
+        if not event.dest.is_player or opponent:
             for key in [
                 k for k in self._pending_casts if k[0] == event.dest.guid
             ]:
@@ -869,7 +910,8 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
 
     def _feed_enemy_cast_start(self, event):
         """An enemy started casting. Remember it until something ends it."""
-        if event.source.is_player or not event.source.is_hostile:
+        if not event.source.is_hostile or (event.source.is_player
+                                           and not self._is_opponent(event.source)):
             return
         self.enemy_casts["commences"] += 1
         if len(self._pending_casts) >= 400:
@@ -1109,7 +1151,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             if effective or event.overhealing:
                 current = player.healing_to.get(target)
                 if current is None and len(player.healing_to) >= 60:
-                    target = "autres"
+                    target = OTHER_TARGETS
                     current = player.healing_to.get(target)
                 player.healing_to[target] = (current or 0) + effective
         if event.dest.is_player and self._is_ours(event.dest):
@@ -1178,6 +1220,12 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
                                     else event.source.guid))
         else:
             player.cast_log_full = True
+        if not event.source.is_player:
+            # A pet or a guardian casting is not the player pressing a
+            # button: counted in `casts` above, but never an end to the
+            # player's own pause. A hunter's pet biting every second hid
+            # forty seconds without a single cast (audit of 2026-09-29).
+            return
         if player.last_cast_ts is not None:
             gap = event.ts - player.last_cast_ts
             if gap > DOWNTIME_THRESHOLD_MS:

@@ -1126,7 +1126,10 @@ what became of them:
   the 27/09 fix had used, and force-pushed `main` and every tag. Every
   commit hash before that date changed; the tree of `main` did not (the
   tip was checked identical, 34 commits, zero occurrences left). A hash
-  quoted anywhere from before then no longer exists. The `.pyz` of
+  from before then names nothing on `main` any more -- but GitHub still
+  serves the old commits by their hash, to anyone and without an account,
+  until its support purges them: rewriting a public history is not enough
+  on its own (the 2026-09-29 audit, below). The `.pyz` of
   0.2.0, 0.3.0 and 0.3.1 carried the name in a docstring; clean ones were
   rebuilt from the rewritten tags, to replace the published files.
 - The merged `claude/...` branch is gone from the remote.
@@ -1387,6 +1390,73 @@ gives it: 143 pulls of five logs, all equal. Cost on a 364 MB log:
 35 -> 45 s, a 13 -> 20 MB page, 163 -> 249 MB peak. The first "-" of an
 open key was a box: `"\2212"` in a Python string is an octal escape.
 
+### The 2026-09-29 audit: what the tools and one real night found
+
+The owner asked for a full audit of every file, then for every fix it
+called for. The tools of the earlier audits ran again (radon, pylint,
+jscpd, vulture, coverage, bandit, semgrep, pip-audit, OSV, gitleaks,
+TruffleHog, detect-secrets), `strace` watched every command, and the
+owner's Mythic+ night of the same day (364 MB, 1,121,188 lines, zero read
+problems) was read in the session's scratch directory and deleted after.
+27,877 invariant checks hold on it, before the fixes and after.
+
+- **The rewritten history is still public.** GitHub serves the commits
+  from before the 2026-09-28 rewrite by their hash, to anyone and without
+  an account, raw files included. A session cannot settle that; the
+  owner can (the audit report says how). A container cloned before the
+  rewrite also keeps the old history under a stale local `main`: check
+  that `git log origin/main..main` is empty before working on `main`, and
+  never push a branch that holds it -- that would publish it again.
+- **A summon's cast ended its owner's pause.** `_feed_cast` moved
+  `last_cast_ts` for every cast routed to a player, a pet's included, so
+  a hunter whose pet bit every second never paused. Only the player's own
+  casts count now. On the night, 14 of 25 key-level players changed, the
+  largest from 283 s to 458 s (6,622 summon casts in that key); the
+  snapshot moved `downtime_ms`, `longest_gaps` and the first cast, and
+  nothing else.
+- **`_is_ours` was "any player".** In PvP the other side is written
+  outside the group and hostile (0x548), and counting it as the group
+  made every blow friendly fire and the damage dealt zero. `_is_opponent`
+  needs both bits on the line being read, and never takes a player the
+  segment has shown in the group (`_members`). The first version kept
+  every GUID ever seen outside and hostile, and the night's snapshot
+  caught it: a cross-faction member who stepped out of the group at the
+  end of the last key (0x548 at 61 s, 0x512 again at 122 s) lost every
+  later cast. A mind-controlled raid member (0x544) stays ours. An
+  opponent's summons are not ours, and its casts and deaths are the
+  enemy's. On the night, nothing moved but the pauses. Arena matches are
+  still not segments (ARENA_MATCH_START/END are ignored): measure a real
+  arena log before making them markers.
+- **French on the other languages' pages.** Four texts never went through
+  `_()`: "et %d autre(s)" (a pull's label), "autres %s" (schools),
+  "autres" (a healer's folded targets: `models.OTHER_TARGETS`, a key the
+  invariant checker reads, translated where it is shown) and the
+  footer's and `diagnose`'s "aucun"/"absent"; `where` printed "Mo". The
+  translation test sees only marked texts, so a test now renders a page
+  in each language and looks for them. They were found by an AST scan
+  for French-looking literals outside `_()`: worth running again.
+- **One way to write a size**: `fmt.size`, decimal as "Mo" and "MB" mean,
+  for the window, the page, `diagnose` and `where` (the window said
+  364,4 Mo where the page said 347,5 Mo); `fmt.plain_number` for a
+  terminal.
+- **The page is written as it is drawn.** `write_streamed` spools each
+  fight beside the target and writes the head, known last, then the
+  spool. The tabbed report of the night peaked at 252 MB (the reading
+  alone at 70 MB) and now at 89 MB; the long page 149 -> 88 MB. Proved
+  byte-identical, old writer against new, on the fixture (four languages,
+  three layouts), a synthetic key, a log of HTML payloads and the night.
+- `_ranking` (D, 26) and `_pulls` (D, 22) were split into named steps,
+  pages again byte-identical; `build_event` (whole on purpose) and
+  `SegmentAnalysis.feed` (the dispatch) are the only D left.
+
+Checked and found right, so the next pass need not: no network system
+call from any command (`strace`; the window opens only the local X
+socket); no executable markup on 32 pages with script payloads in every
+name, event and the file's own name; the published 0.12.1 `.pyz` is the
+tagged source byte for byte; no secret anywhere in the history (three
+scanners); tests green on Python 3.8 to 3.14, and with a display
+(coverage 91%).
+
 ### Performance, measured
 
 261 MB / 896,610 lines (a real raid night, report included) in
@@ -1422,9 +1492,10 @@ logswow/report_timeline.py  the SVG timeline
 logswow/report_panels.py    per-player and per-enemy panels
 logswow/report_casts.py     the cast order by pull: chips, CSS-only filter
 logswow/report_schools.py   physical / magic / mixed shares, per run and per pull
-logswow/report_layouts.py   the three layouts: long page, CSS-only tabs, folder of pages
+logswow/report_layouts.py   the three layouts: long page, CSS-only tabs, folder of pages;
+                        write_streamed, which writes a page as it is drawn
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
-logswow/fmt.py          formatters (compact, percent, esc...); patch fmt.compact to render exact
+logswow/fmt.py          formatters (compact, percent, size, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
 logswow/cli.py          report / list / diagnose / where / fenetre
 logswow/gui.py          the window (Tkinter): pick a log, the fights, write and open the page
@@ -1532,10 +1603,10 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 247 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 255 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
-   `TestSixthAuditFindings`), and each one was regression-checked the
+   `TestSeventhAuditFindings`), and each one was regression-checked the
    same way: stash the fix, watch the test fail, restore it.
 2. `python3 -m logswow diagnose <a real log>` -- the number that matters
    is `PROBLÈMES DE LECTURE : 0`.

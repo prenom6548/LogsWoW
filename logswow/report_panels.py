@@ -9,6 +9,7 @@ from . import fmt
 from .fmt import NBSP
 from .fmt import bar_row as _bar_row
 from .i18n import _, spell_label
+from .models import OTHER_TARGETS
 from .specs import label_of
 from .timestamps import format_duration
 from .wowhead import spell_url
@@ -311,7 +312,8 @@ class PanelsMixin:
             return (_("<table><tr><th>Cible</th><th class=n>Total</th><th class=n>Part</th></tr>"
                       "%s</table>") % "".join(
                         "<tr>%s<td class=n>%s</td><td class=n>%s</td></tr>"
-                        % (_bar_row(fmt.esc(name), value / grand), fmt.compact(value),
+                        % (_bar_row(fmt.esc(_(name) if name == OTHER_TARGETS else name),
+                                    value / grand), fmt.compact(value),
                            fmt.percent(value / grand))
                         for name, value in rows))
 

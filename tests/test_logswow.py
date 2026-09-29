@@ -3890,5 +3890,170 @@ class TestLanguages(unittest.TestCase):
         self.assertIn("réussite", out.getvalue())
 
 
+class TestSeventhAuditFindings(unittest.TestCase):
+    """The 2026-09-29 audit of 0.12.1: a full read of every file, the
+    tools of the earlier audits again, and one real 364 MB Mythic+ night.
+    Each test fails without the change it names, except the mind-control
+    and the stepping-out ones, which guard that change from reaching too far."""
+
+    MOB = 'Creature-0-9999-2222-1111-70000-0000111111,"Golem",0xa48,0x0'
+    NOBODY = '0000000000000000,nil,0x80000000,0x80000000'
+    PLAYER = 'Player-9999-00000003,"Braise-Dalaran-EU",0x514,0x0'
+    PET = 'Pet-0-9999-2222-1111-00004,"Cendre",0x1114,0x0'
+
+    def tearDown(self):
+        from logswow.i18n import set_language
+
+        set_language("fr")
+
+    def _run(self, timed_payloads):
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, (ms, payload) in enumerate(timed_payloads):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ms, fields, index + 1))
+        return splitter.finish()
+
+    def _page(self, segments, language="fr"):
+        import tempfile
+
+        from logswow.i18n import set_language
+
+        log, _fixture = run_fixture()
+        set_language(language)
+        with tempfile.TemporaryDirectory() as directory:
+            target = os.path.join(directory, "r.html")
+            ReportWriter(log, segments, target, wowhead="off", layout="longue").write()
+            with open(target, encoding="utf-8") as handle:
+                return handle.read()
+
+    def test_a_summons_casts_do_not_hide_the_players_own_pauses(self):
+        """A pet's casts ended the owner's pause: a hunter who pressed
+        nothing for forty seconds while the pet bit every second read zero
+        seconds of downtime and no gap at all."""
+        lines = [(0, 'SPELL_SUMMON,%s,%s,883,"Appel",0x1' % (self.PLAYER, self.PET)),
+                 (1000, 'SPELL_CAST_SUCCESS,%s,%s,1,"Tir",0x1' % (self.PLAYER, self.MOB)),
+                 (1100, 'SPELL_DAMAGE,%s,%s,1,"Tir",0x1,5000,5000,-1,1,0,0,0,nil,nil,nil,ST'
+                  % (self.PLAYER, self.MOB))]
+        for second in range(2, 41):
+            lines.append((second * 1000, 'SPELL_CAST_SUCCESS,%s,%s,2,"Morsure",0x1'
+                          % (self.PET, self.MOB)))
+            lines.append((second * 1000 + 100,
+                          'SPELL_DAMAGE,%s,%s,2,"Morsure",0x1,700,700,-1,1,0,0,0,nil,nil,nil,ST'
+                          % (self.PET, self.MOB)))
+        lines.append((41000, 'SPELL_CAST_SUCCESS,%s,%s,1,"Tir",0x1' % (self.PLAYER, self.MOB)))
+        lines.append((41100, 'SPELL_DAMAGE,%s,%s,1,"Tir",0x1,5000,5000,-1,1,0,0,0,nil,nil,nil,ST'
+                      % (self.PLAYER, self.MOB)))
+        segment = self._run(lines)[0]
+        player = segment.analysis.players["Player-9999-00000003"]
+        self.assertEqual(player.casts, 41)          # the pet's casts are still counted...
+        self.assertEqual(player.pet_casts, 39)
+        self.assertEqual(player.longest_gaps[0][0], 40000)    # ...but end no pause
+        self.assertGreaterEqual(player.downtime_ms, 38000)
+
+    def test_an_opposing_player_is_an_enemy_not_the_group(self):
+        """In an arena the other side is written outside the group and
+        hostile (0x548). It was counted as the group: the opponent sat in
+        the ranking, every blow between the teams was friendly fire, and
+        the damage dealt read zero."""
+        rival = 'Player-9999-00000009,"Rival-Hyjal-EU",0x548,0x0'
+        rival_pet = 'Pet-0-9999-2222-1111-00009,"Loup",0x1148,0x0'
+        lines = [(0, 'SPELL_SUMMON,%s,%s,883,"Appel",0x1' % (rival, rival_pet)),
+                 (10, 'SPELL_CAST_START,%s,%s,5,"Eclair",0x8' % (rival, self.NOBODY))]
+        for second in range(1, 11):
+            lines.append((second * 1000, 'SPELL_DAMAGE,%s,%s,1,"Frappe",0x1,5000,5000,-1,1,0,0,0,'
+                          'nil,nil,nil,ST' % (self.PLAYER, rival)))
+            lines.append((second * 1000 + 500, 'SPELL_DAMAGE,%s,%s,4,"Riposte",0x1,3000,3000,-1,1,'
+                          '0,0,0,nil,nil,nil,ST' % (rival, self.PLAYER)))
+            lines.append((second * 1000 + 700, 'SPELL_DAMAGE,%s,%s,6,"Morsure",0x1,400,400,-1,1,'
+                          '0,0,0,nil,nil,nil,ST' % (rival_pet, self.PLAYER)))
+        lines.append((10800, 'SPELL_INTERRUPT,%s,%s,7,"Coup",0x1,5,"Eclair",0x8'
+                      % (self.PLAYER, rival)))
+        lines.append((11000, 'UNIT_DIED,%s,%s,0' % (self.NOBODY, rival)))
+        analysis = self._run(lines)[0].analysis
+        self.assertEqual(set(analysis.players), {"Player-9999-00000003"})
+        ours = analysis.players["Player-9999-00000003"]
+        self.assertEqual(ours.damage_done, 50000)
+        self.assertEqual(ours.damage_taken, 34000)          # the rival and the rival's pet
+        self.assertEqual(analysis.total_damage, 50000)
+        self.assertEqual(analysis.enemies["Rival"].deaths, 1)
+        self.assertEqual(analysis.enemy_casts["coupes"], 1)
+        self.assertEqual(analysis.deaths, [])
+
+    def test_a_raid_member_under_a_mind_control_stays_in_the_group(self):
+        """Hostile but still in the raid (0x544): not an opponent."""
+        controlled = 'Player-9999-00000005,"Tisane-Dalaran-EU",0x544,0x0'
+        lines = [(1000, 'SPELL_DAMAGE,%s,%s,1,"Frappe",0x1,5000,5000,-1,1,0,0,0,nil,nil,nil,ST'
+                  % (controlled, self.MOB))]
+        analysis = self._run(lines)[0].analysis
+        self.assertIn("Player-9999-00000005", analysis.players)
+        self.assertEqual(analysis.total_damage, 5000)
+
+    def test_a_group_member_who_steps_out_is_still_the_groups(self):
+        """The owner's night: a cross-faction member who left the group at
+        the end of a key was written outside and hostile (0x548), then in
+        the party again. A first version of the opponent rule then dropped
+        every later cast of theirs."""
+        member = 'Player-9999-00000006,"Galet-Dalaran-EU",0x512,0x0'
+        outside = member.replace("0x512", "0x548")
+        lines = [(1000, 'SPELL_DAMAGE,%s,%s,1,"Frappe",0x1,5000,5000,-1,1,0,0,0,nil,nil,nil,ST'
+                  % (member, self.MOB)),
+                 (2000, 'SPELL_CAST_SUCCESS,%s,%s,2,"Bouclier",0x8' % (outside, self.NOBODY)),
+                 (3000, 'SPELL_CAST_SUCCESS,%s,%s,2,"Bouclier",0x8' % (member, self.NOBODY))]
+        analysis = self._run(lines)[0].analysis
+        self.assertEqual(analysis.players["Player-9999-00000006"].casts, 2)
+        self.assertNotIn("Galet", analysis.enemies)
+
+    def test_no_french_is_left_on_a_page_in_another_language(self):
+        """Four texts reached the page in French whatever the language: a
+        pull's "et 3 autre(s)", a school breakdown's "autres", a healer's
+        "autres" targets and the footer's "aucun"/"absent"."""
+        healer = 'Player-9999-00000002,"Tisane-Dalaran-EU",0x512,0x0'
+        lines = [(0, 'SPELL_DAMAGE,%s,%s,1,"Frappe",0x1,10,10,-1,1,0,0,0,nil,nil,nil,ST'
+                  % (healer, self.MOB))]
+        schools = (1, 2, 4, 8, 16, 32, 64, 3)
+        for index, school in enumerate(schools):     # eight names, eight schools, one pull
+            mob = 'Creature-0-9999-2222-1111-7100%d-00000000C%d,"Ennemi%d",0xa48,0x0' % (
+                index, index, index)
+            lines.append((100 + index, 'SPELL_DAMAGE,%s,%s,1,"Frappe",0x1,5000,5000,-1,%d,'
+                          '0,0,0,nil,nil,nil,ST' % (self.PLAYER, mob, school)))
+        for index in range(70):           # more targets than a healer's table keeps
+            target = 'Player-9999-%08d,"Joueur%d-Dalaran-EU",0x512,0x0' % (100 + index, index)
+            lines.append((200 + index, 'SPELL_HEAL,%s,%s,2,"Soin",0x2,100,100,0,0,nil'
+                          % (healer, target)))
+        # A second pull, so that the page draws its table of pulls.
+        lines.append((30000, 'SPELL_DAMAGE,%s,%s,1,"Frappe",0x1,5000,5000,-1,1,0,0,0,'
+                      'nil,nil,nil,ST' % (self.PLAYER, self.MOB)))
+        segments = self._run(lines)
+        self.assertEqual(len(segments[0].analysis.blocks), 2)
+        for language, words in (("en", ("autre", "aucun")),
+                                ("de", ("autre", "aucun", "absent")),
+                                ("es", ("autre", "aucun", "absent"))):
+            page = self._page(segments, language)
+            text = re.sub(r"<[^>]+>", " ", page)
+            for word in words:
+                with self.subTest(language=language, word=word):
+                    self.assertNotIn(word, text)
+
+    def test_a_file_size_is_written_the_same_way_everywhere(self):
+        """The window divided by 1,000,000 and the page, `diagnose` and
+        `where` by 1,048,576: one log read 364,4 Mo in one and 347,5 Mo in
+        the others."""
+        from logswow import fmt
+        from logswow.diagnose import run as diagnose
+
+        self.assertEqual(fmt.size(364388746), "364,4 Mo")
+        self.assertEqual(fmt.size(364388746, " "), "364,4 Mo")
+        log, segments = run_fixture()
+        size = os.path.getsize(FIXTURE)
+        self.assertIn(fmt.size(size), self._page(segments))
+        self.assertIn(fmt.size(size, " "), diagnose(FIXTURE))
+
+    def test_quiet_says_what_it_does(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            cli_main(["report", "--help"])
+        self.assertIn("seulement les erreurs", " ".join(out.getvalue().split()))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

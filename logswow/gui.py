@@ -93,10 +93,7 @@ def recent_logs(locations=None, limit=40):
 
 def file_size(size):
     """1234567 -> '1,2 Mo', in the units a French reader expects; '1.2 MB'."""
-    for unit, scale in ((N_("Go"), 1e9), (N_("Mo"), 1e6), (N_("Ko"), 1e3)):
-        if size >= scale:
-            return "%s %s" % (fmt.one_decimal(size / scale), _(unit))
-    return _("%d o") % size
+    return fmt.size(size, " ")
 
 
 def read_share(lines, size):

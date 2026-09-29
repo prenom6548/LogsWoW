@@ -7,8 +7,8 @@ That is the point of the exercise, so it is a hard rule rather than a
 preference -- if this file ever needs a URL to render, something has
 gone wrong.
 
-The interface is in French because the person it is written for reads
-French; the code and its comments stay in English.
+The interface is written in French, the reference language, and comes
+out in the reader's (i18n.py); the code and its comments stay in English.
 """
 
 import os
@@ -23,7 +23,7 @@ from .specs import DPS, HEAL, TANK, label_of, role_of
 from .timestamps import format_duration
 from .report_casts import CastOrderMixin, chip_rules
 from .report_panels import PanelsMixin
-from .report_layouts import LayoutsMixin, write_atomic
+from .report_layouts import LayoutsMixin, write_streamed
 from .report_schools import SCHOOL_CSS, SchoolsMixin
 from .report_timeline import TimelineMixin
 from .wowhead import resolve
@@ -191,6 +191,63 @@ def _council_note(names):
               "comptés sur le boss.") % (", ".join(fmt.esc(name) for name in names), NBSP))
 
 
+def _ranking_row(player, value, rate, peak, healing, absorbs, support):
+    """One player's line of a damage or healing ranking."""
+    extra = ""
+    if healing and player.overheal_rate:
+        extra = (_(" <span class=dim>(%s de surguérison)</span>")
+                 % fmt.percent(player.overheal_rate))
+    cells = [
+        _bar_row(
+            "<span class=name>%s</span>%s" % (fmt.esc(player.short_name), extra),
+            value / peak if peak else 0,
+        ),
+        "<td class=n>%s</td>" % fmt.compact(value),
+    ]
+    if absorbs:
+        cells.append("<td class=n>%s</td>" % (
+            fmt.compact(player.absorb_done) if player.absorb_done
+            else "<span class=dim>-</span>"))
+        cells.append("<td class=n>%s</td>"
+                     % fmt.compact(value + player.absorb_done))
+    if support:
+        cells.append("<td class=n>%s</td>" % fmt.compact(
+            value - player.support_received + player.support_damage))
+    cells.append("<td class=n>%s</td>" % fmt.compact(rate))
+    return "<tr>%s</tr>" % "".join(cells)
+
+
+def _ranking_note(rows, healing, absorbs, support):
+    """What a ranking's extra columns mean, under the table."""
+    note = ""
+    if support:
+        note = (_("<p class=dim style='margin:10px 0 0;font-size:12px'>"
+                  "<b>Réattribué</b>%s: les dégâts de chacun, moins la part que "
+                  "le jeu crédite aux renforts d'un évocateur (Puissance "
+                  "d'ébène, Prescience, Bombardements...), plus ce qu'il crédite "
+                  "au joueur lui-même. C'est la réattribution de Warcraft Logs, "
+                  "et la seule que le journal permet%s: aucune ligne ne dit ce "
+                  "qu'une Furie sanguinaire, une Infusion de puissance ou un "
+                  "buff de raid a ajouté aux coups des autres. Le total du "
+                  "groupe ne change pas.</p>") % (NBSP, NBSP))
+    if absorbs:
+        note = (_("<p class=dim style='margin:10px 0 0;font-size:12px'>"
+                  "Un bouclier n'est pas un soin dans le journal%s: il "
+                  "empêche des dégâts au lieu d'en rendre. Les deux sont "
+                  "donc comptés à part, et additionnés dans la colonne "
+                  "<b>Somme</b> — c'est ce total-là que les sites en ligne "
+                  "appellent \u00ab soins \u00bb.</p>") % NBSP)
+    moved = sum(player.moved_health for player, _v, _r in rows) if healing else 0
+    if moved:
+        note += (_("<p class=dim style='margin:6px 0 0;font-size:12px'>"
+                   "Le Lien d'esprit ne soigne pas%s: il prend de la santé aux "
+                   "joueurs les plus hauts pour la donner aux plus bas. Les %s "
+                   "qu'il a pris sont déduits des soins de son poseur, comme sur "
+                   "Warcraft Logs, et ne comptent dans les dégâts subis de "
+                   "personne.</p>") % (NBSP, fmt.compact(moved)))
+    return note
+
+
 class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, LayoutsMixin):
     """Writes the whole page for a list of segments."""
 
@@ -218,16 +275,18 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
             return self._write_tabbed()
         if self.layout == "pages":
             return self._write_pages()
-        body = [self._overview()]
-        for segment in self.segments:
-            head, parts = self._segment(segment)
-            body.append(head + "".join(parts.values()))
-        body.append(self._footer())
-        # The head comes last: it carries one CSS rule per spell that a
-        # cast-order chip shows, and those are known only now. Written
-        # beside the target and moved into place in one step: a full disk
-        # or an interrupt halfway leaves the previous report whole.
-        write_atomic(self.out_path, self._head() + "".join(body))
+
+        def body():
+            yield self._overview()
+            for segment in self.segments:
+                head, parts = self._segment(segment)
+                yield head + "".join(parts.values())
+            yield self._footer()
+
+        # The head is made last: it carries one CSS rule per spell that a
+        # cast-order chip shows, and those are known only once every fight
+        # is drawn. `write_streamed` still puts it first in the file.
+        write_streamed(self.out_path, body(), self._head)
         return self.out_path
 
     # -- page ------------------------------------------------------------
@@ -323,7 +382,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         unfinished = sum(1 for segment in keys if not segment.completed)
         wipes = sum(1 for success, fought in pulls.values() if success is False and fought)
         cells = [
-            (_("Taille du fichier"), _("%s Mo") % fmt.one_decimal(self.log.size_bytes / 1048576.0)),
+            (_("Taille du fichier"), fmt.size(self.log.size_bytes)),
             (_("Durée couverte"), format_duration(self.log.duration_ms)),
             (_("Pulls de boss"), str(len(pulls))),
             (_("Wipes de boss"), str(wipes)),
@@ -410,54 +469,16 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
     def _pulls(self, analysis):
         """The pulls inside a run. Only worth showing when there are several."""
         if not analysis.has_several_pulls:
-            # One pull (a boss fight on its own): no table, but who opened
-            # it and who first hit each enemy still say something.
-            block = analysis.blocks[0] if analysis.blocks else None
-            if block is None or not (block.opening or block.first_hits):
-                return ""
-            opened = opening_text(block.opening)
-            return "<div class=card style='font-size:13px'>%s%s</div>" % (
-                opened, first_hits_html(block))
+            return self._single_pull(analysis)
         start = analysis.first_ts or 0
         bosses = analysis.boss_names
         any_boss = any(block.has_boss(bosses) for block in analysis.blocks)
-        rows = []
         peak = max(block.damage_done for block in analysis.blocks) or 1
-        for index, block in enumerate(analysis.blocks, start=1):
-            label = fmt.esc(block.label(boss_names=bosses)) or "<span class=dim>?</span>"
-            if block.has_boss(bosses):
-                label = _boss_pill(block.outcome) + " " + label
-            opened = opening_text(block.opening)
-            if opened:
-                label += "<br><span class=dim style='font-size:12px'>%s</span>" % opened
-            label += first_hits_html(block)
-            boss_cells = ""
-            if any_boss:
-                # Trash is often funnelled onto a boss and killed there:
-                # the two are counted apart so a boss pull is not judged
-                # by the trash that came with it, or the reverse.
-                if block.damage_boss:
-                    boss_cells = "<td class=n>%s</td><td class=n>%s</td>" % (
-                        fmt.compact(block.damage_boss), fmt.compact(block.damage_trash))
-                else:
-                    boss_cells = ("<td class=n><span class=dim>-</span></td>"
-                                  "<td class=n>%s</td>" % fmt.compact(block.damage_trash))
-            rows.append(
-                "<tr><td class=n>%d</td><td class=n>%s</td><td class=n>%s</td>"
-                "%s<td class=n>%s</td>%s<td class=n>%s</td><td class=n>%s</td></tr>"
-                % (
-                    index,
-                    format_duration(block.start_ts - start),
-                    format_duration(block.duration_ms),
-                    _bar_row(label, block.damage_done / peak),
-                    fmt.compact(block.damage_done),
-                    boss_cells,
-                    fmt.compact(block.damage_taken),
-                    ("<span class=dim>0</span>" if not block.deaths else str(block.deaths)),
-                )
-            )
+        rows = [self._pull_row(index, block, start, bosses, any_boss, peak)
+                for index, block in enumerate(analysis.blocks, start=1)]
         boss_heads = (_("<th class=n>sur le boss</th><th class=n>sur les trash</th>")
                       if any_boss else "")
+        dropped, reading = self._pull_notes(analysis)
         return (
             _("<h3>%s</h3><div class=card><table>"
               "<tr><th class=n>#</th><th class=n>Début</th><th class=n>Durée</th>"
@@ -474,26 +495,81 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 "".join(rows),
                 "%d%ss" % (analysis.pull_gap_ms / 1000, NBSP),
                 NBSP,
-                (_(" %s écarté%s, trop petits pour compter (moins d'un millième "
-                   "des dégâts de la course).")
-                 % (analysis.dropped_pulls,
-                    "s" if analysis.dropped_pulls > 1 else ""))
-                if analysis.dropped_pulls else "",
-                _council_note(analysis.window_encounters) + (
-                    _(" Sous chaque pull, le premier acte qui lie le groupe à un ennemi "
-                      "depuis la fin du pull précédent%s: le journal n'a aucune ligne de "
-                      "menace, donc un ennemi pris par proximité ne s'y voit qu'à ce "
-                      "qu'il fait ensuite. Quand c'est l'ennemi qui agit en premier, sa "
-                      "première cible est un fort indice de qui l'a attiré, pas une "
-                      "preuve (une zone au sol laissée par le pack précédent, par "
-                      "exemple)%s; et un soin, un renfort ou une dissipation donné en "
-                      "combat attire l'ennemi vers celui qui l'a donné, si bien que la "
-                      "ligne dit aussi quand cette cible venait d'en donner un. Cette "
-                      "lecture est en bêta. Le premier coup reçu par chaque ennemi, "
-                      "lui, est écrit tel quel dans le journal.") % (NBSP, NBSP)
-                    if any(block.opening for block in analysis.blocks) else ""),
+                dropped,
+                reading,
             )
         )
+
+    @staticmethod
+    def _single_pull(analysis):
+        """One pull (a boss fight on its own): no table, but who opened it
+        and who first hit each enemy still say something."""
+        block = analysis.blocks[0] if analysis.blocks else None
+        if block is None or not (block.opening or block.first_hits):
+            return ""
+        opened = opening_text(block.opening)
+        return "<div class=card style='font-size:13px'>%s%s</div>" % (
+            opened, first_hits_html(block))
+
+    @staticmethod
+    def _pull_row(index, block, start, bosses, any_boss, peak):
+        """One line of the table of pulls."""
+        label = fmt.esc(block.label(boss_names=bosses)) or "<span class=dim>?</span>"
+        if block.has_boss(bosses):
+            label = _boss_pill(block.outcome) + " " + label
+        opened = opening_text(block.opening)
+        if opened:
+            label += "<br><span class=dim style='font-size:12px'>%s</span>" % opened
+        label += first_hits_html(block)
+        boss_cells = ""
+        if any_boss:
+            # Trash is often funnelled onto a boss and killed there:
+            # the two are counted apart so a boss pull is not judged
+            # by the trash that came with it, or the reverse.
+            if block.damage_boss:
+                boss_cells = "<td class=n>%s</td><td class=n>%s</td>" % (
+                    fmt.compact(block.damage_boss), fmt.compact(block.damage_trash))
+            else:
+                boss_cells = ("<td class=n><span class=dim>-</span></td>"
+                              "<td class=n>%s</td>" % fmt.compact(block.damage_trash))
+        return (
+            "<tr><td class=n>%d</td><td class=n>%s</td><td class=n>%s</td>"
+            "%s<td class=n>%s</td>%s<td class=n>%s</td><td class=n>%s</td></tr>"
+            % (
+                index,
+                format_duration(block.start_ts - start),
+                format_duration(block.duration_ms),
+                _bar_row(label, block.damage_done / peak),
+                fmt.compact(block.damage_done),
+                boss_cells,
+                fmt.compact(block.damage_taken),
+                ("<span class=dim>0</span>" if not block.deaths else str(block.deaths)),
+            )
+        )
+
+    @staticmethod
+    def _pull_notes(analysis):
+        """(what was dropped, how to read the openers) under the table of pulls."""
+        dropped = ""
+        if analysis.dropped_pulls:
+            many = "s" if analysis.dropped_pulls > 1 else ""
+            dropped = (_(" %s écarté%s, trop petit%s pour compter (moins d'un millième "
+                         "des dégâts de la course).") % (analysis.dropped_pulls, many, many))
+        reading = _council_note(analysis.window_encounters)
+        if any(block.opening for block in analysis.blocks):
+            reading += (
+                _(" Sous chaque pull, le premier acte qui lie le groupe à un ennemi "
+                  "depuis la fin du pull précédent%s: le journal n'a aucune ligne de "
+                  "menace, donc un ennemi pris par proximité ne s'y voit qu'à ce "
+                  "qu'il fait ensuite. Quand c'est l'ennemi qui agit en premier, sa "
+                  "première cible est un fort indice de qui l'a attiré, pas une "
+                  "preuve (une zone au sol laissée par le pack précédent, par "
+                  "exemple)%s; et un soin, un renfort ou une dissipation donné en "
+                  "combat attire l'ennemi vers celui qui l'a donné, si bien que la "
+                  "ligne dit aussi quand cette cible venait d'en donner un. Cette "
+                  "lecture est en bêta. Le premier coup reçu par chaque ennemi, "
+                  "lui, est écrit tel quel dans le journal.") % (NBSP, NBSP))
+        return dropped, reading
 
     def _ranking(self, analysis, key, title, rate_label):
         # Everyone, not the first twenty: a real heroic encounter had 21
@@ -520,66 +596,19 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
             rows = rows + [(player, 0, 0.0) for player in analysis.players.values()
                            if player.support_damage and player.guid not in listed]
         peak = rows[0][1]
-        lines = []
-        for player, value, rate in rows:
-            extra = ""
-            if healing and player.overheal_rate:
-                extra = (_(" <span class=dim>(%s de surguérison)</span>")
-                         % fmt.percent(player.overheal_rate))
-            cells = [
-                _bar_row(
-                    "<span class=name>%s</span>%s" % (fmt.esc(player.short_name), extra),
-                    value / peak if peak else 0,
-                ),
-                "<td class=n>%s</td>" % fmt.compact(value),
-            ]
-            if absorbs:
-                cells.append("<td class=n>%s</td>" % (
-                    fmt.compact(player.absorb_done) if player.absorb_done
-                    else "<span class=dim>-</span>"))
-                cells.append("<td class=n>%s</td>"
-                             % fmt.compact(value + player.absorb_done))
-            if support:
-                cells.append("<td class=n>%s</td>" % fmt.compact(
-                    value - player.support_received + player.support_damage))
-            cells.append("<td class=n>%s</td>" % fmt.compact(rate))
-            lines.append("<tr>%s</tr>" % "".join(cells))
+        lines = [_ranking_row(player, value, rate, peak, healing, absorbs, support)
+                 for player, value, rate in rows]
         heads = _("<th>Joueur</th><th class=n>Total</th>")
         if absorbs:
             heads += _("<th class=n>Absorbé</th><th class=n>Somme</th>")
         if support:
             heads += _("<th class=n>Réattribué</th>")
         heads += "<th class=n>%s</th>" % fmt.esc(rate_label)
-        note = ""
-        if support:
-            note = (_("<p class=dim style='margin:10px 0 0;font-size:12px'>"
-                      "<b>Réattribué</b>%s: les dégâts de chacun, moins la part que "
-                      "le jeu crédite aux renforts d'un évocateur (Puissance "
-                      "d'ébène, Prescience, Bombardements...), plus ce qu'il crédite "
-                      "au joueur lui-même. C'est la réattribution de Warcraft Logs, "
-                      "et la seule que le journal permet%s: aucune ligne ne dit ce "
-                      "qu'une Furie sanguinaire, une Infusion de puissance ou un "
-                      "buff de raid a ajouté aux coups des autres. Le total du "
-                      "groupe ne change pas.</p>") % (NBSP, NBSP))
-        if absorbs:
-            note = (_("<p class=dim style='margin:10px 0 0;font-size:12px'>"
-                      "Un bouclier n'est pas un soin dans le journal%s: il "
-                      "empêche des dégâts au lieu d'en rendre. Les deux sont "
-                      "donc comptés à part, et additionnés dans la colonne "
-                      "<b>Somme</b> — c'est ce total-là que les sites en ligne "
-                      "appellent \u00ab soins \u00bb.</p>") % NBSP)
-        moved = sum(player.moved_health for player, _v, _r in rows) if healing else 0
-        if moved:
-            note += (_("<p class=dim style='margin:6px 0 0;font-size:12px'>"
-                       "Le Lien d'esprit ne soigne pas%s: il prend de la santé aux "
-                       "joueurs les plus hauts pour la donner aux plus bas. Les %s "
-                       "qu'il a pris sont déduits des soins de son poseur, comme sur "
-                       "Warcraft Logs, et ne comptent dans les dégâts subis de "
-                       "personne.</p>") % (NBSP, fmt.compact(moved)))
         return (
             "<div><h3>%s</h3><div class=card><table>"
             "<tr>%s</tr>%s</table>%s</div></div>"
-            % (fmt.esc(title), heads, "".join(lines), note)
+            % (fmt.esc(title), heads, "".join(lines),
+               _ranking_note(rows, healing, absorbs, support))
         )
 
     def _taken(self, analysis):
@@ -707,7 +736,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
 
     def _footer(self):
         problems = self.log.problems
-        unknown = ", ".join(sorted(problems.unknown_subevents)) or "aucun"
+        unknown = ", ".join(sorted(problems.unknown_subevents)) or _("aucun")
         return (
             _("<footer>LogsWoW %s &middot; lecture locale de <code>%s</code><br>"
               "Disposition détectée dans ce fichier&nbsp;: bloc avancé de %d champs, "
@@ -720,8 +749,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 __version__,
                 fmt.esc(os.path.basename(self.log.path)),
                 self.log.layout.advanced_width,
-                _("présent") if self.log.layout.has_base_amount else "absent",
-                _("présent") if self.log.layout.hide_caster else "absent",
+                _("présent") if self.log.layout.has_base_amount else _("absent"),
+                _("présent") if self.log.layout.hide_caster else _("absent"),
                 fmt.number(problems.total),
                 fmt.esc(unknown),
             )

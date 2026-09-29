@@ -81,6 +81,8 @@ TEXTS = {
         "language of the interface and the report: auto (the system's, English for a language with no translation), fr, en, de or es",
     'Lit un journal de combat de World of Warcraft, en local, sans rien envoyer nulle part.':
         'Reads a World of Warcraft combat log, locally, without sending anything anywhere.',
+    'sans la progression ni le résumé : seulement les erreurs':
+        'no progress or summary: errors only',
     'chemin du fichier WoWCombatLog.txt':
         'path to the WoWCombatLog.txt file',
     "année, pour les journaux dont l'horodatage n'en porte pas":
@@ -122,8 +124,8 @@ TEXTS = {
     # diagnose
     'Fichier    : %s':
         'File       : %s',
-    'Taille     : %.1f Mo, %d lignes, %d événements':
-        'Size       : %.1f MB, %d lines, %d events',
+    'Taille     : %s, %s lignes, %s événements':
+        'Size       : %s, %s lines, %s events',
     'Durée      : %s':
         'Duration   : %s',
     'DISPOSITION MESURÉE DANS CE FICHIER':
@@ -136,6 +138,8 @@ TEXTS = {
         '  baseAmount field    : %s  (position of the -1: %s)',
     'présent':
         'present',
+    'absent':
+        'absent',
     '  champ hideCaster    : %s  (%s)':
         '  hideCaster field    : %s  (%s)',
     '  journalisation avancée : %s':
@@ -296,6 +300,8 @@ TEXTS = {
     "nom d'événement illisible":
         'unreadable event name',
     # report
+    'aucun':
+        'none',
     "<span class='pill ok'>boss &middot; réussite</span>":
         "<span class='pill ok'>boss &middot; kill</span>",
     "<span class='pill ko'>boss &middot; échec</span>":
@@ -328,8 +334,6 @@ TEXTS = {
         '<h1>Combat report</h1><p class=sub>%s &middot; %s lines, %s events &middot; generated on %s by LogsWoW %s</p><div class=note><b>Everything stayed on this machine.</b> This report was produced by reading the log file directly: nothing sent, no account, no connection. The page stands alone and opens offline.</div><div class=grid>%s</div><h2>Fights</h2><div class=card><table><tr><th>Fight</th><th class=n>Duration</th><th class=n>Damage</th><th class=n>Healing</th><th class=n>Pulls</th><th class=n>Players</th><th class=n>Deaths</th></tr>%s</table></div>',
     'Taille du fichier':
         'File size',
-    '%s\u202fMo':
-        '%s\u202fMB',
     'Durée couverte':
         'Time covered',
     'Pulls de boss':
@@ -358,8 +362,8 @@ TEXTS = {
         '<th class=n>on the boss</th><th class=n>on trash</th>',
     "<h3>%s</h3><div class=card><table><tr><th class=n>#</th><th class=n>Début</th><th class=n>Durée</th><th>Ce qui a été engagé</th><th class=n>Dégâts</th>%s<th class=n>Subis</th><th class=n>Morts</th></tr>%s</table><p class=dim style='margin:10px 0 0;font-size:12px'>Un pull se termine quand le groupe passe plus de %s sans infliger ni subir de dégâts. Un groupe qui enchaîne les packs sans pause les verra donc regroupés%s: <code>--pull-gap</code> change ce seuil, sauf à l'intérieur d'une rencontre de boss, qui reste toujours un seul pull.%s%s</p></div>":
         "<h3>%s</h3><div class=card><table><tr><th class=n>#</th><th class=n>Start</th><th class=n>Duration</th><th>What was engaged</th><th class=n>Damage</th>%s<th class=n>Taken</th><th class=n>Deaths</th></tr>%s</table><p class=dim style='margin:10px 0 0;font-size:12px'>A pull ends when the group goes more than %s without dealing or taking damage. A group that chains packs without a pause will therefore see them grouped%.0s: <code>--pull-gap</code> changes that threshold, except inside a boss encounter, which always stays one pull.%s%s</p></div>",
-    " %s écarté%s, trop petits pour compter (moins d'un millième des dégâts de la course).":
-        " %s dropped%.0s, too small to count (less than a thousandth of the run's damage).",
+    " %s écarté%s, trop petit%s pour compter (moins d'un millième des dégâts de la course).":
+        " %s dropped%.0s, too small%.0s to count (less than a thousandth of the run's damage).",
     " Sous chaque pull, le premier acte qui lie le groupe à un ennemi depuis la fin du pull précédent%s: le journal n'a aucune ligne de menace, donc un ennemi pris par proximité ne s'y voit qu'à ce qu'il fait ensuite. Quand c'est l'ennemi qui agit en premier, sa première cible est un fort indice de qui l'a attiré, pas une preuve (une zone au sol laissée par le pack précédent, par exemple)%s; et un soin, un renfort ou une dissipation donné en combat attire l'ennemi vers celui qui l'a donné, si bien que la ligne dit aussi quand cette cible venait d'en donner un. Cette lecture est en bêta. Le premier coup reçu par chaque ennemi, lui, est écrit tel quel dans le journal.":
         ' Under each pull, the first act linking the group and an enemy since the previous pull ended%.0s: the log has no threat line, so an enemy drawn by proximity only shows in what it does next. When the enemy acts first, its first target is a strong hint of who drew it, not a proof (a ground effect left by the previous pack, for instance)%.0s; and a heal, a buff or a dispel given in combat draws the enemy towards whoever gave it, so the line also says when that target had just given one. This reading is in beta. The first hit each enemy took, on the other hand, is written as such in the log.',
     ' <span class=dim>(%s de surguérison)</span>':
@@ -570,6 +574,8 @@ TEXTS = {
     "<h3>Ce que le groupe a empêché</h3><div class=card><p class=dim style='margin:0 0 10px;font-size:12.5px'>%s sorts commencés par l'ennemi%s:</p><table><tr><th>Issue</th><th class=n>Nombre</th><th class=n>Part</th></tr>%s</table>%s<p class=dim style='margin:10px 0 0;font-size:12px'>Un sort instantané n'apparaît pas ici%s: seuls ceux qui ont un temps d'incantation laissent une trace. La dernière ligne regroupe tout le reste, contrôle compris%s: le journal ne dit nulle part qu'un sort est un étourdissement, donc rien ici ne prétend le savoir.</p></div>":
         "<h3>What the group prevented</h3><div class=card><p class=dim style='margin:0 0 10px;font-size:12.5px'>%s spells begun by the enemy%.0s:</p><table><tr><th>Outcome</th><th class=n>Count</th><th class=n>Share</th></tr>%s</table>%s<p class=dim style='margin:10px 0 0;font-size:12px'>An instant spell does not appear here%.0s: only those with a cast time leave a trace. The last row gathers all the rest, crowd control included%.0s: the log never says a spell is a stun, so nothing here claims to know.</p></div>",
     # report_schools
+    'autres %s':
+        'other %s',
     'Physique':
         'Physical',
     'Magique':
@@ -612,6 +618,11 @@ TEXTS = {
         'Arcane',
     'école inconnue':
         'unknown school',
+    # models
+    'et %d autre(s)':
+        'and %d more',
+    'autres':
+        'others',
     # segment
     'Normal':
         'Normal',

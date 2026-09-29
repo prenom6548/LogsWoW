@@ -3,6 +3,54 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.13.0 — 2026-09-29
+
+L'audit complet de la 0.12.1, vérifié sur votre journal de 364 Mo du
+29 septembre.
+
+**Correction : les pauses d'un joueur qui a un familier étaient
+cachées.** Chaque sort lancé par un familier, une invocation ou un totem
+mettait fin à la pause de son maître : un chasseur resté quarante
+secondes sans rien lancer, pendant que son familier mordait chaque
+seconde, affichait zéro seconde sans action. Seuls les sorts du joueur
+lui-même comptent maintenant pour le « Temps sans action » et les plus
+longues pauses ; ceux de ses invocations restent comptés, à part, dans
+les sorts lancés. Sur votre journal, 14 joueurs sur 25 changent ; le
+plus concerné passe de 283 s à 458 s sans action sur une clé.
+
+**Correction : en JcJ, l'adversaire était compté dans le groupe.** Dans
+une arène ou un champ de bataille, le journal écrit les joueurs d'en face
+hors du groupe et hostiles ; ils étaient traités en coéquipiers :
+l'adversaire figurait dans le classement, chaque coup échangé comptait
+comme un coup reçu d'un allié, et les dégâts infligés restaient à zéro.
+Ce sont maintenant des ennemis, avec leurs familiers, leurs incantations
+(qu'une interruption peut couper) et leurs morts. Un membre du groupe
+sous contrôle mental, ou qui en sort un instant, reste du groupe. Les
+matchs ne sont pas encore découpés. Sur votre journal de donjon, aucun
+chiffre ne bouge.
+
+**Des mots restaient en français dans les rapports en anglais, allemand
+et espagnol** : « et 3 autre(s) » dans le tableau des pulls, « autres »
+dans la répartition par école et parmi les cibles d'un soigneur,
+« aucun » et « absent » en bas de page et dans `diagnose`, « Mo » dans
+`where`. Tout est traduit.
+
+**Une taille de fichier s'écrit partout de la même façon.** La fenêtre
+comptait un mégaoctet pour un million d'octets ; la page, `diagnose` et
+`where` pour 1 048 576 : le même journal y faisait 364,4 Mo et 347,5 Mo.
+C'est partout un million d'octets, comme le disent les unités et comme
+l'affiche un gestionnaire de fichiers sous Linux. `diagnose` écrit aussi
+ses nombres à la française (« 1 121 188 lignes »).
+
+**Moins de mémoire pour écrire le rapport.** La page était assemblée
+entière en mémoire, plusieurs fois, avant d'être écrite ; elle part
+maintenant sur le disque combat par combat. Sur votre journal : 252 Mo
+→ 89 Mo au plus fort pour la présentation en onglets, 149 Mo → 88 Mo
+pour la page longue. La page produite est identique à l'octet près.
+
+Plus petit : `-q` a sa ligne d'aide ; « 1 écarté, trop petit » s'accorde
+au singulier ; les tests passent aussi sous Python 3.14.
+
 ## 0.12.1 — 2026-09-29
 
 **Correction : le seuil « dans les temps » était trop exigeant de +2 à

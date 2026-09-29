@@ -57,7 +57,7 @@ ships one single file, `logswow-<version>.pyz`, which runs as it is:
 Nothing to install. Python 3.8 or newer, and that is all: no
 `pip install`, no dependency, no network. The package is copied or
 cloned, not installed; it deliberately has neither `pyproject.toml` nor
-`setup.py`. The tests pass on Python 3.8 to 3.13; prefer a version that is
+`setup.py`. The tests pass on Python 3.8 to 3.14; prefer a version that is
 still maintained (3.10 or newer in 2026), older ones no longer receive
 security fixes.
 
@@ -208,6 +208,11 @@ misread file would be worse than no report at all.
 - **Per enemy**, the same way: units sharing a name are grouped, with
   what they dealt and to whom, what they took and from whom, the spells
   they cast, and how many were killed.
+- **PvP, in part**: in an arena or a battleground, the players of the
+  other side (outside the group and hostile, as the log writes them) are
+  enemies, never the group; a group member under a mind control stays in
+  the group. Matches are not cut out yet: with no encounter and no key in
+  the file, the whole log is one "session".
 - **Spell names are links to Wowhead**, in your machine's language.
   `--wowhead en` forces a language, `--wowhead off` removes the links.
   Nothing is loaded when the page opens: a link is followed only if you

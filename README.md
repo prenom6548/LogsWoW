@@ -56,7 +56,7 @@ fournit un fichier unique, `logswow-<version>.pyz`, qui se lance tel quel :
 Rien à installer. Python 3.8 ou plus récent, et c'est tout : pas de
 `pip install`, aucune dépendance, aucun réseau. Le paquet se copie ou se
 clone, il ne s'installe pas ; il n'a donc volontairement ni
-`pyproject.toml` ni `setup.py`. Les tests passent de Python 3.8 à 3.13 ;
+`pyproject.toml` ni `setup.py`. Les tests passent de Python 3.8 à 3.14 ;
 préférez une version encore maintenue (3.10 ou plus récente en 2026), les
 plus anciennes ne reçoivent plus de correctifs de sécurité.
 
@@ -220,6 +220,12 @@ lu serait pire que pas de rapport du tout.
 - **Par ennemi**, de la même façon : les unités portant le même nom sont
   regroupées, avec ce qu'elles infligent et à qui, ce qu'elles ont subi
   et de qui, les sorts qu'elles ont lancés, et combien ont été tuées.
+- **Le JcJ, en partie** : dans une arène ou un champ de bataille, les
+  joueurs d'en face (hors du groupe et hostiles, comme le journal les
+  écrit) sont des ennemis, jamais le groupe ; un membre du groupe sous un
+  contrôle mental reste du groupe. Les matchs ne sont pas encore découpés :
+  sans rencontre ni clé dans le fichier, tout le journal forme une seule
+  « session ».
 - **Les noms de sorts sont des liens vers Wowhead**, dans la langue de
   votre machine. `--wowhead fr` force une langue, `--wowhead off` retire
   les liens. Rien n'est chargé à l'ouverture : un lien n'est suivi que si

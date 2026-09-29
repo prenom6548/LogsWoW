@@ -60,7 +60,7 @@ Mint) y macOS están en [`INSTALL.es.md`](INSTALL.es.md).** Cada versión public
 Nada que instalar. Python 3.8 o posterior, y nada más: ningún
 `pip install`, ninguna dependencia, ninguna red. El paquete se copia o
 se clona, no se instala; a propósito no tiene ni `pyproject.toml` ni
-`setup.py`. Las pruebas pasan con Python 3.8 a 3.13; prefiera una versión
+`setup.py`. Las pruebas pasan con Python 3.8 a 3.14; prefiera una versión
 que aún reciba mantenimiento (3.10 o posterior en 2026), las antiguas ya
 no reciben correcciones de seguridad.
 
@@ -222,6 +222,12 @@ que ningún informe.
 - **Por enemigo**, del mismo modo: las unidades con el mismo nombre se
   agrupan, con lo que infligieron y a quién, lo que recibieron y de quién,
   los hechizos que lanzaron y cuántas murieron.
+- **El JcJ, en parte**: en una arena o un campo de batalla, los
+  jugadores del otro bando (fuera del grupo y hostiles, tal como el
+  registro los escribe) son enemigos, nunca el grupo; un miembro del grupo
+  bajo un control mental sigue en el grupo. Las partidas aún no se
+  separan: sin encuentro ni llave en el archivo, todo el registro forma
+  una sola «sesión».
 - **Los nombres de hechizos son enlaces a Wowhead**, en el idioma de su
   equipo. `--wowhead es` impone un idioma, `--wowhead off` quita los
   enlaces. No se carga nada al abrir la página: un enlace solo se sigue si

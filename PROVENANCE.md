@@ -7,7 +7,9 @@ is documentation, not legal advice. That history was rewritten once, on
 2026-09-28, by the owner, to remove a real player's identifier and
 character name from its first commits: every commit hash from before
 that date changed, and nothing about authorship did (messages, trailers,
-authors and dates were kept).
+authors and dates were kept). The old commits are no longer on any
+branch or tag, but GitHub still serves them by their hash until its
+support purges them (found by the 2026-09-29 audit).
 
 ## Authorship
 
@@ -123,7 +125,9 @@ directory only; the package still opens no socket, and the fetched data
 was deleted after the comparison, as were the credentials. Only facts
 about the file format came out of it -- which lines the site counts --
 and they were each re-measured on the logs themselves before any code
-changed. What they taught is recorded here as
+changed. On 2026-09-29 the owner attached one more, a Mythic+ night of
+that day, to the audit of 0.12.1; it was read the same way, in the
+scratch directory only, and deleted after. What they taught is recorded here as
 counts and totals, in `CLAUDE.md` and in commit messages. A combat log
 carries the character names, realms and performance of **everyone in
 the group**, who did not agree to anything. `examples/exemple-

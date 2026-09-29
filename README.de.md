@@ -63,7 +63,7 @@ Nichts zu installieren. Python 3.8 oder neuer, sonst nichts: kein
 `pip install`, keine Abhängigkeit, kein Netzwerk. Das Paket wird kopiert
 oder geklont, nicht installiert; es hat absichtlich weder
 `pyproject.toml` noch `setup.py`. Die Tests laufen unter Python 3.8 bis
-3.13; bevorzugen Sie eine noch gepflegte Version (3.10 oder neuer im
+3.14; bevorzugen Sie eine noch gepflegte Version (3.10 oder neuer im
 Jahr 2026), ältere erhalten keine Sicherheitskorrekturen mehr.
 
 Im Spiel zwei Einstellungen, einmalig:
@@ -239,6 +239,12 @@ wäre schlimmer als gar kein Bericht.
   gruppiert, mit dem, was sie verursacht haben und bei wem, was sie
   erlitten haben und von wem, den gewirkten Zaubern und wie viele getötet
   wurden.
+- **PvP, teilweise**: In einer Arena oder auf einem Schlachtfeld sind die
+  Spieler der Gegenseite (außerhalb der Gruppe und feindlich, so wie das
+  Log sie schreibt) Gegner, nie die Gruppe; ein Gruppenmitglied unter
+  Gedankenkontrolle bleibt in der Gruppe. Matches werden noch nicht
+  getrennt: Ohne Begegnung und ohne Schlüssel in der Datei ist das ganze
+  Log eine einzige „Sitzung“.
 - **Zaubernamen sind Links zu Wowhead**, in der Sprache Ihres Rechners.
   `--wowhead de` erzwingt eine Sprache, `--wowhead off` entfernt die
   Links. Beim Öffnen der Seite wird nichts geladen: Ein Link wird nur

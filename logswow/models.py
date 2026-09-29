@@ -9,6 +9,12 @@ ledger. Nothing here reads a line of the log.
 
 from collections import deque
 
+from .i18n import N_, _
+
+# The one row a healer's targets fold into past `Player.healing_to`'s
+# bound: a key the invariant checker knows, translated where it is shown.
+OTHER_TARGETS = N_("autres")
+
 # How many hits and heals a death chain keeps, per player.
 DEATH_CHAIN_LENGTH = 12
 
@@ -211,7 +217,7 @@ class CombatBlock:
         for name, guids in others[:room]:
             pieces.append("%s x%d" % (name, len(guids)) if len(guids) > 1 else name)
         if len(others) > room:
-            pieces.append("et %d autre(s)" % (len(others) - room))
+            pieces.append(_("et %d autre(s)") % (len(others) - room))
         return ", ".join(pieces)
 
     def boss_label(self, boss_names):

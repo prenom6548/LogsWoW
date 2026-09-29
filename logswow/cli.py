@@ -361,7 +361,7 @@ def command_where(_args):
         except OSError:
             continue
         for _mtime, size, name in sorted(entries, reverse=True)[:10]:
-            print("   %-44s %6.1f Mo" % (name, size / 1048576.0))
+            print("   %-44s %10s" % (name, fmt.size(size, " ")))
     return 0
 
 
@@ -430,8 +430,7 @@ def requested_language(argv):
 
 def _count(value):
     """25 361 906 in a French terminal, 25,361,906 in an English one, 25.361.906 in German."""
-    # A plain space in a terminal: not every console font has the narrow one.
-    return "{:,}".format(value).replace(",", fmt.style().thousands.replace(fmt.NBSP, " "))
+    return fmt.plain_number(value)
 
 
 def build_parser():
@@ -457,7 +456,8 @@ def build_parser():
                                help=_("année, pour les journaux dont l'horodatage n'en porte pas"))
         if not analyses:
             return subparser
-        subparser.add_argument("-q", "--quiet", action="store_true")
+        subparser.add_argument("-q", "--quiet", action="store_true",
+                               help=_("sans la progression ni le résumé : seulement les erreurs"))
         subparser.add_argument(
             "--pull-gap",
             type=_seconds,

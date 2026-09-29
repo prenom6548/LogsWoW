@@ -7,6 +7,55 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.13.0 — 2026-09-29
+
+La auditoría completa de la 0.12.1, comprobada en su registro de 364 MB
+del 29 de septiembre.
+
+**Corrección: las pausas de un jugador con mascota quedaban ocultas.**
+Cada hechizo lanzado por una mascota, una invocación o un tótem ponía fin
+a la pausa de su dueño: un cazador que no lanzó nada durante cuarenta
+segundos, mientras su mascota mordía cada segundo, mostraba cero segundos
+sin acción. Ahora solo cuentan los hechizos del propio jugador para el
+«Tiempo sin acción» y las pausas más largas; los de sus invocaciones
+siguen contados, aparte, entre los hechizos lanzados. En su registro
+cambian 14 jugadores de 25; el más afectado pasa de 283 s a 458 s sin
+acción en una llave.
+
+**Corrección: en JcJ, el adversario se contaba en el grupo.** En una
+arena o un campo de batalla, el registro escribe a los jugadores del
+otro bando fuera del grupo y hostiles; se trataban como compañeros: el
+adversario figuraba en la clasificación, cada golpe intercambiado
+contaba como recibido de un aliado, y el daño infligido se quedaba en
+cero. Ahora son enemigos, con sus mascotas, sus lanzamientos (que una
+interrupción puede cortar) y sus muertes. Un miembro del grupo bajo un
+control mental, o que sale del grupo un momento, sigue en el grupo. Las
+partidas aún no se separan. En su registro de mazmorra no cambia ninguna
+cifra.
+
+**Algunas palabras seguían en francés en los informes en inglés, alemán
+y español**: «et 3 autre(s)» en la tabla de pulls, «autres» en el
+reparto por escuela y entre los objetivos de un sanador, «aucun» y
+«absent» al pie de la página y en `diagnose`, «Mo» en `where`. Todo está
+traducido.
+
+**Un tamaño de archivo se escribe igual en todas partes.** La ventana
+contaba un megabyte como un millón de bytes; la página, `diagnose` y
+`where` como 1.048.576: el mismo registro medía allí 364,4 MB y aquí
+347,5 MB. Ahora es un millón de bytes en todas partes, como dice el
+nombre de la unidad y como lo muestra un gestor de archivos en Linux.
+`diagnose` escribe también sus números al estilo de su idioma
+(«1.121.188 líneas»).
+
+**Menos memoria para escribir el informe.** La página se montaba entera
+en memoria, varias veces, antes de escribirse; ahora va al disco combate
+a combate. En su registro: 252 MB → 89 MB en el pico para la vista con
+pestañas, 149 MB → 88 MB para la página larga. La página escrita es
+idéntica byte a byte.
+
+Más pequeño: `-q` tiene su línea de ayuda; «1 descartado, demasiado
+pequeño» concuerda en singular; las pruebas pasan también con Python 3.14.
+
 ## 0.12.1 — 2026-09-29
 
 **Corrección: el umbral «a tiempo» era demasiado exigente de +2 a +11.**

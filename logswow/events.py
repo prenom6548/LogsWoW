@@ -134,11 +134,18 @@ BARE_EVENTS = frozenset(
     }
 )
 
+# Mine, my party, my raid: the three bits of a unit that is in the group.
+FLAGS_IN_GROUP = 0x00000007
+FLAG_AFFILIATION_OUTSIDER = 0x00000008
 FLAG_REACTION_FRIENDLY = 0x00000010
 FLAG_REACTION_HOSTILE = 0x00000040
 FLAG_TYPE_PLAYER = 0x00000400
 FLAG_TYPE_PET = 0x00001000
 FLAG_TYPE_GUARDIAN = 0x00002000
+# Outside the group *and* hostile: an opposing player in an arena or a
+# battleground. A raid member under a boss's mind control turns hostile
+# but stays in the raid, so the two bits are needed together.
+FLAGS_OPPONENT = FLAG_AFFILIATION_OUTSIDER | FLAG_REACTION_HOSTILE
 
 
 def _hex(value):

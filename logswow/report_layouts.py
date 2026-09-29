@@ -18,6 +18,7 @@ fetches nothing holds for all of them.
 """
 
 import os
+import shutil
 
 from . import fmt
 from .i18n import N_, _
@@ -162,6 +163,40 @@ def write_atomic(path, text):
             os.remove(partial)
 
 
+def write_streamed(path, body, head):
+    """Write `head()` and then every piece of `body`, never the page at once.
+
+    The head is known last -- it carries a CSS rule for every spell a
+    cast-order chip shows -- yet it opens the file. Assembling the whole
+    page to put it first meant holding it several times over: the sections,
+    their join, the frame around them, the head in front, each a copy of a
+    page of tens of megabytes. On the owner's 364 MB night the tabbed
+    report peaked at 252 MB for a 20 MB page, the reading itself at 70 MB;
+    written this way, at 89 MB.
+    The pieces now go to a spool beside the target as they are made, and
+    the page is the head followed by the spool: the same bytes, written in
+    the same two steps -- beside the target, then moved into place -- so a
+    full disk or an interrupt halfway still leaves the previous report whole.
+    """
+    partial = path + ".partiel"
+    spool = path + ".partiel-corps"
+    try:
+        # newline="" both ways: the spool keeps the text as it was made,
+        # and only the page itself translates line ends, as it always did.
+        with open(spool, "w+", encoding="utf-8", newline="") as spooled:
+            for piece in body:
+                spooled.write(piece)
+            spooled.seek(0)
+            with open(partial, "w", encoding="utf-8") as handle:
+                handle.write(head())
+                shutil.copyfileobj(spooled, handle, 1 << 20)
+        os.replace(partial, path)
+    finally:
+        for leftover in (partial, spool):
+            if os.path.exists(leftover):
+                os.remove(leftover)
+
+
 def page_name(segment):
     if segment.kind == "pull":
         return "combat-%02d-pull-%02d.html" % (segment.parent.index, segment.number)
@@ -190,8 +225,6 @@ class LayoutsMixin:
         overview = self._overview(link=lambda segment: "<label for=f%d class=name>%s</label>"
                                   % (segment.index, fmt.esc(segment.label)))
         every = views(self.segments)
-        fights = [(segment,) + self._view(segment) for segment in every]
-        footer = self._footer()
         held = contents(self.segments)
         inside = nested(self.segments)
         radios = _("<input type=radio name=f id=f0 class=fsel checked "
@@ -209,15 +242,25 @@ class LayoutsMixin:
             else:
                 entries.append(nav_label(segment))
         nav = _("<label for=f0 class='nv n0'>Vue d'ensemble</label>") + "".join(entries)
-        sections = "<section class='fight v0'>%s</section>" % overview + "".join(
-            "<section class='fight v%d'>%s%s</section>"
-            % (segment.index, head, tabbed_fight(segment.index, parts))
-            for segment, head, parts in fights)
-        body = (_("%s<div class=layout><nav class=side aria-label='Combats'>%s</nav>"
-                  "<main>%s</main></div>%s") % (radios, nav, sections, footer))
+        # The translated frame around the radios, the list, the fights and
+        # the footer, cut at markers so that each fight is written as soon
+        # as it is drawn (`write_streamed`) rather than all held at once.
+        mark = "\x00"
+        frame = (_("%s<div class=layout><nav class=side aria-label='Combats'>%s</nav>"
+                   "<main>%s</main></div>%s") % (mark, mark, mark, mark)).split(mark)
+
+        def body():
+            yield frame[0] + radios + frame[1] + nav + frame[2]
+            yield "<section class='fight v0'>%s</section>" % overview
+            for segment in every:
+                head, parts = self._view(segment)
+                yield ("<section class='fight v%d'>%s%s</section>"
+                       % (segment.index, head, tabbed_fight(segment.index, parts)))
+            yield frame[3] + self._footer() + frame[4]
+
         css = TABS_CSS + tab_rules() + "\n" + fight_rules([0] + [s.index for s in every])
-        page = self._head(extra_css=css, wrap_class="wrap tabs") + body
-        write_atomic(self.out_path, page)
+        write_streamed(self.out_path, body(),
+                       lambda: self._head(extra_css=css, wrap_class="wrap tabs"))
         return self.out_path
 
     def _view(self, segment):
