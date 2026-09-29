@@ -1329,6 +1329,19 @@ timed ones scored 0 to 14 points above `15 x level + 185`, the late one
 61 below (`KEY_SCORE_*` in `segment.py`). One late key is thin evidence,
 so the rule and its numbers are written in the README, and a key with no
 score (the older four-field line) is only "terminée" (`completed`).
+**A table of timers was tried against the logs and set aside.** The owner
+found where MPlusTimer gets the limit: `C_ChallengeMode.GetMapUIInfo`, a
+live in-game API; its SavedVariables keep best times and per-level
+counts, never the limit, and the limit itself sits in the game's CASC
+archives (`MapChallengeMode`), which a stdlib file reader should not
+decode. A published season-2 table (Val Aveuglant 31:00, Allée 34:00...)
+agreed with the score on 13 keys and **called the late run in time**
+(30:23 < 31:00): so either that line is wrong or the timer is not
+compared with this field. The field is not the clock either -- that run
+took 26:46 between START and END lines, the field says 30:23, likely the
+death penalties. The owner chose to keep the score and to read the limit
+in game on the next run; a table would come back only if it gets every
+known key right.
 The fixture's key line gained a score; the synthetic stress key has
 none and turned "terminée", the only figure the snapshot moved.
 
