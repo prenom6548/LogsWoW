@@ -685,6 +685,44 @@ TEXTS = {
     # specs
     'spe %d':
         'espec. %d',
+    'Touché':
+        'Impacto',
+    'Absorbé entièrement':
+        'Absorbido por completo',
+    'Paré':
+        'Parado',
+    'Esquivé':
+        'Esquivado',
+    'Raté':
+        'Fallado',
+    'Bloqué entièrement':
+        'Bloqueado por completo',
+    'Dévié':
+        'Desviado',
+    'Insensible':
+        'Inmune',
+    'Résisté':
+        'Resistido',
+    'Renvoyé':
+        'Reflejado',
+    "Hors d'atteinte":
+        'Fuera de alcance',
+    'Les coups de mêlée reçus':
+        'Golpes cuerpo a cuerpo recibidos',
+    'dont critiques':
+        'de ellos críticos',
+    'dont bloqués en partie':
+        'de ellos bloqueados en parte',
+    '<table><tr><th>Issue</th><th class=n>Coups</th><th class=n>Part</th></tr>%s</table>':
+        '<table><tr><th>Resultado</th><th class=n>Golpes</th><th class=n>Parte</th></tr>%s</table>',
+    '<p><b>%s</b> des coups évités (parés, esquivés ou ratés).</p>':
+        '<p><b>%s</b> de los golpes evitados (parados, esquivados o fallados).</p>',
+    '<p><b>%s</b> des coups qui ont touché venaient de derrière (%s sur %s dont la position est connue).</p>':
+        '<p><b>%s</b> de los golpes que impactaron llegaron por la espalda (%s de %s con posición conocida).</p>',
+    ' Contrôle sur ce combat%s: le jeu ne laisse ni parer ni esquiver un coup venu de derrière, et %s des %s parades et esquives placées tombent bien devant.':
+        ' Control en este combate%.0s: el juego no permite parar ni esquivar un golpe por la espalda, y el %s de las %s paradas y esquivas situadas cae delante.',
+    "<p class=dim style='font-size:12px;margin:0'>Estimation fiable, mais pas une donnée écrite, et limitée à la mêlée%s: le journal ne dit pas d'où vient un coup. LogsWoW le déduit de la position de l'attaquant et de l'orientation du joueur, que le journal donne ligne par ligne.%s</p>":
+        "<p class=dim style='font-size:12px;margin:0'>Una estimación fiable, pero no un dato escrito, y limitada al cuerpo a cuerpo%.0s: el registro no dice de dónde viene un golpe. LogsWoW lo deduce de la posición del atacante y de la orientación del jugador, que el registro da línea a línea.%s</p>",
 }
 
 # The French nouns `fmt.plural` agrees, and their Spanish forms.

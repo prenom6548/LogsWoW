@@ -6,6 +6,24 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.14.0 — 2026-09-29
+
+**Melee swings taken, for the tank above all.** The panel of every
+player the enemy swung at ten times or more has a new section: how many
+swings hit (critical ones among them), how many were fully absorbed,
+parried, dodged, missed or blocked, and the share avoided. All of that
+the log writes.
+
+It also gives the share of the swings that landed which **came from
+behind**. There the log says nothing: LogsWoW infers it from the
+attacker's position and the player's facing, which the log gives line
+by line. It is a reliable estimate, not something the log writes, and
+limited to melee; the page says so, with a check on the fight itself:
+the game allows no parry or dodge of a swing from behind, and on the
+owner's four keys of 29 September, 97 to 98% of the tank's parries and
+dodges do fall in front. The same tank took 24 to 34% of their hits
+from behind, depending on the key. No other figure changes.
+
 ## 0.13.1 — 2026-09-29
 
 **The window's progress bar can be seen, and says the time left.** It

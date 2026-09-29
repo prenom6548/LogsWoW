@@ -1473,6 +1473,41 @@ tagged source byte for byte; no secret anywhere in the history (three
 scanners); tests green on Python 3.8 to 3.14, and with a display
 (coverage 91%).
 
+### Melee swings taken, and the one estimate the page makes (2026-09-29)
+
+The owner, a tank, asked what the file says about how a hit landed:
+from behind, dodged, parried, missed, glancing, resisted. Measured on
+their 364 MB night before anything was built. **Written by the file**:
+the miss type of every `SWING_MISSED` (on the group: ABSORB 4,631,
+PARRY 3,785, MISS 528, DODGE 313, IMMUNE 177, DEFLECT 3, REFLECT 1),
+and on a hit the critical flag and a blocked amount (3 partial blocks
+in the night). **Written but dead**: `resisted` is always 0, `glancing`
+and `crushing` always nil -- mechanics the game removed. **Not
+written**: where a swing came from. Each advanced block gives the
+position and the facing of the unit it describes, so a swing is placed
+from the victim's facing and the attacker's position, each from that
+unit's latest line no older than `POSITION_STALE_MS` (1.5 s) -- a
+`SWING_MISSED` carries no block at all. Of four readings of the facing
+angle, one put 97% of parries and 96% of dodges in front, where the game
+allows no other; the three others gave 45-57%, a coin toss. That check
+is on the page, per fight, beside the owner's own words for what the
+figure is: an estimate, reliable, not written by the log, melee only.
+
+`Player.melee_taken` counts the swings the enemy aimed at a player
+(`_note_melee_taken`): "hit" from the one melee line of a hit that
+counts in damage taken, the file's miss types, and among the hits
+"crit", "partial_block" and "front"/"behind"/"unplaced";
+"avoided_front"/"avoided_behind" place the parries and dodges. It is
+kept by GUID while reading and handed to the ledgers that exist at the
+end (`_settle_melee_taken`), so no ledger is opened while reading --
+the side effect the openers once had. Positions are one dict entry per
+unit, bounded (`MAX_POSITIONS`), and a key's pulls start from the key's.
+The panel shows it from ten swings up. On the four keys: the tank (Blood)
+took 24-34% of landed swings from behind, parries and dodges 97-98% in
+front. The snapshot on five inputs moved `melee_taken` and the page
+bytes, nothing else; the invariant checker proves every landed swing
+placed once and inside the player's melee taken, on three real logs.
+
 ### Performance, measured
 
 261 MB / 896,610 lines (a real raid night, report included) in
@@ -1619,7 +1654,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 257 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 259 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSeventhAuditFindings`), and each one was regression-checked the

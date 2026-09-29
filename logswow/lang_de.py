@@ -685,6 +685,44 @@ TEXTS = {
     # specs
     'spe %d':
         'Spez. %d',
+    'Touché':
+        'Getroffen',
+    'Absorbé entièrement':
+        'Vollständig absorbiert',
+    'Paré':
+        'Pariert',
+    'Esquivé':
+        'Ausgewichen',
+    'Raté':
+        'Verfehlt',
+    'Bloqué entièrement':
+        'Vollständig geblockt',
+    'Dévié':
+        'Abgelenkt',
+    'Insensible':
+        'Immun',
+    'Résisté':
+        'Widerstanden',
+    'Renvoyé':
+        'Reflektiert',
+    "Hors d'atteinte":
+        'Außer Reichweite',
+    'Les coups de mêlée reçus':
+        'Erhaltene Nahkampfschläge',
+    'dont critiques':
+        'davon kritisch',
+    'dont bloqués en partie':
+        'davon teilweise geblockt',
+    '<table><tr><th>Issue</th><th class=n>Coups</th><th class=n>Part</th></tr>%s</table>':
+        '<table><tr><th>Ausgang</th><th class=n>Schläge</th><th class=n>Anteil</th></tr>%s</table>',
+    '<p><b>%s</b> des coups évités (parés, esquivés ou ratés).</p>':
+        '<p><b>%s</b> der Schläge vermieden (pariert, ausgewichen oder verfehlt).</p>',
+    '<p><b>%s</b> des coups qui ont touché venaient de derrière (%s sur %s dont la position est connue).</p>':
+        '<p><b>%s</b> der Schläge, die trafen, kamen von hinten (%s von %s mit bekannter Position).</p>',
+    ' Contrôle sur ce combat%s: le jeu ne laisse ni parer ni esquiver un coup venu de derrière, et %s des %s parades et esquives placées tombent bien devant.':
+        ' Kontrolle in diesem Kampf%.0s: Das Spiel erlaubt kein Parieren oder Ausweichen bei einem Schlag von hinten, und %s der %s verorteten Paraden und Ausweichmanöver liegen tatsächlich vorn.',
+    "<p class=dim style='font-size:12px;margin:0'>Estimation fiable, mais pas une donnée écrite, et limitée à la mêlée%s: le journal ne dit pas d'où vient un coup. LogsWoW le déduit de la position de l'attaquant et de l'orientation du joueur, que le journal donne ligne par ligne.%s</p>":
+        "<p class=dim style='font-size:12px;margin:0'>Eine verlässliche Schätzung, aber keine Angabe des Protokolls, und auf den Nahkampf beschränkt%.0s: Das Protokoll sagt nicht, woher ein Schlag kam. LogsWoW leitet es aus der Position des Angreifers und der Blickrichtung des Spielers ab, die das Protokoll Zeile für Zeile angibt.%s</p>",
 }
 
 # The French nouns `fmt.plural` agrees, and their German forms.

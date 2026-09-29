@@ -8,11 +8,36 @@ are called through `fmt`, so one replacement reaches every table.
 from . import fmt
 from .fmt import NBSP
 from .fmt import bar_row as _bar_row
-from .i18n import _, spell_label
+from .i18n import N_, _, spell_label
 from .models import OTHER_TARGETS
 from .specs import label_of
 from .timestamps import format_duration
 from .wowhead import spell_url
+
+# How an enemy's melee swing at a player ended, in the order the table
+# lists them: "hit" is the analysis's own key, the rest are the file's
+# miss types. A type not listed here is shown under its own name.
+MELEE_OUTCOMES = (
+    ("hit", N_("Touché")),
+    ("ABSORB", N_("Absorbé entièrement")),
+    ("PARRY", N_("Paré")),
+    ("DODGE", N_("Esquivé")),
+    ("MISS", N_("Raté")),
+    ("BLOCK", N_("Bloqué entièrement")),
+    ("DEFLECT", N_("Dévié")),
+    ("IMMUNE", N_("Insensible")),
+    ("RESIST", N_("Résisté")),
+    ("REFLECT", N_("Renvoyé")),
+    ("EVADE", N_("Hors d'atteinte")),
+)
+# The keys of `Player.melee_taken` that describe hits rather than count swings.
+MELEE_DETAILS = frozenset({"crit", "partial_block", "front", "behind", "unplaced",
+                           "avoided_front", "avoided_behind"})
+# A player the enemy swung at fewer times than this gets no melee table:
+# a healer clipped by three swings learns nothing from percentages.
+MELEE_SECTION_MIN = 10
+# Fewer placed swings than this and no share of "from behind" is given.
+MELEE_SIDE_MIN = 10
 
 
 class PanelsMixin:
@@ -227,6 +252,9 @@ class PanelsMixin:
         sections.append((_("Ce qu'il a pris"), self._ability_table(
             analysis.top_abilities(player.taken_by_ability, None),
             None, seconds, "taken", player.damage_taken, limit=16)))
+        melee = self._melee_taken(player.melee_taken)
+        if melee:
+            sections.append((_("Les coups de mêlée reçus"), melee))
         sections.extend(sections_absorb)
         if player.support_damage or player.support_healing:
             sections.append((_("Soutien que le jeu lui crédite"), self._support(
@@ -254,6 +282,63 @@ class PanelsMixin:
                   "événement du combat, ce qui est la seule borne que le fichier "
                   "donne.</p>") % NBSP)))
         return sections
+
+    @staticmethod
+    def _melee_taken(taken):
+        """How the enemy's melee swings at a player ended, and from which side they landed.
+
+        "" below `MELEE_SECTION_MIN` swings. The side is an estimate from
+        positions (`SegmentAnalysis._melee_side`), and the page says so in
+        the words the owner asked for, with the check that backs it.
+        """
+        swings = sum(count for key, count in taken.items() if key not in MELEE_DETAILS)
+        if swings < MELEE_SECTION_MIN:
+            return ""
+        labels = dict(MELEE_OUTCOMES)
+        order = [key for key, _label in MELEE_OUTCOMES if taken.get(key)]
+        order += sorted(key for key in taken if key not in labels and key not in MELEE_DETAILS)
+
+        def row(label, count, dim=False):
+            # A detail of the hits (critical, partly blocked) is a share of
+            # the hits; every other row a share of all the swings.
+            whole = taken.get("hit", 0) if dim else swings
+            cell = "<td class=dim>%s</td>" % label if dim else _bar_row(label, count / swings)
+            return "<tr>%s<td class=n>%s</td><td class=n>%s</td></tr>" % (
+                cell, fmt.number(count), fmt.percent(count / max(1, whole)))
+
+        rows = []
+        for key in order:
+            rows.append(row(fmt.esc(_(labels[key]) if key in labels else key), taken[key]))
+            if key == "hit":
+                for detail, label in (("crit", _("dont critiques")),
+                                      ("partial_block", _("dont bloqués en partie"))):
+                    if taken.get(detail):
+                        rows.append(row("&nbsp;&nbsp;" + label, taken[detail], dim=True))
+        html = (_("<table><tr><th>Issue</th><th class=n>Coups</th><th class=n>Part</th></tr>"
+                  "%s</table>") % "".join(rows))
+        avoided = sum(taken.get(key, 0) for key in ("PARRY", "DODGE", "MISS"))
+        html += (_("<p><b>%s</b> des coups évités (parés, esquivés ou ratés).</p>")
+                 % fmt.percent(avoided / swings))
+        front, behind = taken.get("front", 0), taken.get("behind", 0)
+        if front + behind < MELEE_SIDE_MIN:
+            return html
+        html += (_("<p><b>%s</b> des coups qui ont touché venaient de derrière "
+                   "(%s sur %s dont la position est connue).</p>")
+                 % (fmt.percent(behind / (front + behind)), fmt.number(behind),
+                    fmt.number(front + behind)))
+        checked = taken.get("avoided_front", 0) + taken.get("avoided_behind", 0)
+        control = ""
+        if checked >= MELEE_SIDE_MIN:
+            control = (_(" Contrôle sur ce combat%s: le jeu ne laisse ni parer ni esquiver "
+                         "un coup venu de derrière, et %s des %s parades et esquives "
+                         "placées tombent bien devant.")
+                       % (NBSP, fmt.percent(taken.get("avoided_front", 0) / checked),
+                          fmt.number(checked)))
+        return html + (_("<p class=dim style='font-size:12px;margin:0'>Estimation fiable, "
+                         "mais pas une donnée écrite, et limitée à la mêlée%s: le journal "
+                         "ne dit pas d'où vient un coup. LogsWoW le déduit de la position "
+                         "de l'attaquant et de l'orientation du joueur, que le journal "
+                         "donne ligne par ligne.%s</p>") % (NBSP, control))
 
     @staticmethod
     def _player_gaps(analysis, player):

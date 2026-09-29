@@ -230,8 +230,26 @@ def _casts(a, players):
               "%d vs %d" % (placed, len(p.cast_log)))
 
 
+def _melee(a, players):
+    """The enemy's swings at players: every landed one placed once, and inside damage taken."""
+    for p in players:
+        m = p.melee_taken
+        hits = m.get("hit", 0)
+        check(hits == m.get("front", 0) + m.get("behind", 0) + m.get("unplaced", 0),
+              "%s: every landed swing placed once" % p.short_name)
+        check(m.get("crit", 0) <= hits and m.get("partial_block", 0) <= hits,
+              "%s: crits and partial blocks among the hits" % p.short_name)
+        check(m.get("avoided_front", 0) + m.get("avoided_behind", 0)
+              <= m.get("PARRY", 0) + m.get("DODGE", 0),
+              "%s: placed parries and dodges among the parries and dodges" % p.short_name)
+        melee = p.taken_by_ability.get((0, "Attaque"))
+        check(hits <= (melee.hits if melee else 0),
+              "%s: landed swings are in the melee taken" % p.short_name,
+              "%d vs %d" % (hits, melee.hits if melee else 0))
+
+
 FAMILIES = (_damage, _support, _healing, _taken, _pulls, _deaths, _bounds, _shields, _interrupts,
-            _casts)
+            _casts, _melee)
 
 
 def audit_segment(segment):

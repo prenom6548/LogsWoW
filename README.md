@@ -186,6 +186,16 @@ lu serait pire que pas de rapport du tout.
   seule en retard 60 points en dessous, et les chronomètres de la saison
   donnés par Raider.IO confirment chacun de ces verdicts. Sans score
   (ancien format), la clé est seulement « terminée ».
+- **Les coups de mêlée reçus**, dans le panneau de chaque joueur que
+  l'ennemi a frappé au moins dix fois (le tank surtout) : touchés,
+  critiques, absorbés entièrement, parés, esquivés, ratés, bloqués, tels
+  que le journal les écrit. Et la part des coups qui ont touché **venus
+  de derrière** : le journal ne l'écrit pas, LogsWoW le déduit de la
+  position de l'attaquant et de l'orientation du joueur. C'est une
+  estimation fiable, pas une donnée écrite, et limitée à la mêlée ; la
+  page le dit, avec un contrôle : le jeu ne laisse ni parer ni esquiver
+  un coup venu de derrière, et 97 à 98 % des parades et esquives
+  tombent bien devant sur les clés mesurées.
 - **Physique ou magique** : la part des dégâts subis et infligés qui
   était physique, magique ou les deux, en pourcentage, sur tout le combat
   puis pull par pull, avec le détail par école (Ombre, Feu, Nature…).

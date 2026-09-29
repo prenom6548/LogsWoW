@@ -176,6 +176,15 @@ misread file would be worse than no report at all.
   late one 60 points below, and the season's timers as Raider.IO gives
   them confirm every one of these verdicts. With no score (older format),
   the key is only "completed".
+- **Melee swings taken**, in the panel of every player the enemy
+  swung at ten times or more (the tank above all): hit, critical, fully
+  absorbed, parried, dodged, missed, blocked, as the log writes them.
+  And the share of the swings that landed which **came from behind**:
+  the log does not write it, LogsWoW infers it from the attacker's
+  position and the player's facing. It is a reliable estimate, not
+  something the log writes, and limited to melee; the page says so,
+  with a check: the game allows no parry or dodge from behind, and 97
+  to 98% of parries and dodges do fall in front on the keys measured.
 - **Physical or magic**: the share of damage taken and dealt that was
   physical, magic or both, as percentages, over the whole fight then pull
   by pull, with the detail by school (Shadow, Fire, Nature…).

@@ -188,6 +188,16 @@ que ningún informe.
   debajo, y los temporizadores de la temporada que da Raider.IO confirman
   cada uno de estos veredictos. Sin puntuación (formato antiguo), la
   llave solo está «completada».
+- **Golpes cuerpo a cuerpo recibidos**, en el panel de cada jugador al
+  que el enemigo golpeó al menos diez veces (sobre todo el tanque):
+  impactos, críticos, absorbidos por completo, parados, esquivados,
+  fallados, bloqueados, tal como los escribe el registro. Y la parte de
+  los impactos que **llegaron por la espalda**: el registro no lo
+  escribe, LogsWoW lo deduce de la posición del atacante y de la
+  orientación del jugador. Es una estimación fiable, no un dato escrito,
+  y limitada al cuerpo a cuerpo; la página lo dice, con un control: el
+  juego no permite parar ni esquivar por la espalda, y del 97 al 98 %
+  de las paradas y esquivas cae delante en las llaves medidas.
 - **Físico o mágico**: la parte del daño recibido e infligido que fue
   física, mágica o ambas, en porcentaje, en todo el combate y luego pull a
   pull, con el detalle por escuela (Sombras, Fuego, Naturaleza…).

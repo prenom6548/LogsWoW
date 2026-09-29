@@ -7,6 +7,25 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.14.0 — 2026-09-29
+
+**Golpes cuerpo a cuerpo recibidos, sobre todo para el tanque.** El
+panel de cada jugador al que el enemigo golpeó al menos diez veces tiene
+una sección nueva: cuántos golpes impactaron (de ellos críticos), cuántos
+fueron absorbidos por completo, parados, esquivados, fallados o
+bloqueados, y la parte evitada. Todo eso lo escribe el registro.
+
+También da la parte de los impactos que **llegaron por la espalda**. Ahí
+el registro no dice nada: LogsWoW lo deduce de la posición del atacante
+y de la orientación del jugador, que el registro da línea a línea. Es
+una estimación fiable, no un dato escrito, y limitada al cuerpo a
+cuerpo; la página lo dice, con un control sobre el propio combate: el
+juego no permite parar ni esquivar un golpe por la espalda, y en las
+cuatro llaves del propietario del 29 de septiembre, del 97 al 98 % de
+las paradas y esquivas del tanque cae delante. El mismo tanque recibió
+del 24 al 34 % de sus impactos por la espalda, según la llave. Ninguna
+otra cifra cambia.
+
 ## 0.13.1 — 2026-09-29
 
 **La barra de progreso de la ventana se ve, y dice el tiempo que

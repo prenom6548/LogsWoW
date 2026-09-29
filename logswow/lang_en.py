@@ -685,6 +685,44 @@ TEXTS = {
     # specs
     'spe %d':
         'spec %d',
+    'Touché':
+        'Hit',
+    'Absorbé entièrement':
+        'Fully absorbed',
+    'Paré':
+        'Parried',
+    'Esquivé':
+        'Dodged',
+    'Raté':
+        'Missed',
+    'Bloqué entièrement':
+        'Fully blocked',
+    'Dévié':
+        'Deflected',
+    'Insensible':
+        'Immune',
+    'Résisté':
+        'Resisted',
+    'Renvoyé':
+        'Reflected',
+    "Hors d'atteinte":
+        'Evaded',
+    'Les coups de mêlée reçus':
+        'Melee swings taken',
+    'dont critiques':
+        'of which critical',
+    'dont bloqués en partie':
+        'of which partly blocked',
+    '<table><tr><th>Issue</th><th class=n>Coups</th><th class=n>Part</th></tr>%s</table>':
+        '<table><tr><th>Outcome</th><th class=n>Swings</th><th class=n>Share</th></tr>%s</table>',
+    '<p><b>%s</b> des coups évités (parés, esquivés ou ratés).</p>':
+        '<p><b>%s</b> of the swings avoided (parried, dodged or missed).</p>',
+    '<p><b>%s</b> des coups qui ont touché venaient de derrière (%s sur %s dont la position est connue).</p>':
+        '<p><b>%s</b> of the swings that landed came from behind (%s of %s whose position is known).</p>',
+    ' Contrôle sur ce combat%s: le jeu ne laisse ni parer ni esquiver un coup venu de derrière, et %s des %s parades et esquives placées tombent bien devant.':
+        ' Check on this fight%.0s: the game allows no parry or dodge of a swing from behind, and %s of the %s placed parries and dodges do fall in front.',
+    "<p class=dim style='font-size:12px;margin:0'>Estimation fiable, mais pas une donnée écrite, et limitée à la mêlée%s: le journal ne dit pas d'où vient un coup. LogsWoW le déduit de la position de l'attaquant et de l'orientation du joueur, que le journal donne ligne par ligne.%s</p>":
+        "<p class=dim style='font-size:12px;margin:0'>A reliable estimate, but not something the log writes, and limited to melee%.0s: the log does not say where a swing came from. LogsWoW infers it from the attacker's position and the player's facing, which the log gives line by line.%s</p>",
 }
 
 # The French nouns `fmt.plural` agrees, and their English forms.

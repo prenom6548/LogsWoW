@@ -239,7 +239,7 @@ class Player:
         "_gained_until", "_applied_until", "absorb_done", "pet_casts",
         "absorb_by_ability", "pet_damage_taken",
         "support_damage", "support_healing", "support_by_ability", "support_received",
-        "moved_health",
+        "moved_health", "melee_taken",
         "damage_to_bosses",
         "first_cast_ts", "last_cast_ts", "downtime_ms",
         "longest_gaps", "recent", "min_hp_fraction", "max_hp",
@@ -284,6 +284,13 @@ class Player:
         # Health a summon of theirs moved between players (Spirit Link
         # Totem), taken out of `healing_done`: see `_feed_moved_health`.
         self.moved_health = 0
+        # The enemy's melee swings at this player, by how each ended: "hit",
+        # and the file's miss types ("PARRY", "DODGE", "MISS"...); among the
+        # hits "crit" and "partial_block", and "front", "behind" or
+        # "unplaced" -- an estimate from positions, see
+        # `SegmentAnalysis._melee_side`; "avoided_front"/"avoided_behind"
+        # place the parries and dodges, the check on that estimate.
+        self.melee_taken = {}
         self.support_by_ability = {}
         self.damage_by_ability = {}
         self.healing_by_ability = {}

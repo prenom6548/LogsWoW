@@ -374,6 +374,14 @@ class Event:
         return as_int(self._at(5 + self.shift), 0)
 
     @property
+    def blocked(self):
+        """The part of a hit a block stopped: a partial block, rare since shields
+        block only now and then (3 hits on the group in a 364 MB night)."""
+        if self.suffix_kind not in self.DAMAGE_KINDS:
+            return 0
+        return as_int(self._at(4 + self.shift), 0)
+
+    @property
     def is_critical(self):
         if self.suffix_kind in self.DAMAGE_KINDS:
             return as_bool(self._at(6 + self.shift))

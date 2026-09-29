@@ -201,6 +201,17 @@ wäre schlimmer als gar kein Bericht.
   darunter, und die Timer der Saison, wie Raider.IO sie angibt,
   bestätigen jedes dieser Urteile. Ohne Wertung (älteres Format) ist der
   Schlüssel nur „abgeschlossen“.
+- **Erhaltene Nahkampfschläge**, im Panel jedes Spielers, den der
+  Gegner mindestens zehnmal angegriffen hat (vor allem der Tank):
+  getroffen, kritisch, vollständig absorbiert, pariert, ausgewichen,
+  verfehlt, geblockt, so wie das Protokoll sie schreibt. Dazu der Anteil
+  der Treffer, die **von hinten** kamen: Das Protokoll schreibt es nicht,
+  LogsWoW leitet es aus der Position des Angreifers und der
+  Blickrichtung des Spielers ab. Eine verlässliche Schätzung, keine
+  Angabe des Protokolls, und auf den Nahkampf beschränkt; die Seite sagt
+  es, mit einer Kontrolle: Das Spiel erlaubt kein Parieren oder
+  Ausweichen von hinten, und 97 bis 98 % der Paraden und
+  Ausweichmanöver liegen in den gemessenen Schlüsseln tatsächlich vorn.
 - **Physisch oder magisch**: der Anteil des erlittenen und verursachten
   Schadens, der physisch, magisch oder beides war, in Prozent, über den
   ganzen Kampf und dann Pull für Pull, mit dem Detail nach Schule

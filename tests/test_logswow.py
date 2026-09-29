@@ -2964,6 +2964,81 @@ class TestWindow(unittest.TestCase):
             root.destroy()
 
 
+class TestMeleeTaken(unittest.TestCase):
+    """How the enemy's swings at a player ended, and from which side (2026-09-29).
+
+    Asked for by the owner, a tank: parried, dodged, missed, blocked,
+    critical -- all written by the file -- and hits from behind, which it
+    does not write and which are placed from positions instead.
+    """
+
+    TANK = 'Player-9999-00000001,"Ardoise-Dalaran-EU",0x511,0x0'
+    FRONT = 'Creature-0-9999-2222-1111-70000-0000000001,"Golem d\'essai",0xa48,0x0'
+    BEHIND = 'Creature-0-9999-2222-1111-70000-0000000002,"Golem d\'essai",0xa48,0x0'
+    STALE = 'Creature-0-9999-2222-1111-70000-0000000003,"Golem d\'essai",0xa48,0x0'
+
+    @staticmethod
+    def _at(info, x, y, facing="0.0000"):
+        """An advanced block for `info` standing at (x, y), facing `facing`."""
+        head = [info, "0000000000000000", "500", "1000", "10", "20", "30", "40", "0", "0"]
+        return ",".join(head + ["1", "111", "222", "0", x, y, "2393", facing, "80"])
+
+    def _hit(self, ms, mob, crit="nil"):
+        guid = mob.split(",")[0]
+        x = {"1": "2.00", "2": "-2.00", "3": "0.00"}[guid[-1]]
+        y = "3.00" if guid.endswith("3") else "0.00"
+        return [
+            (ms, 'SWING_DAMAGE,%s,%s,%s,900,900,-1,1,0,0,0,%s,nil,nil'
+             % (mob, self.TANK, self._at(guid, x, y), crit)),
+            (ms, 'SWING_DAMAGE_LANDED,%s,%s,%s,900,900,-1,1,0,0,0,%s,nil,nil'
+             % (mob, self.TANK, self._at("Player-9999-00000001", "0.00", "0.00"), crit)),
+        ]
+
+    def _analysis(self):
+        lines = []
+        # The third golem's only position is five seconds old when it hits.
+        stale = self._at(self.STALE.split(",")[0], "0.00", "3.00")
+        lines += [(0, 'SPELL_CAST_SUCCESS,%s,0000000000000000,nil,0x80000000,0x80000000,'
+                      '1,"Coup",0x1,%s' % (self.STALE, stale))]
+        for n in range(12):
+            lines += self._hit(5000 + 100 * n, self.FRONT, "1" if n == 0 else "nil")
+        for n in range(4):
+            lines += self._hit(6500 + 100 * n, self.BEHIND)
+        lines += [(7000, 'SWING_DAMAGE_LANDED,%s,%s,%s,900,900,-1,1,0,0,0,nil,nil,nil'
+                   % (self.STALE, self.TANK, self._at("Player-9999-00000001", "0.00", "0.00")))]
+        for n, kind in enumerate(["PARRY"] * 8 + ["DODGE"] * 2 + ["MISS", "ABSORB"]):
+            lines.append((5050 + 100 * n, "SWING_MISSED,%s,%s,%s,nil"
+                          % (self.FRONT, self.TANK, kind)))
+        lines.sort(key=lambda line: line[0])
+        splitter = Splitter(analysis_factory=SegmentAnalysis)
+        for index, (ms, payload) in enumerate(lines):
+            _ts, fields = split_line("9/18/2026 20:15:31.123-4  " + payload)
+            splitter.feed(build_event(ms, fields, index + 1))
+        return splitter.finish()[0].analysis
+
+    def test_each_swing_is_counted_by_how_it_ended_and_where_it_came_from(self):
+        taken = self._analysis().players["Player-9999-00000001"].melee_taken
+        self.assertEqual(taken, {
+            "hit": 17, "crit": 1, "front": 12, "behind": 4, "unplaced": 1,
+            "PARRY": 8, "DODGE": 2, "MISS": 1, "ABSORB": 1, "avoided_front": 10})
+
+    def test_the_panel_says_it_is_an_estimate_and_checks_it(self):
+        from logswow.report import ReportWriter
+
+        taken = self._analysis().players["Player-9999-00000001"].melee_taken
+        html = ReportWriter._melee_taken(taken)
+        self.assertIn("Paré", html)
+        self.assertIn("dont critiques", html)
+        self.assertIn("venaient de derrière", html)
+        self.assertIn("Estimation fiable, mais pas une donnée écrite, et limitée à la mêlée", html)
+        # Every placed parry and dodge in front: the check says so.
+        self.assertIn("et 100\u202f% des 10 parades", html)
+        # A critical hit is a share of the hits, not of every swing: 1 of 17.
+        self.assertIn("dont critiques</td><td class=n>1</td><td class=n>6\u202f%", html)
+        # Too few swings for percentages to mean anything: no table at all.
+        self.assertEqual(ReportWriter._melee_taken({"hit": 3, "PARRY": 2}), "")
+
+
 class TestPhysicalOrMagic(unittest.TestCase):
     """Damage by school, taken and dealt, per run and per pull (2026-09-27)."""
 

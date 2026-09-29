@@ -8,6 +8,26 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.14.0 — 2026-09-29
+
+**Erhaltene Nahkampfschläge, vor allem für den Tank.** Das Panel jedes
+Spielers, den der Gegner mindestens zehnmal angegriffen hat, hat einen
+neuen Abschnitt: wie viele Schläge trafen (davon kritisch), wie viele
+vollständig absorbiert, pariert, ausgewichen, verfehlt oder geblockt
+wurden, und der vermiedene Anteil. All das schreibt das Protokoll.
+
+Er nennt auch den Anteil der Treffer, die **von hinten** kamen. Dazu
+sagt das Protokoll nichts: LogsWoW leitet es aus der Position des
+Angreifers und der Blickrichtung des Spielers ab, die das Protokoll
+Zeile für Zeile angibt. Eine verlässliche Schätzung, keine Angabe des
+Protokolls, und auf den Nahkampf beschränkt; die Seite sagt es, mit
+einer Kontrolle am Kampf selbst: Das Spiel erlaubt kein Parieren oder
+Ausweichen bei einem Schlag von hinten, und in den vier Schlüsseln des
+Besitzers vom 29. September liegen 97 bis 98 % der Paraden und
+Ausweichmanöver des Tanks tatsächlich vorn. Derselbe Tank bekam je nach
+Schlüssel 24 bis 34 % seiner Treffer von hinten. Keine andere Zahl
+ändert sich.
+
 ## 0.13.1 — 2026-09-29
 
 **Der Fortschrittsbalken des Fensters ist sichtbar und nennt die

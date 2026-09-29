@@ -3,6 +3,25 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.14.0 — 2026-09-29
+
+**Les coups de mêlée reçus, pour le tank surtout.** Le panneau de chaque
+joueur que l'ennemi a frappé au moins dix fois a une nouvelle section :
+combien de coups l'ont touché (dont critiques), combien ont été absorbés
+entièrement, parés, esquivés, ratés ou bloqués, et la part des coups
+évités. Tout cela, le journal l'écrit.
+
+Elle donne aussi la part des coups qui ont touché **venus de
+derrière**. Là, le journal ne dit rien : LogsWoW le déduit de la
+position de l'attaquant et de l'orientation du joueur, que le journal
+donne ligne par ligne. C'est une estimation fiable, pas une donnée
+écrite, et limitée à la mêlée ; la page le dit, avec un contrôle sur le
+combat même : le jeu ne laisse ni parer ni esquiver un coup venu de
+derrière, et sur vos quatre clés du 29 septembre, 97 à 98 % des
+parades et esquives du tank tombent bien devant. Le même tank prenait
+de 24 à 34 % de ses coups de dos selon la clé. Aucun autre chiffre ne
+change.
+
 ## 0.13.1 — 2026-09-29
 
 **La barre de progression de la fenêtre se voit, et dit le temps

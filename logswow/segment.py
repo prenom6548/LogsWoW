@@ -279,6 +279,7 @@ class Splitter:
                 pull.analysis._label_owner.update(analysis._label_owner)
                 pull.analysis._members.update(analysis._members)
                 pull.analysis._opponents.update(analysis._opponents)
+                pull.analysis._where.update(analysis._where)
                 key._open_pull = pull
                 key.pulls.append(pull)
             if pull is not None:

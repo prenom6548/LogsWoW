@@ -19,6 +19,8 @@ What this can and cannot answer is worth being plain about:
     on your own machine does not have.
 """
 
+import math
+
 from .auras import AuraLedger
 from .castorder import MAX_CAST_LOG, classify_triggered
 from .encounters import EncounterLedger
@@ -69,6 +71,20 @@ OPENING_HELP_MS = 2000
 # this many units (a real key's largest pull had far fewer).
 FIRST_HIT_KINDS = frozenset({"_DAMAGE", "_MISSED"})
 MAX_FIRST_HITS = 300
+# Where a melee swing came from. The file never says it; each advanced
+# block gives the position and the facing of the unit it describes, so a
+# swing is placed from the victim's facing and the attacker's position,
+# each from that unit's latest line. A swing that missed carries no block
+# at all, so both ends are always a unit's last known place, and no older
+# than this: on the owner's 364 MB night, 97% of parries and 96% of dodges
+# came out in front -- the game allows neither from behind -- and 29% of
+# the swings that landed from behind (2026-09-29).
+POSITION_STALE_MS = 1500
+# Units whose last position is kept at once; past it, the stale ones go.
+MAX_POSITIONS = 4000
+# Keys a player's `melee_taken` may grow to: a damaged line cannot open
+# one key per garbage miss type.
+MAX_MELEE_KEYS = 30
 # The acts that can open a pull. An aura *ending* cannot: on those logs the
 # first "link" before a pull was, 23 times in 68, a debuff falling off the
 # last pack's corpses.
@@ -195,6 +211,11 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self.moved_health = 0
         self._moving_units = set()
         self._held = []
+        # Each unit's latest (time, advanced block), and the melee swings
+        # at players counted while reading, by GUID: they reach the players'
+        # ledgers at the end, so that no ledger is opened while reading.
+        self._where = {}
+        self._melee_taken = {}
         # What the group dealt into its enemies' shields: in damage done,
         # counted apart here too so the page and the checks can name it.
         self.shield_damage = 0
@@ -355,6 +376,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             return
         if event.advanced is not None:
             self._feed_pool(event)
+            self._note_position(event)
         self._sample_pool(event.ts)
         if self.first_ts is None:
             self.first_ts = event.ts
@@ -854,6 +876,8 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
     def _feed_player_hit(self, event, amount, source_ours):
         player = self._player(event.dest)
         player.damage_taken += amount
+        if not source_ours and event.subevent.startswith("SWING_DAMAGE"):
+            self._note_melee_taken(event, "hit")
         # The absorbed part is NOT banked here. The client writes the
         # same absorption twice -- once in this hit's `absorbed`
         # field, once as its own SPELL_ABSORBED line -- and adding
@@ -1114,6 +1138,78 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             self._player(event.dest).recent.append(
                 (event.ts, self._name_of(event.source), event.spell_name, 0, None, 1))
 
+    def _feed_missed(self, event):
+        """An enemy's melee swing at a player that did not land: how it failed."""
+        if event.subevent != "SWING_MISSED" or not event.dest.is_player:
+            return
+        source_ours, dest_ours = self._damage_sides(event)
+        if dest_ours and not source_ours:
+            self._note_melee_taken(event, event.miss_type or "?")
+
+    def _note_melee_taken(self, event, outcome):
+        """One enemy swing at a player: how it ended, and from which side."""
+        taken = self._melee_taken.get(event.dest.guid)
+        if taken is None:
+            if len(self._melee_taken) >= 5000:
+                return
+            taken = self._melee_taken[event.dest.guid] = {}
+        if outcome not in taken and len(taken) >= MAX_MELEE_KEYS:
+            outcome = "?"
+        taken[outcome] = taken.get(outcome, 0) + 1
+        if outcome == "hit":
+            if event.is_critical:
+                taken["crit"] = taken.get("crit", 0) + 1
+            if event.blocked > 0:
+                taken["partial_block"] = taken.get("partial_block", 0) + 1
+            side = self._melee_side(event) or "unplaced"
+            taken[side] = taken.get(side, 0) + 1
+        elif outcome in ("PARRY", "DODGE"):
+            side = self._melee_side(event)
+            if side is not None:
+                key = "avoided_" + side
+                taken[key] = taken.get(key, 0) + 1
+
+    def _note_position(self, event):
+        """Remember where the unit an advanced block describes stood, and faced."""
+        guid = event.advanced.info_guid
+        if not guid:
+            return
+        where = self._where
+        if guid not in where and len(where) >= MAX_POSITIONS:
+            cutoff = event.ts - POSITION_STALE_MS
+            for stale in [key for key, (ts, _adv) in where.items() if ts < cutoff]:
+                del where[stale]
+            if len(where) >= MAX_POSITIONS:
+                return
+        where[guid] = (event.ts, event.advanced)
+
+    def _melee_side(self, event):
+        """"front" or "behind": where the attacker stood as the victim faced, or None.
+
+        An estimate, never a fact of the file: see `POSITION_STALE_MS`.
+        None when either end has no recent position, or when both stand
+        on the same spot, where no side can be told.
+        """
+        victim = self._where.get(event.dest.guid)
+        attacker = self._where.get(event.source.guid)
+        if (victim is None or attacker is None or event.ts - victim[0] > POSITION_STALE_MS
+                or event.ts - attacker[0] > POSITION_STALE_MS):
+            return None
+        try:
+            facing = float(victim[1].facing)
+            dx = float(attacker[1].position_x) - float(victim[1].position_x)
+            dy = float(attacker[1].position_y) - float(victim[1].position_y)
+        except (TypeError, ValueError):
+            return None
+        if not (math.isfinite(facing) and math.isfinite(dx) and math.isfinite(dy)):
+            return None
+        if abs(dx) + abs(dy) < 0.05:
+            return None
+        # The facing is an angle from the x axis, towards y: the reading
+        # that put 97% of parries in front, where the three others tried
+        # put 47% to 57% -- a coin toss.
+        return "front" if dx * math.cos(facing) + dy * math.sin(facing) > 0 else "behind"
+
     def _feed_landed(self, event):
         """A resolved melee hit: the group's health, and the melee it took.
 
@@ -1297,10 +1393,23 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         self.aura_open = {}
 
         self._disown_mechanics()
+        self._settle_melee_taken()
         self._close_downtime(end)
         self._collapse_timeline()
         for player in self.players.values():
             player.triggered = classify_triggered(player.cast_log)
+
+    def _settle_melee_taken(self):
+        """The swings counted while reading, into the ledgers of the players who took them.
+
+        Only a ledger that exists: a player whom the enemy only ever swung
+        at and missed, and who did nothing else, has no row to carry them.
+        """
+        for guid, taken in self._melee_taken.items():
+            player = self.players.get(guid)
+            if player is not None:
+                player.melee_taken = taken
+        self._melee_taken = {}
 
     def _drop_crumbs(self):
         # Drop the stray ticks, but never drop the only pull there is.
@@ -1414,6 +1523,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
     _BY_SUFFIX = {
         "_DAMAGE_LANDED": _feed_landed,
         "_DAMAGE": _feed_damage,
+        "_MISSED": _feed_missed,
         "_SHIELD": _feed_damage,
         "_SPLIT": _feed_damage,
         "_HEAL": _feed_heal,
