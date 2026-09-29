@@ -102,7 +102,7 @@ class Cancelled(Exception):
 def _build(path, year=None, verbose=True, pull_gap_ms=None, progress=None, cancelled=None):
     """Read and analyse a whole log: (log, segments, seconds).
 
-    `progress(lines_read)` is called about four times a second and
+    `progress(lines_read, bytes_read)` is called about four times a second and
     `cancelled()` as often; when it answers True the read stops with
     `Cancelled`. The terminal passes neither, the window both.
     """
@@ -126,7 +126,7 @@ def _build(path, year=None, verbose=True, pull_gap_ms=None, progress=None, cance
             if cancelled is not None and cancelled():
                 raise Cancelled()
             if progress is not None:
-                progress(log.line_count)
+                progress(log.line_count, log.bytes_read)
         if verbose and now - last_report > 3.0:
             last_report = now
             sys.stderr.write(

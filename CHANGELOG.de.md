@@ -8,6 +8,20 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.13.1 — 2026-09-29
+
+**Der Fortschrittsbalken des Fensters ist sichtbar und nennt die
+Restzeit.** Er bewegte sich durchaus, aber unter Linux zeichnete das
+Design des Fensters ihn hellgrau auf grauem Grund, und er leerte sich,
+sobald das Lesen fertig war: Er wirkte kaputt. Jetzt ist er blau, bleibt
+voll, wenn das Lesen oder der Bericht fertig ist, und folgt der
+tatsächlichen Position in der Datei statt einer Schätzung pro Zeile.
+Darunter nennt die Statuszeile den Prozentsatz und die Restzeit:
+„Lesen… 36 %, 401.409 Zeilen gelesen, noch etwa 30 s“. Am 364-MB-Protokoll
+des Besitzers sagte die Schätzung nach vier Sekunden 45 s voraus, bei
+46 s in Wirklichkeit, und lag nie mehr als 3 s daneben. Der Bericht
+selbst ist in ein, zwei Sekunden geschrieben und hat keinen Countdown.
+
 ## 0.13.0 — 2026-09-29
 
 Die vollständige Prüfung von 0.12.1, kontrolliert an Ihrem 364-MB-Log

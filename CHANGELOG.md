@@ -3,6 +3,21 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.13.1 — 2026-09-29
+
+**La barre de progression de la fenêtre se voit, et dit le temps
+restant.** Elle avançait bien, mais sous Linux le thème de la fenêtre la
+dessinait en gris clair sur fond gris, et elle se vidait dès la lecture
+finie : on la prenait pour une barre cassée. Elle est maintenant bleue,
+reste pleine une fois la lecture ou le rapport terminés, et suit la
+position réelle dans le fichier plutôt qu'une estimation par ligne. En
+dessous, la ligne d'état donne le pourcentage et le temps restant :
+« Lecture… 36 %, 401 409 lignes lues, encore environ 30 s ». Sur votre
+journal de 364 Mo, l'estimation annonçait 45 s au bout de 4 secondes
+pour 46 s réelles, et n'a jamais été à plus de 3 s de la vérité. Le
+rapport, lui, s'écrit en une ou deux secondes : il n'a pas de compte à
+rebours.
+
 ## 0.13.0 — 2026-09-29
 
 L'audit complet de la 0.12.1, vérifié sur votre journal de 364 Mo du

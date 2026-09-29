@@ -7,6 +7,20 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.13.1 — 2026-09-29
+
+**La barra de progreso de la ventana se ve, y dice el tiempo que
+queda.** Sí avanzaba, pero en Linux el tema de la ventana la dibujaba
+gris claro sobre fondo gris, y se vaciaba en cuanto terminaba la
+lectura: parecía rota. Ahora es azul, se queda llena cuando la lectura o
+el informe han terminado, y sigue la posición real en el archivo en
+lugar de una estimación por línea. Debajo, la línea de estado da el
+porcentaje y el tiempo restante: «Leyendo… 36 %, 401.409 líneas leídas,
+quedan unos 30 s». En el registro de 364 MB del propietario, la
+estimación anunciaba 45 s a los cuatro segundos, para 46 s reales, y
+nunca se alejó más de 3 s. El informe se escribe en uno o dos segundos:
+no tiene cuenta atrás.
+
 ## 0.13.0 — 2026-09-29
 
 La auditoría completa de la 0.12.1, comprobada en su registro de 364 MB

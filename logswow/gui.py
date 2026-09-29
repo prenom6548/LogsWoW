@@ -45,11 +45,18 @@ from .cli import (Cancelled, _build, _refuse_folder, _refuse_to_overwrite,
 from .report import ReportWriter
 from .timestamps import format_duration
 
-# Measured on the owner's sixteen logs (2026-09-27): 305 to 322 bytes a
-# line, median 310. The reader counts lines, not bytes, so this turns a
-# line count into a share of the file -- close enough for a bar, and the
-# bar never claims to be done before the read is.
-BYTES_PER_LINE = 310
+# No estimate of the time left before this much of the read, nor before
+# this share of the file: the first second reads the layout-measuring
+# warm-up, and an estimate made on it jumps about.
+ESTIMATE_AFTER_S = 1.5
+ESTIMATE_AFTER_SHARE = 0.02
+
+# The bar's colours under the clam theme, the one Linux gets: clam's own
+# fill is a light grey on a grey trough, and the owner, on Linux Mint,
+# took a working bar for an empty one (2026-09-29). This is the blue clam
+# already uses for a selected row, so the window keeps one accent colour.
+BAR_COLOURS = {"background": "#4a6984", "lightcolor": "#5a7fa0",
+               "darkcolor": "#3d5870", "bordercolor": "#3d5870"}
 
 # What to type when the toolkit itself is missing, by system. The
 # message names the command rather than a web page to read.
@@ -96,11 +103,38 @@ def file_size(size):
     return fmt.size(size, " ")
 
 
-def read_share(lines, size):
-    """How far through the file `lines` lines probably are, from 0 to 0.99."""
+def read_share(done, size):
+    """How far through the file a read `done` bytes in is, from 0 to 0.99.
+
+    Never 1 while reading: the fights are still to be put in order after
+    the last line, and a log the game is still writing grows as it is read.
+    """
     if size <= 0:
         return 0.0
-    return min(0.99, lines * BYTES_PER_LINE / size)
+    return min(0.99, max(0.0, done / size))
+
+
+def time_left(share, elapsed):
+    """Seconds the read probably still needs, or None while it is too early to say.
+
+    The pace so far, applied to what is left: reading costs about the same
+    per byte from the first line to the last. On the owner's 364 MB night
+    this said 45 s four seconds in, for 46 s real, and was never more than
+    3 s off to the end (2026-09-29).
+    """
+    if elapsed < ESTIMATE_AFTER_S or share < ESTIMATE_AFTER_SHARE:
+        return None
+    return elapsed * (1 - share) / share
+
+
+def left_text(seconds):
+    """'8 s', '25 s', '1 min 05 s': rounded to 5 s past 20, so it does not flicker."""
+    seconds = int(round(seconds))
+    if seconds > 20:
+        seconds = 5 * int(round(seconds / 5.0))
+    if seconds < 60:
+        return _("%d s") % max(1, seconds)
+    return _("%d min %02d s") % divmod(seconds, 60)
 
 
 def fight_rows(segments):
@@ -220,6 +254,7 @@ class App:
         style = ttk.Style(root)
         if sys.platform.startswith("linux") and "clam" in style.theme_names():
             style.theme_use("clam")
+            style.configure("Horizontal.TProgressbar", **BAR_COLOURS)
         from tkinter import font
 
         bold = font.nametofont("TkDefaultFont").copy()
@@ -396,13 +431,16 @@ class App:
         self.cancel.clear()
         self._start(_("Lecture de %s…") % os.path.basename(path))
         size = os.path.getsize(path) if os.path.exists(path) else 0
+        started = time.monotonic()
+
+        def progress(lines, done):
+            self.messages.put(("progress", lines, done, size, time.monotonic() - started))
 
         def work():
             try:
                 log, segments, elapsed = _build(
                     path, verbose=False, pull_gap_ms=int(gap * 1000),
-                    progress=lambda lines: self.messages.put(("progress", lines, size)),
-                    cancelled=self.cancel.is_set)
+                    progress=progress, cancelled=self.cancel.is_set)
                 self.messages.put(("read", log, segments, elapsed))
             except Cancelled:
                 self.messages.put(("cancelled",))
@@ -476,12 +514,17 @@ class App:
 
         kind = message[0]
         if kind == "progress":
-            _kind, lines, size = message
-            self.bar["value"] = 1000 * read_share(lines, size)
-            self.status.set(_("Lecture… %s lignes lues") % fmt.number(lines))
+            _kind, lines, done, size, elapsed = message
+            share = read_share(done, size)
+            self.bar["value"] = 1000 * share
+            text = _("Lecture… %s, %s lignes lues") % (fmt.percent(share), fmt.number(lines))
+            left = time_left(share, elapsed)
+            if left is not None:
+                text += _(", encore environ %s") % left_text(left)
+            self.status.set(text)
         elif kind == "read":
             _kind, log, segments, elapsed = message
-            self._stop()
+            self._stop(done=True)
             self.log, self.segments = log, segments
             for row in fight_rows(segments):
                 self.fights.insert("", "end", iid=str(row[0]), values=row)
@@ -508,6 +551,7 @@ class App:
                 self.status.set(_("Le rapport n'a pas été écrit."))
                 messagebox.showerror("LogsWoW", reason, parent=self.root)
                 return
+            self.bar["value"] = 1000
             self.last_report = out
             self.status.set(_("Rapport écrit : %s") % out)
             open_in_browser(out)
@@ -520,11 +564,16 @@ class App:
         self.status.set(text)
         self._update_buttons()
 
-    def _stop(self):
+    def _stop(self, done=False):
+        """Back to rest: a full bar after a read that ended, an empty one otherwise.
+
+        An empty bar after a finished read looked like a bar that had never
+        moved (2026-09-29): a full one says the work is done.
+        """
         self.busy = False
         self.bar.stop()
         self.bar.configure(mode="determinate")
-        self.bar["value"] = 0
+        self.bar["value"] = 1000 if done else 0
 
     def _update_buttons(self):
         def state(widget, on):

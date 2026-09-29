@@ -6,6 +6,19 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.13.1 — 2026-09-29
+
+**The window's progress bar can be seen, and says the time left.** It
+did move, but on Linux the window's theme drew it light grey on a grey
+background, and it emptied the moment the read ended: it looked broken.
+It is blue now, stays full once the read or the report is done, and
+follows the actual position in the file rather than an estimate per
+line. Below it, the status line gives the percentage and the time left:
+"Reading… 36%, 401,409 lines read, about 30 s left". On the owner's
+364 MB log the estimate said 45 s four seconds in, for 46 s real, and was
+never more than 3 s off. The report itself is written in a second or
+two, so it has no countdown.
+
 ## 0.13.0 — 2026-09-29
 
 The full audit of 0.12.1, checked on your 364 MB log of 29 September.

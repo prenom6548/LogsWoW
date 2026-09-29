@@ -267,8 +267,14 @@ TEXTS = {
         'Writing the report (%s)…',
     'Erreur inattendue en écrivant le rapport :\n\n':
         'Unexpected error while writing the report:\n\n',
-    'Lecture… %s lignes lues':
-        'Reading… %s lines read',
+    'Lecture… %s, %s lignes lues':
+        'Reading… %s, %s lines read',
+    ', encore environ %s':
+        ', about %s left',
+    '%d s':
+        '%d s',
+    '%d min %02d s':
+        '%d min %02d s',
     "Aucun combat trouvé dans ce fichier : il est peut-être vide, ou /combatlog n'était pas lancé.":
         'No fight found in this file: it may be empty, or /combatlog was not running.',
     '%s, %s lignes lues en %.0f s%s.':

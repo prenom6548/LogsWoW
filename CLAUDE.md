@@ -1039,10 +1039,22 @@ open it. Four decisions, each forced by a rule above:
 - **One thread for the long work, the window's loop for every widget**,
   talking through a queue: Tkinter is not thread-safe. `cli._build` gained
   `progress` and `cancelled` callbacks rather than a copy of itself.
-  The bar turns lines into a share of the file at **310 bytes a line**,
-  measured on the sixteen logs (305 to 322); on a real 951,575-line log
-  it read 31.4% where the truth was 31.0%, and it never reaches 100%
-  before the read ends.
+  The bar first turned lines into a share of the file at 310 bytes a
+  line, measured on the sixteen logs (305 to 322). **Since 0.13.1 it
+  reads the file's own position** (`LogFile.bytes_read`, the binary
+  buffer under the text layer, a few kilobytes ahead of the line being
+  read), and never reaches 100% before the read ends. The owner, on
+  Linux Mint, took it for a broken bar (2026-09-29): it moved, but clam
+  draws its fill light grey on a grey trough, and `_stop` emptied it the
+  moment the read ended. It is clam's selection blue now
+  (`BAR_COLOURS`), full after a read or a report, empty after a cancel
+  or an error. The status line gives the share and **the time left**:
+  the pace so far applied to what remains (`time_left`), silent for the
+  first 1.5 s and 2%, rounded to 5 s past 20 s. Reading costs the same
+  per byte from start to end: on the owner's 364 MB night it announced
+  45 s at 4 s in for 46 s real, and stayed within 3 s to the end. The
+  report itself needs no estimate -- 44 views of a 189 MB log render in
+  0.5 s -- and keeps a bar that moves without a share.
 - **Nothing typed means the window**, because that is what a double-click
   on the `.pyz` does -- but only when `main()` is given no argv at all:
   the tests call `main([])` and still get the help. Without a display
@@ -1607,7 +1619,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 255 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 257 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSeventhAuditFindings`), and each one was regression-checked the

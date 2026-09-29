@@ -17,6 +17,7 @@ a filter can be entirely absent and still produce a plausible total.
 
 import contextlib
 import io
+import itertools
 import os
 import re
 import sys
@@ -2787,8 +2788,62 @@ class TestWindow(unittest.TestCase):
         self.assertEqual(gui.file_size(9532819484), "9,5 Go")
         self.assertEqual(gui.file_size(12), "12 o")
         self.assertEqual(gui.read_share(0, 1000), 0.0)
+        self.assertEqual(gui.read_share(500, 1000), 0.5)
         self.assertEqual(gui.read_share(10 ** 9, 1000), 0.99)   # never "done" early
         self.assertEqual(gui.read_share(5, 0), 0.0)
+
+    def test_the_bar_follows_the_file_s_own_position(self):
+        """The bar turned lines into bytes at 310 a line, an average of sixteen
+        logs; it now reads how far into the file the read is (2026-09-29)."""
+        import tempfile
+        from unittest import mock
+        from logswow import cli, parse
+
+        with open(FIXTURE, "rb") as source:
+            lines = source.read().splitlines(keepends=True)
+        # Past the warm-up: its lines are all read before the first is used.
+        ROUNDS = 200
+        self.assertGreater(len(lines) * ROUNDS // 2, parse.WARMUP_LINES)
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "WoWCombatLog-long.txt")
+            with open(path, "wb") as copy:
+                for _round in range(ROUNDS):
+                    copy.writelines(lines)
+            size = os.path.getsize(path)
+            log = LogFile(path)
+            offsets = [0]
+            for line in lines * ROUNDS:
+                offsets.append(offsets[-1] + len(line))
+            seen = []
+            for event in log.events():
+                if log.line_count > len(lines) * ROUNDS // 2 and not seen:
+                    seen.append((log.line_count, log.bytes_read))
+            line_count, done = seen[0]
+            # The text layer reads ahead by a chunk: a few kilobytes, never more.
+            self.assertLessEqual(offsets[line_count], done)
+            self.assertLess(done - offsets[line_count], 64 * 1024)
+            self.assertLess(done, size)
+            self.assertEqual(log.bytes_read, 0)           # the read is over
+            # `_build` hands both counts to the window.
+            calls = []
+            with mock.patch.object(cli.time, "time", side_effect=itertools.count(0, 1.0)):
+                cli._build(path, verbose=False,
+                           progress=lambda lines, done: calls.append((lines, done)))
+            self.assertTrue(calls)
+            self.assertTrue(all(0 < done <= size for _lines, done in calls))
+
+    def test_the_window_says_how_long_the_read_still_needs(self):
+        from logswow import gui
+
+        self.assertIsNone(gui.time_left(0.5, 1.0))           # the first second: too early
+        self.assertIsNone(gui.time_left(0.01, 10.0))         # 1 % of the file: too early
+        self.assertEqual(gui.time_left(0.5, 10.0), 10.0)
+        self.assertEqual(gui.time_left(0.25, 12.0), 36.0)
+        self.assertEqual(gui.left_text(0.2), "1 s")
+        self.assertEqual(gui.left_text(8.4), "8 s")
+        self.assertEqual(gui.left_text(23), "25 s")          # by 5 s past 20: no flicker
+        self.assertEqual(gui.left_text(65), "1 min 05 s")
+        self.assertEqual(gui.left_text(122), "2 min 00 s")
 
     def test_a_path_with_spaces_becomes_a_valid_address(self):
         """The owner's logs are under ".../World of Warcraft/_retail_/Logs"."""
@@ -2891,11 +2946,18 @@ class TestWindow(unittest.TestCase):
                     time.sleep(0.02)
                 self.assertTrue(app.segments)
                 self.assertEqual(len(app.fights.selection()), len(app.segments))
+                # A read that ended leaves the bar full, not empty (2026-09-29).
+                self.assertEqual(app.bar["value"], 1000)
                 app.write_selected()
                 while app.busy and time.time() < deadline:
                     root.update()
                     time.sleep(0.02)
                 self.assertEqual(opened, [os.path.join(folder, "WoWCombatLog-092726_200000.html")])
+                self.assertEqual(app.bar["value"], 1000)
+                # Halfway through a file, ten seconds in: ten seconds left.
+                app._handle(("progress", 5000, 500, 1000, 10.0))
+                self.assertEqual(app.bar["value"], 500)
+                self.assertIn("encore environ 10 s", app.status.get())
                 self.assertTrue(os.path.getsize(opened[0]) > 1000)
         finally:
             gui.open_in_browser = saved

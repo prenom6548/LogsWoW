@@ -264,6 +264,24 @@ class LogFile:
         self.first_ts = None
         self.last_ts = None
         self.size_bytes = os.path.getsize(path) if os.path.exists(path) else 0
+        self._reading = None
+
+    @property
+    def bytes_read(self):
+        """How far into the file the current read has gone, in bytes.
+
+        What the window's bar shows: the file's own position, rather than a
+        line count times an average line length. The text layer reads ahead
+        by a chunk of a few kilobytes, which is all this runs ahead of
+        `line_count`. Asked by the thread that reads, between two lines.
+        """
+        reading = self._reading
+        if reading is None:
+            return 0
+        try:
+            return reading.tell()
+        except (OSError, ValueError):
+            return 0
 
     def _open(self):
         # errors="replace" rather than "strict": a single byte damaged by a
@@ -293,6 +311,7 @@ class LogFile:
         decided = False
 
         with self._open() as handle:
+            self._reading = handle.buffer
             for line in handle:
                 self.line_count += 1
                 line = line.rstrip("\r\n")
@@ -328,6 +347,7 @@ class LogFile:
 
                 yield self._build(ts, fields, self.line_count)
 
+        self._reading = None
         if not decided:
             # Short file: settle the vote on whatever evidence there is.
             self.layout = detect_layout([item[1] for item in buffered])

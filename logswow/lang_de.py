@@ -267,8 +267,14 @@ TEXTS = {
         'Bericht wird geschrieben (%s)…',
     'Erreur inattendue en écrivant le rapport :\n\n':
         'Unerwarteter Fehler beim Schreiben des Berichts:\n\n',
-    'Lecture… %s lignes lues':
-        'Lesen… %s Zeilen gelesen',
+    'Lecture… %s, %s lignes lues':
+        'Lesen… %s, %s Zeilen gelesen',
+    ', encore environ %s':
+        ', noch etwa %s',
+    '%d s':
+        '%d s',
+    '%d min %02d s':
+        '%d Min. %02d s',
     "Aucun combat trouvé dans ce fichier : il est peut-être vide, ou /combatlog n'était pas lancé.":
         'Kein Kampf in dieser Datei gefunden: Sie ist vielleicht leer, oder /combatlog war nicht aktiv.',
     '%s, %s lignes lues en %.0f s%s.':

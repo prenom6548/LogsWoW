@@ -267,8 +267,14 @@ TEXTS = {
         'Escribiendo el informe (%s)…',
     'Erreur inattendue en écrivant le rapport :\n\n':
         'Error inesperado al escribir el informe:\n\n',
-    'Lecture… %s lignes lues':
-        'Leyendo… %s líneas leídas',
+    'Lecture… %s, %s lignes lues':
+        'Leyendo… %s, %s líneas leídas',
+    ', encore environ %s':
+        ', quedan unos %s',
+    '%d s':
+        '%d s',
+    '%d min %02d s':
+        '%d min %02d s',
     "Aucun combat trouvé dans ce fichier : il est peut-être vide, ou /combatlog n'était pas lancé.":
         'No se ha encontrado ningún combate en este archivo: puede que esté vacío, o que /combatlog no estuviera activado.',
     '%s, %s lignes lues en %.0f s%s.':
