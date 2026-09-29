@@ -25,7 +25,12 @@ ne charge rien depuis nulle part, et elle ne contient aucun script.
 Trois présentations au choix, dans la fenêtre ou avec `--format` :
 **onglets** (par défaut : un fichier, la liste des combats à gauche et
 des onglets par rubrique), **pages** (un dossier, une page par combat)
-ou **longue** (tout sur une seule page).
+ou **longue** (tout sur une seule page). Dans la liste de gauche, chaque
+clé est repliée derrière un petit « + » : dépliée, elle montre ses pulls
+et ses boss dans l'ordre où ils ont été joués, et chaque pull de trash
+s'ouvre comme un boss, avec son propre détail (tout sauf l'ordre des
+sorts, que la clé montre déjà pull par pull). La page longue ne les a
+pas.
 
 La fenêtre utilise Tkinter, la boîte à outils graphique fournie avec
 Python. Sous Windows et avec l'installateur macOS de python.org, elle est
@@ -170,6 +175,14 @@ lu serait pire que pas de rapport du tout.
 - **Les clés abandonnées** : une clé relancée ou quittée pour une autre
   est « abandonnée », pas « hors des temps », et la tuile **Clés non
   terminées** compte aussi celle que le journal laisse ouverte.
+- **Dans les temps ou hors des temps** : le journal dit qu'une clé est
+  terminée, jamais si elle l'a été dans les temps, et n'écrit pas le
+  chronomètre du donjon. Le verdict vient du score que le jeu écrit en
+  fin de clé : une clé dans les temps rapporte au moins 15 × niveau +
+  185 (380 pour un +13), une clé en retard moins. Mesuré sur 15 clés
+  terminées : les 14 dans les temps de 0 à 14 points au-dessus, la seule
+  en retard 61 points en dessous. Sans score (ancien format), la clé est
+  seulement « terminée ».
 - **Physique ou magique** : la part des dégâts subis et infligés qui
   était physique, magique ou les deux, en pourcentage, sur tout le combat
   puis pull par pull, avec le détail par école (Ombre, Feu, Nature…).

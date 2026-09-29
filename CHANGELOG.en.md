@@ -6,6 +6,32 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.12.0 — 2026-09-29
+
+**Fix: "in time" was wrong for a key finished late.** A Val Aveuglant +13
+completed in 30:23 read "in time". The log writes, when a key ends, a
+flag that means "completed", not "timed", and it never writes the
+dungeon's time limit. What tells them apart is the score the game gives
+the key: at least 15 × level + 185 in time (380 for a +13), less when
+late. The owner's two Val Aveuglant +13: 383.2 in 27:26 (in time), 319.5
+in 30:23 (over time). Of 15 completed keys, the 14 timed ones are all
+above the threshold; if a verdict looks wrong, say which key. A key from
+an older log, with no score, is only "completed".
+
+**Pulls in the list on the left.** Each key is now folded there behind a
+small "+". Unfolded, it shows its pulls and bosses in the order they
+were played ("Pull 1", "Pull 2", the boss, "Pull 4"…), numbered as in
+the pull table. Each trash pull opens like a boss, with its own detail:
+damage, healing, deaths, players, enemies (the cast order stays in the
+key's view, pull by pull). Clicking the key's name selects it, the "+"
+unfolds it. The folder of pages has a page per pull too; the long page
+does not change.
+
+These views have a cost, measured on a 364 MB log: 35 s → 45 s, 13 → 20
+MB of page, 163 → 249 MB of peak memory. Every figure of the fights is
+identical to 0.11.0, and each pull counts exactly the same damage as its
+row in the key's table (checked on 143 pulls of five logs).
+
 ## 0.11.0 — 2026-09-29
 
 **The first hit each enemy took**, pull by pull, bosses included: for

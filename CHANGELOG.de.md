@@ -8,6 +8,37 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.12.0 — 2026-09-29
+
+**Korrektur: „in der Zeit“ war falsch für einen verspätet beendeten
+Schlüssel.** Ein Val Aveuglant +13, in 30:23 abgeschlossen, stand als „in
+der Zeit“. Das Protokoll schreibt am Ende eines Schlüssels ein Kennzeichen,
+das „abgeschlossen“ bedeutet, nicht „in der Zeit“, und es schreibt
+nirgends das Zeitlimit des Dungeons. Was beides unterscheidet, ist die
+Wertung, die das Spiel dem Schlüssel gibt: mindestens 15 × Stufe + 185 in
+der Zeit (380 für +13), weniger bei Verspätung. Die beiden Val Aveuglant
++13 des Besitzers: 383,2 in 27:26 (in der Zeit), 319,5 in 30:23 (über der
+Zeit). Von 15 abgeschlossenen Schlüsseln liegen die 14 in der Zeit alle
+über der Schwelle; wirkt ein Urteil falsch, nennen Sie den Schlüssel. Ein
+Schlüssel aus einem älteren Protokoll ohne Wertung ist nur
+„abgeschlossen“.
+
+**Die Pulls in der Liste links.** Jeder Schlüssel ist dort jetzt hinter
+einem kleinen „+“ eingeklappt. Aufgeklappt zeigt er seine Pulls und
+Bosse in der gespielten Reihenfolge („Pull 1“, „Pull 2“, der Boss,
+„Pull 4“…), nummeriert wie in der Pull-Tabelle. Jeder Trash-Pull öffnet
+sich wie ein Boss, mit eigenem Detail: Schaden, Heilung, Tode, Spieler,
+Gegner (die Zauberreihenfolge bleibt in der Ansicht des Schlüssels, Pull
+für Pull). Ein Klick auf den Namen des Schlüssels wählt ihn aus, das „+“
+klappt ihn auf. Der Ordner mit Seiten hat auch eine Seite pro Pull; die
+lange Seite ändert sich nicht.
+
+Diese Ansichten kosten etwas, gemessen an einem Protokoll von 364 MB:
+35 s → 45 s, 13 → 20 MB Seite, 163 → 249 MB Spitzenspeicher. Alle Zahlen
+der Kämpfe sind identisch mit 0.11.0, und jeder Pull zählt genau
+denselben Schaden wie seine Zeile in der Tabelle des Schlüssels (geprüft
+an 143 Pulls aus fünf Protokollen).
+
 ## 0.11.0 — 2026-09-29
 
 **Der erste Treffer, den jeder Gegner erhielt**, Pull für Pull, Bosse

@@ -410,6 +410,25 @@ class TestSegments(unittest.TestCase):
         self.assertFalse(keys[0].truncated)
         self.assertFalse(keys[0].is_wipe)
 
+    def test_a_completed_key_is_in_time_only_when_its_score_says_so(self):
+        """The success flag says completed, not timed: the owner's late Val
+        Aveuglant +13 (30:23) carries a 1 like their timed one (27:26). Only
+        the score tells them apart: 383.2 against 319.5, where a timed +13
+        scores at least 15 x 13 + 185 = 380 (2026-09-29)."""
+        keys = self._keys([
+            (1, 'CHALLENGE_MODE_START,"Le val",2859,584,13,[9,10,147]'),
+            (100, "CHALLENGE_MODE_END,2859,1,13,1646811,383.191437,3170.274658"),
+            (200, 'CHALLENGE_MODE_START,"Le val",2859,584,13,[9,10,147]'),
+            (300, "CHALLENGE_MODE_END,2859,1,13,1823476,319.510925,3170.274658"),
+            # An older log with no score: completed, and nothing more is said.
+            (400, 'CHALLENGE_MODE_START,"Allee",2000,500,7,[9]'),
+            (500, "CHALLENGE_MODE_END,2000,1,7,90000"),
+        ])
+        self.assertEqual([k.outcome for k in keys],
+                         ["dans les temps", "hors des temps", "terminée"])
+        self.assertEqual([k.completed for k in keys], [True, True, True])
+        self.assertAlmostEqual(keys[1].score, 319.510925)
+
     def test_a_key_the_file_ends_in_is_cut_short_and_a_new_one_abandons_it(self):
         keys = self._keys([
             (1, 'CHALLENGE_MODE_START,"Allee",2813,587,14,[9]'),
@@ -3202,6 +3221,32 @@ class TestLayouts(unittest.TestCase):
         target = os.path.join(directory, name)
         return ReportWriter(log, segments, target, wowhead="off", layout=layout).write(), segments
 
+    def test_a_key_folds_its_pulls_and_bosses_under_a_plus(self):
+        """The owner, 2026-09-29: the key closed under a "+", and inside it
+        every pull in the order it was fought, each a view of its own."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            path, segments = self._write(directory, "onglets")
+            with open(path, encoding="utf-8") as handle:
+                page = handle.read()
+        key = [segment for segment in segments if segment.kind == "keystone"][0]
+        self.assertEqual([pull.name for pull in key.pulls], ["Pull 1", "Pull 2"])
+        # The fights keep their numbers: pulls are numbered after them.
+        self.assertEqual([segment.index for segment in segments], [1, 2, 3])
+        self.assertEqual([pull.index for pull in key.pulls], [4, 5])
+        self.assertIn("<details class=grp><summary><label for=f3 class='nv n3'>", page)
+        self.assertIn("<label for=f4 class='nv n4 in'>Pull 1<small>", page)
+        self.assertIn("#f5:checked~.layout .v5{display:block}", page)
+        # The sign of an open key: once an octal escape that drew a box.
+        self.assertIn('.grp[open]>summary::before{content:"\u2212"}', page)
+        pull_view = page[page.index("<section class='fight v4'>"):]
+        pull_view = pull_view[:pull_view.index("</section>")]
+        self.assertIn("Donjon d&#x27;essai +7 \u2014 Pull 1", pull_view)
+        # Its key already draws the cast order pull by pull.
+        self.assertNotIn("class=co>", pull_view)
+        self.assertEqual(key.pulls[0].analysis.total_damage, key.pulls[0].block.damage_done)
+
     def test_tabs_are_one_file_with_no_script(self):
         import tempfile
 
@@ -3226,8 +3271,12 @@ class TestLayouts(unittest.TestCase):
             path, segments = self._write(directory, "pages", "rapport")
             self.assertEqual(path, os.path.join(folder, "index.html"))
             names = sorted(os.listdir(folder))
-            self.assertEqual(names, sorted(["index.html"] + ["combat-%02d.html" % s.index
-                                                             for s in segments]))
+            # One page per fight, and one per trash pull of a key (0.12.0).
+            from logswow.report_layouts import page_name, views
+
+            self.assertEqual(names, sorted(["index.html"] + [page_name(view)
+                                                             for view in views(segments)]))
+            self.assertIn("combat-03-pull-01.html", names)
             with open(path, encoding="utf-8") as handle:
                 index = handle.read()
             self.assertIn("href='combat-%02d.html'" % segments[0].index, index)

@@ -26,7 +26,11 @@ Three layouts to choose from, in the window or with `--format`:
 **onglets** (the default: one file, the list of fights on the left and
 tabs by section), **pages** (a folder, one page per fight) or **longue**
 (everything on one page). The option values stay in French, as they
-always were.
+always were. In the list on the left, each key is folded behind a small
+"+": unfolded, it shows its pulls and bosses in the order they were
+played, and each trash pull opens like a boss, with its own detail
+(everything but the cast order, which the key already shows pull by
+pull). The long page does not have them.
 
 The window uses Tkinter, the graphical toolkit that comes with Python.
 On Windows and with the python.org installer for macOS it is already
@@ -162,6 +166,13 @@ misread file would be worse than no report at all.
 - **Abandoned keys**: a key restarted or left for another is
   "abandoned", not "over time", and the **Unfinished keys** tile also
   counts the one the log leaves open.
+- **In time or over time**: the log says a key was completed, never
+  whether in time, and does not write the dungeon's timer. The verdict
+  comes from the score the game writes when the key ends: a timed key
+  earns at least 15 × level + 185 (380 for a +13), a late one less.
+  Measured on 15 completed keys: the 14 timed ones 0 to 14 points above,
+  the only late one 61 points below. With no score (older format), the
+  key is only "completed".
 - **Physical or magic**: the share of damage taken and dealt that was
   physical, magic or both, as percentages, over the whole fight then pull
   by pull, with the detail by school (Shadow, Fire, Nature…).

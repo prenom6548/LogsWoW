@@ -647,6 +647,8 @@ TEXTS = {
         'sin combate',
     'abandonnée':
         'abandonada',
+    'terminée':
+        'completada',
     'interrompu':
         'interrumpido',
     'dans les temps':
@@ -657,6 +659,8 @@ TEXTS = {
         'victoria',
     'échec':
         'derrota',
+    'Pull %d':
+        'Pull %d',
     'Donjon':
         'Mazmorra',
     'Session complète':

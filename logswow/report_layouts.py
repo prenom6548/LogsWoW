@@ -45,6 +45,13 @@ line-height:1.3}
 .nv:hover{background:var(--panel)}
 .nv small{display:block;color:var(--muted);font-size:11.5px}
 .nv.in{margin-left:14px}
+.grp>summary{list-style:none;display:flex;align-items:stretch}
+.grp>summary::-webkit-details-marker{display:none}
+.grp>summary::before{content:"+";flex:none;width:18px;padding-top:6px;text-align:center;
+color:var(--muted);font-weight:700;cursor:pointer}
+.grp[open]>summary::before{content:"\u2212"}
+.grp>summary>.nv{flex:1}
+.grp>.nv.in{margin-left:18px}
 .fight{display:none}
 .tabbar{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin:10px 0 16px}
 .lb{padding:7px 12px;cursor:pointer;border:1px solid transparent;border-bottom:none;
@@ -101,14 +108,46 @@ def tabbed_fight(index, parts):
 
 def nested(segments):
     """Indexes of the fights that sit inside a key listed before them."""
-    inside, key = set(), None
+    return {segment.index for children in contents(segments).values() for segment in children}
+
+
+def contents(segments):
+    """{key index: [what the key holds, in order]}: its bosses and its trash pulls.
+
+    What the owner asked for on 2026-09-29: a key folded under a "+", and
+    once unfolded, every pull in the order it was fought, each one a view
+    of its own.
+    """
+    held, key = {}, None
     for segment in segments:
         if segment.kind == "keystone":
             key = segment
+            held[key.index] = list(key.pulls)
         elif (key is not None and segment.kind == "encounter"
               and key.start_ts <= segment.start_ts <= (key.end_ts or segment.start_ts)):
-            inside.add(segment.index)
-    return inside
+            held[key.index].append(segment)
+    for children in held.values():
+        children.sort(key=lambda segment: (segment.start_ts, segment.kind != "pull"))
+    return held
+
+
+def nav_label(segment, inside=False):
+    """One entry of the list on the left: a fight, a boss in a key, or a pull."""
+    if segment.kind == "pull":
+        what = segment.block.label() if segment.block is not None else ""
+        if len(what) > 38:
+            what = what[:37].rstrip() + "\u2026"
+        title, small = segment.name, what
+    else:
+        title, small = segment.label, _(segment.outcome)
+    return "<label for=f%d class='nv n%d%s'>%s<small>%s</small></label>" % (
+        segment.index, segment.index, " in" if inside else "", fmt.esc(title),
+        fmt.esc(small) or "&nbsp;")
+
+
+def views(segments):
+    """Every view of the report: the fights, and after each key its pulls."""
+    return [view for segment in segments for view in [segment] + list(segment.pulls)]
 
 
 def write_atomic(path, text):
@@ -124,6 +163,8 @@ def write_atomic(path, text):
 
 
 def page_name(segment):
+    if segment.kind == "pull":
+        return "combat-%02d-pull-%02d.html" % (segment.parent.index, segment.number)
     return "combat-%02d.html" % segment.index
 
 
@@ -148,37 +189,56 @@ class LayoutsMixin:
     def _write_tabbed(self):
         overview = self._overview(link=lambda segment: "<label for=f%d class=name>%s</label>"
                                   % (segment.index, fmt.esc(segment.label)))
-        fights = [(segment,) + self._segment(segment) for segment in self.segments]
+        every = views(self.segments)
+        fights = [(segment,) + self._view(segment) for segment in every]
         footer = self._footer()
+        held = contents(self.segments)
         inside = nested(self.segments)
         radios = _("<input type=radio name=f id=f0 class=fsel checked "
                    "aria-label='Vue d&#39;ensemble'>")
         radios += "".join("<input type=radio name=f id=f%d class=fsel aria-label='%s'>"
-                          % (segment.index, fmt.esc(segment.label)) for segment in self.segments)
-        nav = _("<label for=f0 class='nv n0'>Vue d'ensemble</label>") + "".join(
-            "<label for=f%d class='nv n%d%s'>%s<small>%s</small></label>"
-            % (segment.index, segment.index, " in" if segment.index in inside else "",
-               fmt.esc(segment.label), fmt.esc(_(segment.outcome)) or "&nbsp;")
-            for segment in self.segments)
+                          % (segment.index, fmt.esc(segment.label)) for segment in every)
+        entries = []
+        for segment in self.segments:
+            if segment.index in inside:
+                continue        # drawn inside its key
+            children = held.get(segment.index)
+            if children:
+                entries.append("<details class=grp><summary>%s</summary>%s</details>" % (
+                    nav_label(segment), "".join(nav_label(child, True) for child in children)))
+            else:
+                entries.append(nav_label(segment))
+        nav = _("<label for=f0 class='nv n0'>Vue d'ensemble</label>") + "".join(entries)
         sections = "<section class='fight v0'>%s</section>" % overview + "".join(
             "<section class='fight v%d'>%s%s</section>"
             % (segment.index, head, tabbed_fight(segment.index, parts))
             for segment, head, parts in fights)
         body = (_("%s<div class=layout><nav class=side aria-label='Combats'>%s</nav>"
                   "<main>%s</main></div>%s") % (radios, nav, sections, footer))
-        css = TABS_CSS + tab_rules() + "\n" + fight_rules([0] + [s.index for s in self.segments])
+        css = TABS_CSS + tab_rules() + "\n" + fight_rules([0] + [s.index for s in every])
         page = self._head(extra_css=css, wrap_class="wrap tabs") + body
         write_atomic(self.out_path, page)
         return self.out_path
+
+    def _view(self, segment):
+        """A fight's head and parts; a pull's leave out the cast order, which
+        its key already draws pull by pull."""
+        if segment.kind != "pull":
+            return self._segment(segment)
+        cast_order, self.cast_order = self.cast_order, False
+        try:
+            return self._segment(segment)
+        finally:
+            self.cast_order = cast_order
 
     def _write_pages(self):
         folder = self.out_path
         os.makedirs(folder, exist_ok=True)
         written = set()
-        segments = list(self.segments)
+        segments = views(self.segments)
         for position, segment in enumerate(segments):
             self._spell_ids = set()
-            head, parts = self._segment(segment)
+            head, parts = self._view(segment)
             links = [_("<a href='index.html'>&larr; Tous les combats</a>")]
             if position > 0:
                 links.append("<a href='%s'>&lsaquo; %s</a>" % (

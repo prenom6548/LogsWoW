@@ -1312,6 +1312,51 @@ cutting from the 3 s gap -- no total, no aura, no player figure. Every
 invariant holds on four real logs, and 600 rounds of fuzzing raise
 nothing.
 
+### A key's success flag, and the pulls in the list (2026-09-29)
+
+The owner published 0.11.0 and sent a screenshot with two notes.
+
+**"Faux, on l'a pas fini dans les temps."** A Val Aveuglant +13 read
+"dans les temps". Their log of that evening held two runs of it, and
+**both end on `CHALLENGE_MODE_END,2859,1,13,...`**: the flag means
+*completed*, not timed. Nothing else in the file tells them apart -- no
+line marks the timer running out (Xal'atath's words, which the owner
+remembered, are chat, not combat log), and the start line carries the
+level and the affixes but not the time limit. What does is the next
+field, the run's score: 383.2 for the run in 27:26, 319.5 for the one in
+30:23. On 15 completed keys of six real logs (levels 10 to 14), the 14
+timed ones scored 0 to 14 points above `15 x level + 185`, the late one
+61 below (`KEY_SCORE_*` in `segment.py`). One late key is thin evidence,
+so the rule and its numbers are written in the README, and a key with no
+score (the older four-field line) is only "terminée" (`completed`).
+The fixture's key line gained a score; the synthetic stress key has
+none and turned "terminée", the only figure the snapshot moved.
+
+**The pulls in the list, and a folded key.** Each trash pull of a key is
+now a segment of its own (`kind = "pull"`, `Segment.pulls` of its key),
+with an analysis fed by `Splitter._follow_pulls` from the event that
+opened the key's pull (`analysis._block`) until it can no longer grow,
+seeded with what the key knew before it (summon owners, player names and
+labels) and, at the end, the key's opener, first hits and specs. Pulls
+are **not** in the Splitter's list: `list`, `--only`, the window and
+every tile keep the fights they had; they are numbered after them. A
+boss's pull is dropped (the encounter is its view), and so is a pull the
+table dropped as a crumb. The tabs fold each key into
+`<details class=grp>` whose summary holds the key's label: a click on the
+name selects it (a label is its own activation target), a click on the
+"+" toggles -- checked in Chromium. A pull's view leaves out the cast
+order, which its key draws pull by pull. `pages` writes
+`combat-NN-pull-MM.html`; the long page is unchanged, byte for byte on
+three real logs.
+
+A pull ends on the last event it was fed, a pull gap after its last
+damage: ending it on that damage made an aura in the tail outlast the
+pull, and the invariant checker, now run on every pull too, said so. It
+also checks that each pull counts exactly the damage its key's table
+gives it: 143 pulls of five logs, all equal. Cost on a 364 MB log:
+35 -> 45 s, a 13 -> 20 MB page, 163 -> 249 MB peak. The first "-" of an
+open key was a box: `"\2212"` in a Python string is an octal escape.
+
 ### Performance, measured
 
 261 MB / 896,610 lines (a real raid night, report included) in
@@ -1336,7 +1381,7 @@ logswow/timestamps.py   four timestamp shapes, year rollover
 logswow/tokenize.py     field split: csv fast path, depth-aware loop (quotes, [], ())
 logswow/events.py       Layout, Actor, Advanced, Event, the prefix/suffix scheme
 logswow/parse.py        LogFile.events(), detect_layout()
-logswow/segment.py      Splitter: pulls, keys, and keys containing pulls
+logswow/segment.py      Splitter: pulls, keys, keys containing pulls, and each key's trash pulls
 logswow/analysis.py     SegmentAnalysis.feed/finish -- which event feeds which ledger
 logswow/models.py       Ability, Enemy, CombatBlock, Player -- the ledgers themselves
 logswow/auras.py        aura uptime (AuraLedger, inherited by SegmentAnalysis)
@@ -1438,7 +1483,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 245 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 247 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSixthAuditFindings`), and each one was regression-checked the

@@ -320,7 +320,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         late = sum(1 for segment in keys if segment.success is False)
         # Abandoned, or still open when the file ends: a key the reader
         # was never told the end of is neither in time nor late.
-        unfinished = sum(1 for segment in keys if segment.success is None)
+        unfinished = sum(1 for segment in keys if not segment.completed)
         wipes = sum(1 for success, fought in pulls.values() if success is False and fought)
         cells = [
             (_("Taille du fichier"), _("%s Mo") % fmt.one_decimal(self.log.size_bytes / 1048576.0)),

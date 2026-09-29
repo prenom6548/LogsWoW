@@ -3,6 +3,36 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.12.0 — 2026-09-29
+
+**Correction : « dans les temps » était faux pour une clé finie en
+retard.** Votre Val Aveuglant +13 terminé en 30:23 était affiché « dans
+les temps ». Le journal écrit, en fin de clé, un indicateur qui veut dire
+« terminée », pas « chronométrée », et il n'écrit nulle part le temps
+limite du donjon. Ce qui les distingue, c'est le score que le jeu donne à
+la clé : au moins 15 × niveau + 185 dans les temps (380 pour un +13),
+moins en retard. Vos deux Val Aveuglant +13 : 383,2 en 27:26 (dans les
+temps), 319,5 en 30:23 (hors des temps). Sur 15 clés terminées, les 14
+dans les temps sont toutes au-dessus du seuil ; si un verdict vous
+semble faux, dites quelle clé. Une clé d'un journal ancien, sans score,
+est seulement « terminée ».
+
+**Les pulls dans la liste de gauche.** Chaque clé y est maintenant
+repliée derrière un petit « + ». Dépliée, elle montre ses pulls et ses
+boss dans l'ordre où ils ont été joués (« Pull 1 », « Pull 2 », le boss,
+« Pull 4 »…), avec la même numérotation que le tableau des pulls. Chaque
+pull de trash s'ouvre comme un boss, avec son propre détail : dégâts,
+soins, morts, joueurs, ennemis (l'ordre des sorts reste dans la vue de la
+clé, pull par pull). Cliquer sur le nom de la clé la sélectionne, le
+« + » la déplie. La présentation en dossier de pages a aussi une page
+par pull ; la page longue ne change pas.
+
+Ces vues ont un coût, mesuré sur votre journal de 364 Mo : 35 s → 45 s,
+13 → 20 Mo de page, 163 → 249 Mo de mémoire au plus fort. Tous les
+chiffres des combats sont identiques à la 0.11.0, et chaque pull compte
+exactement les mêmes dégâts que sa ligne dans le tableau de la clé
+(vérifié sur 143 pulls de cinq journaux).
+
 ## 0.11.0 — 2026-09-29
 
 **Le premier coup reçu par chaque ennemi**, pull par pull et boss

@@ -165,7 +165,7 @@ def build():
             "nil,nil,nil,ST"
             % (DPS, mob, advanced("Creature-0-9999-2222-1111-70003-0000BB0001",
                                   60000 - tick * 30000, 60000)))
-    add("00:02:30.000", "CHALLENGE_MODE_END,2000,1,7,90000")
+    add("00:02:30.000", "CHALLENGE_MODE_END,2000,1,7,90000,300.000000,3000.000000")
     return "\n".join(lines) + "\n"
 
 

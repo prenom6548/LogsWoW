@@ -27,7 +27,12 @@ Drei Darstellungen stehen zur Wahl, im Fenster oder mit `--format`:
 **onglets** (Standard: eine Datei, links die Liste der Kämpfe und
 Registerkarten nach Bereich), **pages** (ein Ordner, eine Seite pro
 Kampf) oder **longue** (alles auf einer Seite). Die Werte der Option
-bleiben französisch, wie sie es immer waren.
+bleiben französisch, wie sie es immer waren. In der Liste links ist
+jeder Schlüssel hinter einem kleinen „+“ eingeklappt: Aufgeklappt zeigt
+er seine Pulls und Bosse in der gespielten Reihenfolge, und jeder
+Trash-Pull öffnet sich wie ein Boss, mit eigenem Detail (alles außer der
+Zauberreihenfolge, die der Schlüssel schon Pull für Pull zeigt). Die
+lange Seite hat sie nicht.
 
 Das Fenster verwendet Tkinter, die grafische Bibliothek, die mit Python
 geliefert wird. Unter Windows und mit dem macOS-Installer von python.org
@@ -184,6 +189,14 @@ wäre schlimmer als gar kein Bericht.
   verlassener Schlüssel ist „abgebrochen“, nicht „über der Zeit“, und die
   Kachel **Nicht beendete Schlüssel** zählt auch den, den das Protokoll
   offen lässt.
+- **In der Zeit oder über der Zeit**: Das Protokoll sagt, dass ein
+  Schlüssel abgeschlossen wurde, nie ob in der Zeit, und schreibt den
+  Timer des Dungeons nicht. Das Urteil stammt aus der Wertung, die das
+  Spiel am Ende des Schlüssels schreibt: Ein Schlüssel in der Zeit bringt
+  mindestens 15 × Stufe + 185 (380 für +13), ein verspäteter weniger.
+  Gemessen an 15 abgeschlossenen Schlüsseln: die 14 in der Zeit 0 bis 14
+  Punkte darüber, der einzige verspätete 61 Punkte darunter. Ohne Wertung
+  (älteres Format) ist der Schlüssel nur „abgeschlossen“.
 - **Physisch oder magisch**: der Anteil des erlittenen und verursachten
   Schadens, der physisch, magisch oder beides war, in Prozent, über den
   ganzen Kampf und dann Pull für Pull, mit dem Detail nach Schule

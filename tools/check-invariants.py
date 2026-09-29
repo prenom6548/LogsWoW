@@ -287,6 +287,18 @@ def main(argv):
         failures.append(str(failure))
     for segment in segments:
         failures.extend(audit_segment(segment))
+        # A key's trash pulls have analyses of their own (0.12.0): every
+        # family holds on each, and each must count what the key counted
+        # for that pull -- a pull that sees more or less than its key is a
+        # pull fed the wrong events.
+        for pull in segment.pulls:
+            failures.extend(audit_segment(pull))
+            try:
+                check(pull.analysis.total_damage == pull.block.damage_done,
+                      "%s: damage == the key's for that pull" % pull.label,
+                      "%d vs %d" % (pull.analysis.total_damage, pull.block.damage_done))
+            except Failure as failure:
+                failures.append(str(failure))
     if failures:
         print("\n%d INVARIANT(S) VIOLATED:" % len(failures))
         for failure in failures:

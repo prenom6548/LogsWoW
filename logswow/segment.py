@@ -23,6 +23,14 @@ from .tokenize import as_int
 # as a wipe. The shortest real encounter in two logs had 7,867.
 FIGHT_KINDS = frozenset({"_DAMAGE", "_DAMAGE_LANDED", "_MISSED", "_SHIELD", "_SPLIT"})
 
+# A key's success flag says it was *completed*, not that it was timed: the
+# owner's late Val Aveuglant +13 (30:23) carries a 1 like every timed key.
+# What tells them apart is the run's score, the next field: on 15 completed
+# keys of six real logs (levels 10 to 14), the 14 timed ones scored from
+# 0 to 14 points above 15 x level + 185, and the late one 61 below.
+KEY_SCORE_BASE = 185
+KEY_SCORE_PER_LEVEL = 15
+
 # Difficulty ids, as the client writes them. Anything unlisted is shown
 # by number rather than guessed at.
 DIFFICULTY_NAMES = {
@@ -60,6 +68,15 @@ def _text(fields, index, default):
     return value if isinstance(value, str) and value else default
 
 
+def _number(text):
+    """'383.191437' -> 383.191437; None for anything that is not a finite number."""
+    try:
+        value = float(text)
+    except (TypeError, ValueError):
+        return None
+    return value if value == value and abs(value) != float("inf") else None
+
+
 def difficulty_name(difficulty_id):
     """A difficulty id as the reader says it, or its number when unknown."""
     if not difficulty_id:
@@ -88,8 +105,21 @@ class Segment:
         self.reported_duration_ms = None
         self.truncated = False
         self.abandoned = False
+        # Completed, whatever the timer said; the score the game gave it.
+        self.completed = False
+        self.score = None
         self.fought = False
         self.analysis = None
+        # A key's trash pulls, each a segment of its own ("pull") with its
+        # own analysis, so a reader can open one like a boss (the owner,
+        # 2026-09-29). Not in the Splitter's list: `list`, `--only` and
+        # every count keep the fights they always had.
+        self.pulls = []
+        self.parent = None
+        self.block = None
+        self.number = 0
+        self._open_pull = None
+        self._pull_block = None
 
     @property
     def duration_ms(self):
@@ -114,12 +144,14 @@ class Segment:
     @property
     def outcome(self):
         """The result, in French: réussite, échec, sans combat, interrompu... (see `_()`)."""
-        if self.kind == "session":
+        if self.kind in ("session", "pull"):
             return ""
         if self.never_fought and not self.truncated:
             return N_("sans combat")
         if self.abandoned:
             return N_("abandonnée")
+        if self.kind == "keystone" and self.completed and self.success is None:
+            return N_("terminée")     # completed; no score to say whether in time
         if self.success is None:
             return N_("interrompu")
         if self.kind == "keystone":
@@ -129,6 +161,8 @@ class Segment:
     @property
     def label(self):
         """'Allee du meurtre +14', 'Golem Mythique': the name a fight is listed under."""
+        if self.kind == "pull":
+            return "%s \u2014 %s" % (self.parent.label, self.name)
         pieces = [self.name]
         if self.kind == "keystone" and self.key_level:
             pieces.append("+%d" % self.key_level)
@@ -190,10 +224,88 @@ class Splitter:
             # raid night spends most of its lines there.
             self._feed_fallback(event)
 
+        self._follow_pulls(event)
+
         if subevent == "ENCOUNTER_END":
             self._close_encounter(event)
         elif subevent == "CHALLENGE_MODE_END":
             self._close_keystone(event)
+
+    # -- a key's trash pulls ------------------------------------------------
+
+    def _follow_pulls(self, event):
+        """Open, feed and close the pull the key's own analysis is in.
+
+        The key's analysis already cuts it into pulls (its `blocks`); each
+        new one gets a segment and an analysis of its own, fed from the
+        event that opened it until the pull can no longer grow. Boss pulls
+        are dropped at the end: the encounter is already a segment.
+        """
+        if self.analysis_factory is None or event.ts is None:
+            return
+        for key in self._active:
+            analysis = key.analysis
+            if key.kind != "keystone" or not hasattr(analysis, "blocks"):
+                continue
+            block = analysis._block
+            pull = key._open_pull
+            if pull is not None and (block is not pull.block
+                                     or event.ts > block.end_ts + analysis.pull_gap_ms):
+                self._close_pull(key)
+                pull = None
+            if pull is None and block is not None and block is not key._pull_block:
+                key._pull_block = block
+                pull = self._new("pull", "", block.start_ts)
+                pull.parent, pull.block = key, block
+                # What the key already knows and the pull would not see:
+                # who owns which summon, and each player's name and label.
+                pull.analysis.pet_owner.update(analysis.pet_owner)
+                pull.analysis._player_names.update(analysis._player_names)
+                pull.analysis._labels.update(analysis._labels)
+                pull.analysis._label_owner.update(analysis._label_owner)
+                key._open_pull = pull
+                key.pulls.append(pull)
+            if pull is not None:
+                pull.analysis.feed(event)
+
+    def _close_pull(self, key):
+        pull, key._open_pull = key._open_pull, None
+        if pull is not None:
+            # The last event it was fed, as every fight ends: it was fed
+            # until it could no longer grow, a pull gap after its last
+            # damage, and an aura ending in that tail must fit inside it.
+            last = pull.analysis.last_ts or pull.block.end_ts
+            pull.end_ts = max(pull.start_ts, pull.block.end_ts, last)
+            pull.analysis.finish(pull)
+
+    def _settle_pulls(self, key):
+        """Once the key is finished: keep its trash pulls, numbered as its table."""
+        self._close_pull(key)
+        analysis = key.analysis
+        if not hasattr(analysis, "blocks"):
+            return
+        numbers = {id(block): position for position, block in enumerate(analysis.blocks, 1)}
+        bosses = analysis.boss_names
+        kept = []
+        for pull in key.pulls:
+            number = numbers.get(id(pull.block))
+            if number is None or pull.block.has_boss(bosses):
+                continue      # a crumb the table dropped, or a boss's pull
+            pull.number = number
+            pull.name = _("Pull %d") % number
+            # The key saw what came before the pull's first damage; the
+            # pull's own analysis did not. Its opener and first hits are
+            # the key's, and each player keeps the spec the key read.
+            own = pull.analysis.blocks
+            if own:
+                own[0].opening = pull.block.opening
+                own[0].first_hits = pull.block.first_hits
+            for guid, player in pull.analysis.players.items():
+                known = analysis.players.get(guid)
+                if known is not None and not player.spec_id:
+                    player.spec_id = known.spec_id
+            kept.append(pull)
+        key.pulls = kept
 
     # -- opening ----------------------------------------------------------
 
@@ -238,8 +350,12 @@ class Splitter:
             if self._active[position].kind == kind:
                 segment = self._active.pop(position)
                 segment.end_ts = event.ts
+                if segment.kind == "keystone":
+                    self._close_pull(segment)
                 if segment.analysis is not None:
                     segment.analysis.finish(segment)
+                if segment.kind == "keystone":
+                    self._settle_pulls(segment)
                 return segment
         return None
 
@@ -269,10 +385,19 @@ class Splitter:
             # level and its time.
             segment.abandoned = True
             return
-        if len(fields) > 2:
-            segment.success = bool(as_int(fields[2], 0))
         if len(fields) > 4:
             segment.reported_duration_ms = as_int(fields[4], 0) or None
+        if len(fields) <= 2:
+            return
+        segment.completed = True
+        if not as_int(fields[2], 0):
+            segment.success = False
+            return
+        score = _number(fields[5]) if len(fields) > 5 else None
+        segment.score = score
+        level = as_int(fields[3], 0) if len(fields) > 3 else 0
+        if score is not None and level:
+            segment.success = score >= KEY_SCORE_PER_LEVEL * level + KEY_SCORE_BASE
 
     def _abandon(self, kinds, end_ts):
         """Close the open segments of these kinds: a key abandoned, a pull truncated."""
@@ -283,8 +408,12 @@ class Splitter:
             else:
                 segment.truncated = True
             segment.end_ts = max(segment.start_ts, end_ts or segment.start_ts)
+            if segment.kind == "keystone":
+                self._close_pull(segment)
             if segment.analysis is not None:
                 segment.analysis.finish(segment)
+            if segment.kind == "keystone":
+                self._settle_pulls(segment)
 
     # -- the no-marker case -----------------------------------------------
 
@@ -310,8 +439,12 @@ class Splitter:
                 # segment's own start: a log cut mid-pull is a pull of
                 # the length that was recorded, not a pull of zero.
                 segment.end_ts = max(segment.start_ts, self._last_ts or segment.start_ts)
+            if segment.kind == "keystone":
+                self._close_pull(segment)
             if segment.analysis is not None:
                 segment.analysis.finish(segment)
+            if segment.kind == "keystone":
+                self._settle_pulls(segment)
         self._active = []
         if not self._saw_marker and self._fallback is not None:
             if self._fallback.analysis is not None:
@@ -324,4 +457,11 @@ class Splitter:
         self.segments.sort(key=lambda segment: (segment.start_ts, segment.index))
         for position, segment in enumerate(self.segments, start=1):
             segment.index = position
+        # A key's pulls come after every fight, so no fight's number moves;
+        # they only need to be told apart on the page.
+        position = len(self.segments)
+        for segment in self.segments:
+            for pull in segment.pulls:
+                position += 1
+                pull.index = position
         return self.segments

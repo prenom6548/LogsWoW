@@ -27,7 +27,11 @@ Hay tres presentaciones a elegir, en la ventana o con `--format`:
 **onglets** (por defecto: un archivo, la lista de combates a la izquierda
 y pestañas por sección), **pages** (una carpeta, una página por combate)
 o **longue** (todo en una sola página). Los valores de la opción siguen
-en francés, como siempre.
+en francés, como siempre. En la lista de la izquierda, cada llave está
+plegada tras un pequeño «+»: desplegada, muestra sus pulls y sus jefes en
+el orden en que se jugaron, y cada pull de trash se abre como un jefe,
+con su propio detalle (todo salvo el orden de hechizos, que la llave ya
+muestra pull a pull). La página larga no los tiene.
 
 La ventana usa Tkinter, la biblioteca gráfica que viene con Python. En
 Windows y con el instalador de macOS de python.org ya está incluida; en
@@ -173,6 +177,14 @@ que ningún informe.
 - **Las llaves abandonadas**: una llave reiniciada o dejada por otra está
   «abandonada», no «fuera de tiempo», y el recuadro **Llaves sin
   terminar** cuenta también la que el registro deja abierta.
+- **A tiempo o fuera de tiempo**: el registro dice que una llave se
+  completó, nunca si fue a tiempo, y no escribe el cronómetro de la
+  mazmorra. El veredicto viene de la puntuación que el juego escribe al
+  final de la llave: una llave a tiempo da al menos 15 × nivel + 185 (380
+  para un +13), una tardía menos. Medido en 15 llaves completadas: las 14
+  a tiempo de 0 a 14 puntos por encima, la única tardía 61 puntos por
+  debajo. Sin puntuación (formato antiguo), la llave solo está
+  «completada».
 - **Físico o mágico**: la parte del daño recibido e infligido que fue
   física, mágica o ambas, en porcentaje, en todo el combate y luego pull a
   pull, con el detalle por escuela (Sombras, Fuego, Naturaleza…).

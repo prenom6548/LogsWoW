@@ -7,6 +7,36 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.12.0 — 2026-09-29
+
+**Corrección: «a tiempo» era falso para una llave terminada tarde.** Un
+Val Aveuglant +13 completado en 30:23 aparecía «a tiempo». El registro
+escribe, al final de una llave, un indicador que significa «completada»,
+no «cronometrada», y nunca escribe el tiempo límite de la mazmorra. Lo
+que las distingue es la puntuación que el juego da a la llave: al menos
+15 × nivel + 185 a tiempo (380 para un +13), menos si llega tarde. Los
+dos Val Aveuglant +13 del propietario: 383,2 en 27:26 (a tiempo), 319,5 en
+30:23 (fuera de tiempo). De 15 llaves completadas, las 14 a tiempo están
+todas por encima del umbral; si un veredicto parece falso, diga qué
+llave. Una llave de un registro antiguo, sin puntuación, solo está
+«completada».
+
+**Los pulls en la lista de la izquierda.** Cada llave está ahora plegada
+tras un pequeño «+». Desplegada, muestra sus pulls y sus jefes en el
+orden en que se jugaron («Pull 1», «Pull 2», el jefe, «Pull 4»…), con la
+misma numeración que la tabla de pulls. Cada pull de trash se abre como
+un jefe, con su propio detalle: daño, sanación, muertes, jugadores,
+enemigos (el orden de hechizos sigue en la vista de la llave, pull a
+pull). Hacer clic en el nombre de la llave la selecciona, el «+» la
+despliega. La carpeta de páginas tiene también una página por pull; la
+página larga no cambia.
+
+Estas vistas tienen un coste, medido en un registro de 364 MB: 35 s → 45
+s, 13 → 20 MB de página, 163 → 249 MB de memoria máxima. Todas las cifras
+de los combates son idénticas a la 0.11.0, y cada pull cuenta
+exactamente el mismo daño que su fila en la tabla de la llave (comprobado
+en 143 pulls de cinco registros).
+
 ## 0.11.0 — 2026-09-29
 
 **El primer golpe que recibió cada enemigo**, pull a pull, jefes

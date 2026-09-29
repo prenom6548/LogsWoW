@@ -647,6 +647,8 @@ TEXTS = {
         'no fight',
     'abandonnée':
         'abandoned',
+    'terminée':
+        'completed',
     'interrompu':
         'cut short',
     'dans les temps':
@@ -657,6 +659,8 @@ TEXTS = {
         'kill',
     'échec':
         'wipe',
+    'Pull %d':
+        'Pull %d',
     'Donjon':
         'Dungeon',
     'Session complète':
