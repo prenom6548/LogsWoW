@@ -1473,6 +1473,25 @@ its `SHA256SUMS`. **It uses no third-party action**, not even
 and a dependency in the publishing path is a dependency all the same.
 Keep it that way. Nothing online runs on an ordinary push.
 
+## Each new Mythic+ season
+
+Decided 2026-09-29: the score decides whether a key was timed, and the
+timer is **not** shown -- a table of limits needs upkeep every season,
+the score needs none. The owner says when a season starts; then:
+
+1. Re-read Raider.IO's base score table
+   (support.raider.io/kb/frequently-asked-questions/what-is-the-base-score-value-for-each-level-keystone)
+   and check `key_base_score` against every row (the test holds the
+   table). If the affix steps or the per-level value moved, change
+   `KEY_SCORE_*` and the test, not the rule.
+2. Fetch the season's dungeons and timers from
+   `raider.io/api/v1/mythic-plus/static-data?expansion_id=<n>` (Midnight
+   is 11) -- in the session only, the package opens no socket -- and
+   compare each completed key of the owner's newest logs (the START
+   line's third field is the `challengeModeID`) with the score's
+   verdict. They must agree on every key; a disagreement is a finding to
+   report, not a threshold to tune.
+
 ## What this deliberately does not do
 
 Five limits are structural, and the README says so to the owner in
