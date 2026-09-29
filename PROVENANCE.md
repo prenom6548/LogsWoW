@@ -7,9 +7,12 @@ is documentation, not legal advice. That history was rewritten once, on
 2026-09-28, by the owner, to remove a real player's identifier and
 character name from its first commits: every commit hash from before
 that date changed, and nothing about authorship did (messages, trailers,
-authors and dates were kept). The old commits are no longer on any
-branch or tag, but GitHub still serves them by their hash until its
-support purges them (found by the 2026-09-29 audit).
+authors and dates were kept). GitHub still served the old commits by
+their hash (found by the 2026-09-29 audit), so the same day the owner
+recreated the repository: the old one was renamed `LogsWoW1`, to be
+deleted, and this one received only the rewritten history, which is
+the whole history of this repository. Releases were published again
+from the same tags.
 
 ## Authorship
 

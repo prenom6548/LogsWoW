@@ -1129,7 +1129,10 @@ what became of them:
   from before then names nothing on `main` any more -- but GitHub still
   serves the old commits by their hash, to anyone and without an account,
   until its support purges them: rewriting a public history is not enough
-  on its own (the 2026-09-29 audit, below). The `.pyz` of
+  on its own (the 2026-09-29 audit, below). So on 2026-09-29 the owner
+  **recreated the repository**: the old one was renamed `LogsWoW1`, to be
+  deleted, and a new, empty `LogsWoW` received only the clean `main` and
+  tags -- a new repository holds no object the push did not send. The `.pyz` of
   0.2.0, 0.3.0 and 0.3.1 carried the name in a docstring; clean ones were
   rebuilt from the rewritten tags, to replace the published files.
 - The merged `claude/...` branch is gone from the remote.
@@ -1403,7 +1406,8 @@ problems) was read in the session's scratch directory and deleted after.
 - **The rewritten history is still public.** GitHub serves the commits
   from before the 2026-09-28 rewrite by their hash, to anyone and without
   an account, raw files included. A session cannot settle that; the
-  owner can (the audit report says how). A container cloned before the
+  owner did, by recreating the repository the same day (above, "Left to
+  the owner"). A container cloned before the
   rewrite also keeps the old history under a stale local `main`: check
   that `git log origin/main..main` is empty before working on `main`, and
   never push a branch that holds it -- that would publish it again.
