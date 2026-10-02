@@ -15,7 +15,7 @@ Three rates, kept apart on purpose:
   given to tanks.
 """
 
-from .i18n import _
+from .i18n import N_, _
 from . import fmt
 from .specs import DPS, HEAL, TANK, label_of, role_of
 from .timestamps import format_duration
@@ -58,6 +58,14 @@ def role_groups(analysis):
     for players in groups.values():
         players.sort(key=lambda player: player.short_name.lower())
     return [(role, groups[role]) for role in ROLE_ORDER if groups[role]]
+
+
+ROLE_NAMES = {TANK: N_("Tank"), HEAL: N_("Soigneur"), DPS: "DPS", "": N_("Rôle non indiqué")}
+
+
+def role_word(role):
+    """One player's role, singular and translated ('Tank', 'Soigneur', 'DPS')."""
+    return _(ROLE_NAMES.get(role, ROLE_NAMES[""]))
 
 
 def role_label(role):

@@ -8,6 +8,37 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.18.0 — 2026-10-02
+
+**Eine Spezialisierung gegen eine andere, im Fenster „Verlauf“.** Ein neuer
+Reiter, *Spezialisierungen*, beantwortet „wie schlägt sich diese
+Spezialisierung gegenüber jener?“ mit den Durchgängen des Verlaufs. Er
+bezieht sich auf einen gefolgten Charakter oder auf alle des Ordners, **jeweils
+für eine Rolle**: Der Schaden eines Tanks neben dem eines Magiers ist kein
+Vergleich von Spezialisierungen.
+
+Wie bei der Entwicklung **wird nur innerhalb desselben Inhalts verglichen**:
+derselbe Dungeon auf derselben Schlüsselstufe, derselbe Boss auf derselben
+Schwierigkeit, und nur Durchgänge, die zählen (beendete Schlüssel, besiegte
+Bosse). Die Liste links behält nur Inhalte, die mit mindestens zwei
+Spezialisierungen gespielt wurden; ein Inhalt zeigt für jede Spezialisierung die
+Zahl der Durchgänge, den **Median** (ein Ausreißer verfälscht ihn nicht), die
+Spanne von Minimum bis Maximum, die Gegenstandsstufe und die Abweichung
+gegenüber der ersten Zeile, dazu ein Balkendiagramm der Mediane (bei null
+beginnend, damit ein kleiner Unterschied nicht vergrößert wird). Der Messwert
+öffnet sich auf der meistgespielten Rolle (erlittener Schaden/s für Tanks,
+Heilung/s, Schaden/s); erlittener Schaden wird nur Tanks zugeschrieben, für
+einen Vergleich braucht es also zwei Tank-Spezialisierungen.
+
+Es ist keine Rangliste: Die erste Zeile ist die meistgespielte, nicht die beste,
+und die Abweichung hängt von Gegenstandsstufe, Spielern und Gruppe ab, was der
+Reiter sagt. Eine Zeile mit weniger als drei Durchgängen ist mit ‡ markiert.
+Nichts verschwindet stillschweigend: Inhalte mit nur einer Spezialisierung und
+Durchgänge, deren Spezialisierung das Protokoll nicht schreibt, werden unter der
+Tabelle gezählt. Die Rolle wird nun zuerst aus der Spezialisierung gelesen, was
+Durchgänge korrigiert, deren Kennung beim Speichern noch unbekannt war. Keine
+bestehende Zahl ändert sich.
+
 ## 0.17.0 — 2026-10-02
 
 **Die Entwicklung eines Charakters, im Fenster „Verlauf“.** Ein neuer Reiter,

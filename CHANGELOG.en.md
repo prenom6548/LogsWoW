@@ -6,6 +6,33 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.18.0 — 2026-10-02
+
+**One specialization against another, in the "History" window.** A new tab,
+*Specializations*, answers "how does this specialization do against that
+one?" with the runs of the history. It works on one followed character, or on
+all those of the folder, **one role at a time**: a tank's damage beside a mage's
+is not a comparison of specializations.
+
+As with the progress view, **only the same content is compared**: the same
+dungeon at the same key level, the same boss at the same difficulty, and only
+the runs that count (finished keys, killed bosses). The list on the left keeps
+only the content played with at least two specializations; choosing one gives,
+for each specialization, the number of runs, the **median** (one extreme run
+does not skew it), the range from minimum to maximum, the item level and the
+gap to the first row, with a bar chart of the medians (starting at zero, so a
+small difference is not magnified). The measure opens on the role played most
+(damage taken/s for tanks, healing/s, damage/s); damage taken is given to
+tanks only, so two tank specializations are needed to compare it.
+
+It is not a ranking: the first row is the most played, not the best, and the
+gap depends on item level, players and group, which the tab says. A row backed
+by fewer than three runs is marked ‡. Nothing disappears quietly: content
+played with a single specialization, and runs whose specialization the log does
+not write, are counted under the table. The role is now read from the
+specialization first, which fixes runs whose id was not known when they were
+saved. No existing figure changes.
+
 ## 0.17.0 — 2026-10-02
 
 **The evolution of a character, in the "History" window.** A new tab,

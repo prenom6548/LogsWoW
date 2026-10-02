@@ -184,8 +184,10 @@ misread file would be worse than no report at all.
   bosses) and raid bosses; no raid trash. The **Progress** tab shows one
   character run after run, content by content (same dungeon and level,
   same boss and difficulty), with the item level, the specialization, the
-  group and the game's version beside it; it is never a grade. The other
-  comparisons will follow.
+  group and the game's version beside it; it is never a grade. The
+  **Specializations** tab sets side by side, in one content, the
+  specializations played (median, range, item level), with no ranking.
+  Best key and best kill will follow.
 - **Preview and comparison of keys in the window.** To the right of the
   list of fights, two tabs follow what you tick: the overview (length,
   damage, healing, deaths, a line per player with their item level) and

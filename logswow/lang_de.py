@@ -999,6 +999,41 @@ TEXTS = {
         'Abende',
     'Évolution':
         'Entwicklung',
+    # history: one specialization against another
+    ' Contenus comparables ':
+        ' Vergleichbare Inhalte ',
+    ' Médiane par spécialisation ':
+        ' Median pro Spezialisierung ',
+    ' Spécialisations du contenu choisi ':
+        ' Spezialisierungen des gewählten Inhalts ',
+    "Aucun contenu n'a été joué avec au moins deux spécialisations de ce rôle dans ce dossier.":
+        'In diesem Ordner wurde kein Inhalt mit mindestens zwei Spezialisierungen dieser Rolle gespielt.',
+    'Contenus joués avec une seule spécialisation, non comparés : %d.':
+        'Mit nur einer Spezialisierung gespielte Inhalte, nicht verglichen: %d.',
+    'Min – max':
+        'Min – Max',
+    'Médiane':
+        'Median',
+    "Médiane des sorties comptées (clés terminées, boss tués) d'un même contenu et d'un même niveau, pour un rôle à la fois. L'écart est celui de chaque spécialisation par rapport à la première ligne, la plus jouée : ce n'est pas un classement. Il dépend aussi du niveau d'objet, des joueurs et du groupe ; avec plusieurs personnages, il mêle leurs joueurs.":
+        'Median der gezählten Durchgänge (beendete Schlüssel, besiegte Bosse) desselben Inhalts und derselben Stufe, jeweils für eine Rolle. Die Abweichung ist die jeder Spezialisierung gegenüber der ersten Zeile, der meistgespielten: Es ist keine Rangliste. Sie hängt auch von Gegenstandsstufe, Spielern und Gruppe ab; bei mehreren Charakteren mischt sie deren Spieler.',
+    'Persos':
+        'Chars',
+    "Sorties dont la spécialisation n'est pas écrite dans le journal ou que LogsWoW ne connaît pas, non comparées : %d.":
+        'Durchgänge, deren Spezialisierung im Protokoll nicht steht oder LogsWoW unbekannt ist, nicht verglichen: %d.',
+    'Spécialisations':
+        'Spezialisierungen',
+    'Spés':
+        'Spez.',
+    'Tous les personnages suivis':
+        'Alle gefolgten Charaktere',
+    'Écart / 1re':
+        'Abw. / 1.',
+    '‡ Moins de %d sorties : une médiane sur si peu de sorties dit peu de chose.':
+        '‡ Weniger als %d Durchgänge: Ein Median über so wenige Durchgänge sagt wenig aus.',
+    '… et %d autres dans le tableau':
+        '… und %d weitere in der Tabelle',
+    'Rôle :':
+        'Rolle:',
 }
 
 # The French nouns `fmt.plural` agrees, and their German forms.

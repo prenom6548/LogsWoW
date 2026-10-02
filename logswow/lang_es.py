@@ -999,6 +999,41 @@ TEXTS = {
         'Noches',
     'Évolution':
         'Evolución',
+    # history: one specialization against another
+    ' Contenus comparables ':
+        ' Contenidos comparables ',
+    ' Médiane par spécialisation ':
+        ' Mediana por especialización ',
+    ' Spécialisations du contenu choisi ':
+        ' Especializaciones del contenido elegido ',
+    "Aucun contenu n'a été joué avec au moins deux spécialisations de ce rôle dans ce dossier.":
+        'En esta carpeta no se ha jugado ningún contenido con al menos dos especializaciones de este rol.',
+    'Contenus joués avec une seule spécialisation, non comparés : %d.':
+        'Contenidos jugados con una sola especialización, no comparados: %d.',
+    'Min – max':
+        'Mín – máx',
+    'Médiane':
+        'Mediana',
+    "Médiane des sorties comptées (clés terminées, boss tués) d'un même contenu et d'un même niveau, pour un rôle à la fois. L'écart est celui de chaque spécialisation par rapport à la première ligne, la plus jouée : ce n'est pas un classement. Il dépend aussi du niveau d'objet, des joueurs et du groupe ; avec plusieurs personnages, il mêle leurs joueurs.":
+        'Mediana de las salidas contadas (llaves terminadas, jefes derrotados) del mismo contenido y nivel, un rol cada vez. La diferencia es la de cada especialización respecto a la primera fila, la más jugada: no es una clasificación. Depende también del nivel de objeto, de los jugadores y del grupo; con varios personajes, mezcla a sus jugadores.',
+    'Persos':
+        'Pers.',
+    "Sorties dont la spécialisation n'est pas écrite dans le journal ou que LogsWoW ne connaît pas, non comparées : %d.":
+        'Salidas cuya especialización no está escrita en el registro o que LogsWoW no conoce, no comparadas: %d.',
+    'Spécialisations':
+        'Especializaciones',
+    'Spés':
+        'Esp.',
+    'Tous les personnages suivis':
+        'Todos los personajes seguidos',
+    'Écart / 1re':
+        'Dif. / 1.ª',
+    '‡ Moins de %d sorties : une médiane sur si peu de sorties dit peu de chose.':
+        '‡ Menos de %d salidas: una mediana sobre tan pocas salidas dice poco.',
+    '… et %d autres dans le tableau':
+        '… y %d más en la tabla',
+    'Rôle :':
+        'Rol:',
 }
 
 # The French nouns `fmt.plural` agrees, and their Spanish forms.

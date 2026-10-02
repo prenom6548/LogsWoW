@@ -3,6 +3,35 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.18.0 — 2026-10-02
+
+**Une spécialisation contre une autre, dans la fenêtre « Historique ».** Un
+nouvel onglet, *Spécialisations*, répond à « comment se comporte telle
+spécialisation, comparée à telle autre ? » avec les sorties de l'historique.
+Il porte sur un personnage suivi, ou sur tous ceux du dossier, **un rôle à la fois** :
+dégâts d'un tank et dégâts d'un mage ne sont pas une comparaison de spécialisations.
+
+Comme pour l'évolution, **on ne compare que dans un même contenu** : un même
+donjon au même niveau de clé, un même boss à la même difficulté, et seulement
+les sorties qui comptent (clés terminées, boss tués). La liste de gauche ne
+garde que les contenus joués avec au moins deux spécialisations ; choisir un
+contenu donne, pour chaque spécialisation, le nombre de sorties, la **médiane**
+(une sortie hors norme ne la fausse pas), la plage du minimum au maximum, le
+niveau d'objet et l'écart par rapport à la première ligne, avec un graphique
+en barres des médianes (partant de zéro, pour ne pas grossir une petite
+différence). La mesure s'ouvre sur le rôle le plus joué (dégâts subis/s pour
+les tanks, soins/s, dégâts/s) ; les dégâts subis ne sont donnés qu'aux tanks,
+il faut donc deux spécialisations de tank pour les comparer.
+
+Ce n'est pas un classement : la première ligne est la plus jouée, pas la
+meilleure, et l'écart dépend du niveau d'objet, des joueurs et du groupe, ce
+que l'onglet rappelle. Une ligne appuyée sur moins de trois sorties est marquée
+‡. Rien ne disparaît en silence : les contenus joués avec une seule
+spécialisation, et les sorties dont le journal n'écrit pas la spécialisation,
+sont comptés sous le tableau. Le rôle se lit désormais d'abord dans la
+spécialisation, ce qui corrige les sorties dont l'identifiant n'était pas
+connu au moment de l'enregistrement. Aucun chiffre existant ne change.
+
 ## 0.17.0 — 2026-10-02
 
 **L'évolution d'un personnage, dans la fenêtre « Historique ».** Un nouvel

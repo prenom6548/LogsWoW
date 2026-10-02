@@ -14,10 +14,10 @@ window is `HistoryWindow`, tested when a display exists.
 
 from . import fmt, history
 from .gui_evolution import EvolutionTab
+from .gui_specs import SpecsTab
 from .i18n import N_, _
-from .specs import DPS, HEAL, TANK, label_of
-
-ROLE_NAMES = {TANK: N_("Tank"), HEAL: N_("Soigneur"), DPS: "DPS", "": N_("Rôle non indiqué")}
+from .preview import role_word
+from .specs import label_of
 
 INTRO_FIRST = N_(
     "L'historique garde, soirée après soirée, les chiffres de vos personnages pour voir "
@@ -41,7 +41,7 @@ def player_rows(segments, followed):
     rows = []
     for guid, name, spec_id, role, fights in history.players_seen(segments):
         rows.append((guid, "✓" if guid in followed else "", name,
-                     label_of(spec_id) or "?", _(ROLE_NAMES.get(role, ROLE_NAMES[""])), fights))
+                     label_of(spec_id) or "?", role_word(role), fights))
     rows.sort(key=lambda row: (row[1] == "", row[2].lower()))
     return rows
 
@@ -215,6 +215,9 @@ class HistoryWindow:
         book.add(evolution, text=_("Évolution"))
         self.book = book
         self.evolution = EvolutionTab(self, evolution)
+        specs = ttk.Frame(book, padding=12)
+        book.add(specs, text=_("Spécialisations"))
+        self.specs = SpecsTab(self, specs)
         outer.columnconfigure(0, weight=1)
         outer.rowconfigure(3, weight=1)
         outer.rowconfigure(6, weight=1)
@@ -339,6 +342,7 @@ class HistoryWindow:
         self._buttons()
         self.status.set(message or self._hint())
         self.evolution.refresh()
+        self.specs.refresh()
 
     def _fill_players(self):
         self.players.delete(*self.players.get_children())

@@ -1707,9 +1707,42 @@ HTML, so a page can draw the same later); `gui_evolution.py` is the tab, "Évolu
 - Tests: `TestEvolutionOfACharacter` (run ordering regardless of file order, kinds, odd
   content, chart, row texts, the widget). Seven mutations each fail a test.
 
-**Still to build**: specialization against specialization, best timed key and best kill
-per specialization, **always with the context beside** (item level, key level, dungeon,
-composition) and never a verdict that the log cannot give.
+**One specialization against another (0.18.0, 2026-10-02)** -- `history_views.spec_comparison`
+(data) and `gui_specs.py` (the "Spécialisations" tab). Decisions, with the reason:
+
+- **Same content only, counted runs only**, exactly as the evolution view: (dungeon, level)
+  or (boss, difficulty); a finished key, a killed boss. A content enters the list when at
+  least two specializations have a figure for the measure, so damage taken (a tank's alone)
+  needs two *tank* specializations. What is left out is counted on the window
+  (`single`: contents with one specialization; `unknown`: counted runs whose spec id the
+  file did not write) -- "a total that is quietly short" again.
+- **Median, with the range beside it**, not the mean: a night of an extreme figure must not
+  move the row (a test, with one night at 10x). **Rows are ordered by runs played**, the
+  first being the *reference* the gap is computed against -- never "the best": the tab
+  ranks nothing, and a lower damage taken is not a verdict. Fewer than `LOW_SAMPLE` (3) runs
+  is marked "‡" and said. Bars start at zero (`bar_lengths`): a length stands for a quantity.
+- **One role at a time** (found by driving the window on six real nights followed to the
+  last player: a tank's damage and a mage's were rows of one table, with "+112 %" between
+  them). `spec_comparison(runs, role, metric, kinds)` keeps the runs of one role; the role
+  box opens on the role most played (`majority_role`) and the measure follows the role
+  (`ROLE_METRIC`) until the reader changes it. A run whose spec id is 0 or whose role is
+  unknown is counted in `unknown`, whichever role is shown.
+- **All followed characters, or one.** Across characters the figures mix players as well as
+  specializations, which the tab says in its note; the item level sits beside every row.
+- **The role is read from the spec id first** (`role_of`), the stored one second: the table
+  learns ids (1480) after nights were saved, and the stored role was then empty or stale.
+  `preview.role_word` / `ROLE_NAMES` hold the singular role names the history windows share.
+- Tests: `TestSpecializationComparison` (the shared fixture helpers moved to the
+  `_FixtureNights` mixin: the fixture's key is Braise's alone and the Golem is both players',
+  so a key is compared through the specs one character played on different nights). Nine
+  mutations (mean for median, uncounted runs, single spec listed, unknown not counted,
+  ordering, stored role first, thin never, role filter, unknown role) each fail a test.
+  Driven under Xvfb on a throw-away history of six real nights following every player
+  (36 comparable contents for damage dealers).
+
+**Still to build**: best timed key and best kill per specialization, **always with the
+context beside** (item level, key level, dungeon, composition) and never a verdict that the
+log cannot give.
 
 ### Performance, measured
 
@@ -1755,6 +1788,7 @@ logswow/history.py      the history: one file per night, folders, followed chara
 logswow/gui_history.py  the history's window: folders, who to follow, add / automatic, nights kept
 logswow/history_views.py the history's views as data: runs of a character, same-content groups, trends
 logswow/gui_evolution.py the "Évolution" tab of the history window: groups, chart, every run
+logswow/gui_specs.py     the "Spécialisations" tab: contents played with two specs, medians, bars
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
 logswow/fmt.py          formatters (compact, percent, size, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
@@ -1865,7 +1899,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 319 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 332 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSeventhAuditFindings`), and each one was regression-checked the

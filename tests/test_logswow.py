@@ -4921,8 +4921,9 @@ class TestHistoryWindow(unittest.TestCase):
         self.assertIn("Nom de dossier invalide", shown.call_args[0][0])
 
 
-class TestEvolutionOfACharacter(unittest.TestCase):
-    """The first view of the history (2026-10-02): one character, run after run."""
+class _FixtureNights:
+    """Nights made from the fixture's, with the figures scaled and the context set, saved to a
+    history of their own; what the history's views are tested on."""
 
     BRAISE, ARDOISE = "Player-9999-00000003", "Player-9999-00000001"
 
@@ -4939,7 +4940,7 @@ class TestEvolutionOfACharacter(unittest.TestCase):
         self._count = 0
 
     def _night(self, date, scale=1.0, level=None, ilvl=None, spec=None, build="12.1.0",
-               analysis=None, outcome=None, guid=None):
+               analysis=None, outcome=None, guid=None, spec_ardoise=None, role=None):
         """Save a night made from the fixture's, with the figures scaled and the context set."""
         import copy
         from logswow import history
@@ -4966,7 +4967,30 @@ class TestEvolutionOfACharacter(unittest.TestCase):
                     row["ilvl"] = ilvl
                 if spec is not None and row["guid"] == self.BRAISE:
                     row["spec_id"] = spec
+                    if role is not None:
+                        row["role"] = role
+                if spec_ardoise is not None and row["guid"] == self.ARDOISE:
+                    row["spec_id"] = spec_ardoise
         history.save_night(self.root, self.slug, record)
+
+    def _window(self):
+        """The history window with a history of its own; skipped with no screen."""
+        from logswow import gui
+
+        try:
+            import tkinter
+            root = tkinter.Tk()
+        except (ImportError, Exception) as error:        # noqa: BLE001 -- no screen here
+            self.skipTest("pas de fenetre possible ici : %s" % str(error).splitlines()[0])
+        self.addCleanup(root.destroy)
+        self.addCleanup(__import__("gc").collect)
+        self.addCleanup(lambda: root.eval("foreach job [after info] {after cancel $job}"))
+        app = gui.App(root, locations=[self._temporary.name], history_root=self.root)
+        return app, root
+
+
+class TestEvolutionOfACharacter(_FixtureNights, unittest.TestCase):
+    """The first view of the history (2026-10-02): one character, run after run."""
 
     def test_the_runs_of_a_character_come_oldest_first_with_the_context_beside_them(self):
         from logswow import history_views as views
@@ -5175,21 +5199,6 @@ class TestEvolutionOfACharacter(unittest.TestCase):
         self.assertEqual(len(every[0]), 13)
         self.assertEqual(len(gui_evolution.group_rows(groups)[0]), 7)
 
-    def _window(self):
-        """The history window with a history of its own; skipped with no screen."""
-        from logswow import gui
-
-        try:
-            import tkinter
-            root = tkinter.Tk()
-        except (ImportError, Exception) as error:        # noqa: BLE001 -- no screen here
-            self.skipTest("pas de fenetre possible ici : %s" % str(error).splitlines()[0])
-        self.addCleanup(root.destroy)
-        self.addCleanup(__import__("gc").collect)
-        self.addCleanup(lambda: root.eval("foreach job [after info] {after cancel $job}"))
-        app = gui.App(root, locations=[self._temporary.name], history_root=self.root)
-        return app, root
-
     def test_the_evolution_tab_lists_the_followed_characters_runs_and_narrows_on_a_selection(self):
         from logswow import history
 
@@ -5223,6 +5232,204 @@ class TestEvolutionOfACharacter(unittest.TestCase):
         self.assertEqual(tab.guids, [])
         self.assertIn("Aucun personnage suivi", tab.message.cget("text"))
         self.assertEqual(len(tab.group_table.get_children()), 0)
+
+
+class TestSpecializationComparison(_FixtureNights, unittest.TestCase):
+    """The second view of the history (2026-10-02): one specialization against another, in the
+    same content only, by median, with the sample said and nothing ranked.
+
+    The fixture's night has the key played by Braise alone, the boss "Golem d'essai" killed by
+    Braise and Ardoise, and a wipe on "Eclat d'essai": so a key is compared through the
+    specializations one character played on different nights, and the Golem through both."""
+
+    BLOOD, PROTECTION = 250, 73                           # two tank specializations
+    FROST, UNHOLY, ARCANE = 251, 252, 62                  # three damage dealers
+
+    def _compare(self, role="dps", kinds=("key", "boss")):
+        from logswow import history_views as views
+
+        return views.spec_comparison(views.runs_in_folder(self.root, self.slug), role,
+                                     views.ROLE_METRIC[role], kinds)
+
+    @staticmethod
+    def _of(groups, kind):
+        return [group for group in groups if group.kind == kind][0]
+
+    def test_two_specializations_of_one_content_become_rows_most_played_first(self):
+        for date in ("2026-10-01", "2026-10-02", "2026-10-03"):
+            self._night(date, spec=self.FROST, spec_ardoise=self.UNHOLY)
+        self._night("2026-10-04", spec=self.ARCANE, spec_ardoise=self.UNHOLY)
+        groups, single, unknown = self._compare()
+        self.assertEqual((len(groups), single, unknown), (2, 0, 0))     # the key and the Golem
+        golem, key = self._of(groups, "boss"), self._of(groups, "key")
+        self.assertEqual([row.spec_id for row in golem.rows],
+                         [self.UNHOLY, self.FROST, self.ARCANE])        # 4, 3 and 1 runs: not by id
+        self.assertEqual([len(row.runs) for row in golem.rows], [4, 3, 1])
+        self.assertEqual([row.thin for row in golem.rows], [False, False, True])
+        self.assertEqual((golem.total, key.total), (8, 4))
+        self.assertEqual(groups[0], golem)                                # the most runs first
+        self.assertIsNone(golem.gap(golem.rows[0]))                       # the reference itself
+        reference, other = golem.rows[0], golem.rows[1]
+        self.assertAlmostEqual(golem.gap(other),
+                               (other.median - reference.median) / reference.median)
+        self.assertEqual([row.spec_id for row in key.rows], [self.FROST, self.ARCANE])
+
+    def test_the_figure_is_the_median_so_one_extreme_night_does_not_move_it(self):
+        from logswow import history_views as views
+
+        for date, scale in (("2026-10-01", 1.0), ("2026-10-02", 1.0), ("2026-10-03", 10.0)):
+            self._night(date, scale=scale, spec=self.FROST, spec_ardoise=self.UNHOLY)
+        groups, _single, _unknown = self._compare()
+        golem = self._of(groups, "boss")
+        frost = [row for row in golem.rows if row.spec_id == self.FROST][0]
+        runs = [run for run in views.runs_of(self.root, self.slug, self.BRAISE)
+                if run.content == golem.content]
+        self.assertEqual(frost.median, runs[0].value("dps"))     # the plain night, not the mean
+        self.assertGreater(frost.high, 9 * frost.low)            # the range still shows it
+        self.assertEqual(frost.characters, 1)
+
+    def test_only_the_same_content_and_only_runs_that_count_are_compared(self):
+        self._night("2026-10-01", level=7, spec=self.FROST)
+        self._night("2026-10-02", level=7, spec=self.UNHOLY)
+        self._night("2026-10-03", level=8, spec=self.FROST)
+        self._night("2026-10-04", level=8, spec=self.UNHOLY)
+        self._night("2026-10-05", level=7, spec=self.FROST,
+                    outcome="abandonnée")                          # listed, not here
+        groups, single, _unknown = self._compare(kinds=("key",))
+        self.assertEqual((len(groups), single), (2, 0))             # +7 and +8, never mixed
+        self.assertEqual({group.level_text for group in groups}, {"+7", "+8"})
+        self.assertTrue(all(group.total == 2 for group in groups))  # the abandoned one is out
+        self.assertTrue(all(len(group.rows) == 2 for group in groups))
+
+    def test_a_content_with_one_specialization_is_counted_not_listed(self):
+        self._night("2026-10-01", spec=self.FROST, spec_ardoise=self.FROST)
+        self.assertEqual(self._compare(), ([], 2, 0))
+
+    def test_damage_taken_is_given_to_tanks_only_so_it_needs_two_tanks(self):
+        self._night("2026-10-01", spec=self.FROST, spec_ardoise=self.BLOOD)
+        groups, single, _unknown = self._compare("tank")
+        self.assertEqual((groups, single), ([], 1))                 # one tank: nothing to compare
+        self._night("2026-10-02", spec=self.BLOOD, spec_ardoise=self.PROTECTION)
+        groups, single, _unknown = self._compare("tank")
+        self.assertEqual((len(groups), single), (1, 1))
+        self.assertEqual({row.spec_id for row in groups[0].rows}, {self.BLOOD, self.PROTECTION})
+
+    def test_a_run_whose_specialization_the_file_did_not_write_is_counted_not_dropped(self):
+        self._night("2026-10-01", spec=0, spec_ardoise=self.FROST)
+        self._night("2026-10-02", spec=self.UNHOLY, spec_ardoise=self.FROST)
+        groups, single, unknown = self._compare()
+        self.assertEqual(unknown, 2)                                # Braise: key and Golem
+        self.assertEqual((len(groups), single), (1, 1))
+
+    def test_a_specialization_the_table_does_not_know_is_counted_not_compared(self):
+        self._night("2026-10-01", spec=9999, role="", spec_ardoise=self.FROST)
+        self._night("2026-10-02", spec=self.UNHOLY, spec_ardoise=self.FROST)
+        groups, single, unknown = self._compare()
+        self.assertEqual(unknown, 2)                                # key and Golem of night 1
+        self.assertEqual((len(groups), single), (1, 1))
+
+    def test_the_role_comes_from_the_specialization_before_the_stored_one(self):
+        from logswow import history_views as views
+
+        self._night("2026-10-01", spec=self.BLOOD)                  # the file stored another role
+        runs = views.runs_of(self.root, self.slug, self.BRAISE)
+        self.assertEqual({run.role for run in runs}, {"tank"})
+
+    def test_a_role_is_compared_on_its_own_and_the_role_most_played_opens_first(self):
+        from logswow import history_views as views
+
+        self._night("2026-10-01", spec=self.FROST, spec_ardoise=self.FROST)
+        self.assertEqual(views.majority_role(views.runs_in_folder(self.root, self.slug)), "dps")
+        self._night("2026-10-02", spec=self.BLOOD, spec_ardoise=self.PROTECTION)
+        self._night("2026-10-03", spec=self.BLOOD, spec_ardoise=self.PROTECTION)
+        runs = views.runs_in_folder(self.root, self.slug)
+        self.assertEqual(views.majority_role(runs), "tank")
+        self.assertEqual(views.majority_role([]), "dps")
+        self.assertEqual(views.ROLE_METRIC["tank"], "taken")
+        # a tank's damage beside a damage dealer's is never a row: the roles are kept apart
+        self._night("2026-10-04", spec=self.FROST, spec_ardoise=self.BLOOD)
+        for role in ("dps", "tank"):
+            groups, _single, _unknown = self._compare(role)
+            for group in groups:
+                self.assertEqual({views.role_of(row.spec_id) for row in group.rows}, {role})
+
+    def test_runs_in_folder_hold_every_followed_character_oldest_first(self):
+        from logswow import history_views as views
+
+        self._night("2026-10-03", spec=self.FROST, spec_ardoise=self.UNHOLY)
+        self._night("2026-10-01", spec=self.FROST, spec_ardoise=self.UNHOLY)
+        runs = views.runs_in_folder(self.root, self.slug)
+        self.assertEqual(len(runs), 8)
+        self.assertEqual([run.date for run in runs], sorted(run.date for run in runs))
+        self.assertEqual({run.row["guid"] for run in runs}, {self.BRAISE, self.ARDOISE})
+
+    def test_the_rows_say_the_sample_the_range_the_item_level_and_the_gap_to_the_first_row(self):
+        from logswow import gui_specs
+
+        for date in ("2026-10-01", "2026-10-02", "2026-10-03"):
+            self._night(date, spec=self.FROST, spec_ardoise=self.UNHOLY, ilvl=310.0)
+        self._night("2026-10-04", spec=self.ARCANE, spec_ardoise=self.UNHOLY, ilvl=320.0, scale=2.0)
+        groups, single, unknown = self._compare()
+        golem = self._of(groups, "boss")
+        rows = gui_specs.spec_rows(golem)
+        self.assertEqual([len(row) for row in rows], [7, 7, 7])
+        self.assertEqual(rows[0][1:3], ("4", 1))                    # 4 runs, 1 character
+        self.assertEqual(rows[0][6], "\u2014")                       # the reference has no gap
+        self.assertEqual(rows[2][1], "1\u2021")                      # a thin sample is marked
+        self.assertEqual(rows[1][5], "310")
+        self.assertNotIn(rows[1][6], ("", "\u2014"))
+        self.assertEqual(gui_specs.content_rows([golem])[0][2:], (3, 8))
+        notes = gui_specs.notes_for(groups, single, unknown)
+        self.assertEqual(len(notes), 1)
+        self.assertIn("\u2021", notes[0])
+        self.assertEqual(len(gui_specs.notes_for([], 2, 5)), 2)     # what was left out is said
+
+    def test_bars_start_at_zero_and_the_longest_fills_the_plot(self):
+        from logswow.gui_specs import bar_lengths
+
+        self.assertEqual(bar_lengths([100.0, 50.0, 25.0], 200), [200.0, 100.0, 50.0])
+        self.assertEqual(bar_lengths([None, 0, -5], 200), [0.0, 0.0, 0.0])
+        self.assertEqual(bar_lengths([], 200), [])
+        self.assertEqual(bar_lengths([10.0, None], 80), [80.0, 0.0])
+
+    def test_the_specializations_tab_compares_all_followed_characters_or_one(self):
+        from logswow import history
+
+        for date in ("2026-10-01", "2026-10-02"):
+            self._night(date, spec=self.FROST, spec_ardoise=self.UNHOLY)
+        app, root = self._window()
+        window = app.history_window
+        window.show()
+        root.update()
+        tab = window.specs
+        self.assertIn("Tous", tab.who_box.get())
+        self.assertEqual(tab.guids, [self.BRAISE, self.ARDOISE])
+        self.assertEqual(len(tab.content_table.get_children()), 1)  # the Golem; the key is Braise's
+        self.assertEqual(len(tab.spec_table.get_children()), 2)     # the first one is selected
+        self.assertEqual(tab.metric_box.get(), "D\u00e9g\u00e2ts/s")
+        self.assertEqual(tab.role_box.get(), "DPS")
+        tab.who_box.current(1)                                      # Braise alone: one spec each
+        tab.redraw(reset=True)
+        self.assertEqual(len(tab.content_table.get_children()), 0)
+        self.assertIn("deux sp\u00e9cialisations", tab.message.cget("text"))
+        tab.who_box.current(0)
+        tab.show_box.current(1)                                     # keys only: none comparable
+        tab.redraw()
+        self.assertEqual(len(tab.content_table.get_children()), 0)
+        tab.show_box.current(2)                                     # bosses only
+        tab.redraw()
+        self.assertEqual(len(tab.content_table.get_children()), 1)
+        tab.role_box.current(2)                                     # tanks: the measure follows
+        tab.redraw(role_changed=True)
+        self.assertEqual(tab.metric_box.get(), "Subis/s")
+        self.assertEqual(len(tab.content_table.get_children()), 0)
+        for night in history.list_nights(self.root):
+            history.delete_night(self.root, night.path)
+        history.untrack(self.root, self.BRAISE)
+        history.untrack(self.root, self.ARDOISE)
+        window.refresh()
+        self.assertEqual(tab.guids, [])
+        self.assertIn("Aucun personnage suivi", tab.message.cget("text"))
 
 
 class TestSeventhAuditFindings(unittest.TestCase):

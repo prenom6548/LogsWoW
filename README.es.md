@@ -197,8 +197,10 @@ que ningún informe.
   pestaña **Evolución** muestra un personaje
   salida tras salida, contenido por contenido (misma mazmorra y mismo nivel,
   mismo jefe y misma dificultad), con el nivel de objeto, la especialización,
-  el grupo y la versión del juego al lado; nunca es una nota. Las otras
-  comparaciones vendrán después.
+  el grupo y la versión del juego al lado; nunca es una nota. La pestaña
+  **Especializaciones** pone lado a lado, en un mismo contenido, las
+  especializaciones jugadas (mediana, rango, nivel de objeto), sin
+  clasificación. Mejor llave y mejor kill vendrán después.
 - **Vista previa y comparación de llaves en la ventana.** A la derecha de
   la lista de combates, dos pestañas siguen lo que marque: el resumen
   (duración, daño, sanación, muertes, una línea por jugador con su nivel

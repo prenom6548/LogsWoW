@@ -210,8 +210,10 @@ wäre schlimmer als gar kein Bericht.
   Der Reiter **Entwicklung** zeigt einen Charakter Durchgang für
   Durchgang, Inhalt für Inhalt (derselbe Dungeon und dieselbe Stufe, derselbe
   Boss und dieselbe Schwierigkeit), mit Gegenstandsstufe, Spezialisierung,
-  Gruppe und Spielversion daneben; nie eine Note. Die anderen Vergleiche
-  folgen.
+  Gruppe und Spielversion daneben; nie eine Note. Der Reiter
+  **Spezialisierungen** stellt in einem Inhalt die gespielten
+  Spezialisierungen nebeneinander (Median, Spanne, Gegenstandsstufe), ohne
+  Rangliste. Bester Schlüssel und bester Kill folgen.
 - **Vorschau und Schlüsselvergleich im Fenster.** Rechts neben der
   Kampfliste folgen zwei Reiter dem, was Sie ankreuzen: die Übersicht
   (Dauer, Schaden, Heilung, Tode, eine Zeile pro Spieler mit seiner

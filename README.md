@@ -196,7 +196,9 @@ lu serait pire que pas de rapport du tout.
   sorties après sorties, contenu par contenu (même donjon et même niveau,
   même boss et même difficulté), avec à côté le niveau d'objet, la
   spécialisation, le groupe et la version du jeu ; ce n'est jamais une note.
-  Les autres comparaisons viendront ensuite.
+  L'onglet **Spécialisations** met côte à côte, dans un même contenu, les
+  spécialisations jouées (médiane, plage, niveau d'objet), sans classement.
+  Meilleure clé et meilleur kill viendront ensuite.
 - **Aperçu et comparaison des clés dans la fenêtre.** À droite de la liste
   des combats, deux onglets suivent ce que vous cochez : l'aperçu (durée,
   dégâts, soins, morts, une ligne par joueur avec son niveau d'objet) et

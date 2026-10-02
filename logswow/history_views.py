@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """What the history shows: the views, as data, with no screen and no markup.
 
-The first view, asked for by the owner on 2026-10-02 -- **the evolution of a character**
--- is here; specialization against specialization and the best key and kill per
-specialization will come next, from the same runs. The window (`gui_evolution.py`) draws
-what these functions return, and a page can later draw the same.
+Two views are here, both asked for by the owner on 2026-10-02: **the evolution of a
+character** (`trend_groups`) and **one specialization against another**
+(`spec_comparison`); the best key and kill per specialization will come next, from the same
+runs. The windows (`gui_evolution.py`, `gui_specs.py`) draw what these functions return, and
+a page can later draw the same.
 
 A *run* is one appearance of a followed character in a key or in a boss fight, with the
 figures the night kept and the context beside them: the dungeon and its level (or the boss
@@ -15,12 +16,17 @@ wipe, would make a figure say what it does not. Nothing here is a verdict; the c
 "the last run against the first", with what else changed shown next to it.
 """
 
+from statistics import median
+
 from . import history
 from .preview import COMPARABLE, change
 from .segment import difficulty_name
 from .specs import DPS, HEAL, TANK, role_of
 
 METRICS = ("dps", "hps", "taken")
+# What each role is judged by here: a tank's damage taken per second was the owner's own
+# request, a healer's is healing, a damage dealer's is damage. Any of the three can be chosen.
+ROLE_METRIC = {TANK: "taken", HEAL: "hps", DPS: "dps"}
 
 # Kinds of content; also what the window offers to show.
 KEY, BOSS = "key", "boss"
@@ -85,6 +91,13 @@ def followed_in_folder(root, slug):
     return [(guid, entry[1], entry[0]) for guid, entry in ordered]
 
 
+def runs_in_folder(root, slug):
+    """Every run of every followed character in a folder, oldest first."""
+    runs = [run for _guid, run in _runs_of_folder(root, slug)]
+    runs.sort(key=lambda run: (run.start or run.date or ""))
+    return runs
+
+
 def runs_of(root, slug, guid):
     """Every run of one character in a folder, oldest first (ties keep file order)."""
     runs = [run for run_guid, run in _runs_of_folder(root, slug) if run_guid == guid]
@@ -122,8 +135,8 @@ def _runs_of_fight(record, fight, notes, inside_key):
                 content_id=_whole(fight.get("instance_id" if kind == KEY else "encounter_id")),
                 level=_whole(fight.get("level")), difficulty_id=_whole(fight.get("difficulty_id")),
                 outcome=str(fight.get("outcome", "")), duration_ms=_whole(fight.get("duration_ms")),
-                spec_id=_whole(row.get("spec_id")), role=row.get("role") or role_of(
-                    _whole(row.get("spec_id"))),
+                spec_id=_whole(row.get("spec_id")),
+                role=role_of(_whole(row.get("spec_id"))) or row.get("role") or "",
                 ilvl=row.get("ilvl") if isinstance(row.get("ilvl"), (int, float)) else None,
                 row=row, composition=(_whole(composition.get("tank")),
                                       _whole(composition.get("healer")),
@@ -162,11 +175,9 @@ def _complete(row):
 def default_metric(runs):
     """The measure to open on: what the character's latest role is judged by here.
 
-    A tank's damage taken per second was the owner's own request; a healer's is healing; a
-    damage dealer's is damage. Any of the three can be chosen.
+    See `ROLE_METRIC`.
     """
-    role = runs[-1].role if runs else ""
-    return {TANK: "taken", HEAL: "hps", DPS: "dps"}.get(role, "dps")
+    return ROLE_METRIC.get(runs[-1].role if runs else "", "dps")
 
 
 def sparkline(values):
@@ -234,3 +245,100 @@ def trend_groups(runs, metric, kinds=(KEY, BOSS)):
     groups.sort(key=lambda group: group.listed[-1].start or group.listed[-1].date or "",
                 reverse=True)
     return groups
+
+
+# -- one specialization against another ---------------------------------------------------------
+
+LOW_SAMPLE = 3          # fewer runs than this and a median says little: the row is marked
+
+
+def majority_role(runs):
+    """The role most of the counted runs played (damage dealer when they tie), or DPS."""
+    count = {}
+    for run in runs:
+        if run.counts and run.role in ROLE_METRIC:
+            count[run.role] = count.get(run.role, 0) + 1
+    return max(count, key=lambda role: (count[role], role == DPS), default=DPS)
+
+
+class SpecRow:
+    """What one specialization did in one content: its counted runs and the median figure."""
+
+    __slots__ = ("spec_id", "runs", "characters", "values", "median", "low", "high", "ilvl",
+                 "old_analysis")
+
+    def __init__(self, spec_id, runs, metric):
+        self.spec_id = spec_id
+        self.runs = runs
+        self.characters = len({run.row.get("guid") for run in runs})
+        self.values = [run.value(metric) for run in runs]
+        present = [value for value in self.values if value is not None]
+        self.median = median(present) if present else None
+        self.low = min(present) if present else None
+        self.high = max(present) if present else None
+        ilvls = [run.ilvl for run in runs if run.ilvl is not None]
+        self.ilvl = median(ilvls) if ilvls else None
+        self.old_analysis = any(run.old_analysis for run in runs)
+
+    @property
+    def thin(self):
+        return len(self.runs) < LOW_SAMPLE
+
+
+class SpecGroup:
+    """The specializations that played one content, most played first.
+
+    The first row is the reference the others are set against: the most played, never "the
+    best" -- the figures are not ranked, and a lower damage taken is not a verdict.
+    """
+
+    __slots__ = ("content", "kind", "name", "level_text", "rows", "total")
+
+    def __init__(self, content, rows, name, level_text):
+        self.content = content
+        self.kind = content[0]
+        self.rows = rows
+        self.name = name
+        self.level_text = level_text
+        self.total = sum(len(row.runs) for row in rows)
+
+    def gap(self, row):
+        """Row against the reference as a fraction, None for the reference or no figure."""
+        if row is self.rows[0]:
+            return None
+        return change([self.rows[0].median, row.median])
+
+
+def spec_comparison(runs, role, metric, kinds=(KEY, BOSS)):
+    """([SpecGroup], single, unknown): the contents played with two specializations or more.
+
+    **One role at a time**: a tank's damage beside a mage's is not a comparison of
+    specializations. Only runs that count enter (a finished key, a killed boss), only of the
+    same content, and a specialization is a row when it has a figure for the measure (damage
+    taken is a tank's alone). `single` counts the contents left out because only one
+    specialization of the role played them, `unknown` the counted runs whose specialization
+    or role the file or the table does not give: both are said on the window, so nothing
+    disappears quietly.
+    """
+    by_content, names, unknown = {}, {}, 0
+    for run in runs:
+        if run.kind not in kinds or not run.counts:
+            continue
+        if not run.spec_id or run.role not in ROLE_METRIC:
+            unknown += 1
+            continue
+        if run.role != role:
+            continue
+        by_content.setdefault(run.content, {}).setdefault(run.spec_id, []).append(run)
+        names[run.content] = (run.name, run.level_text())
+    groups, single = [], 0
+    for content, specs in by_content.items():
+        rows = [SpecRow(spec_id, spec_runs, metric) for spec_id, spec_runs in specs.items()]
+        rows = [row for row in rows if row.median is not None]
+        if len(rows) < 2:
+            single += 1
+            continue
+        rows.sort(key=lambda row: (-len(row.runs), row.spec_id))
+        groups.append(SpecGroup(content, rows, *names[content]))
+    groups.sort(key=lambda group: (-group.total, group.name, group.level_text))
+    return groups, single, unknown

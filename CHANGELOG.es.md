@@ -7,6 +7,36 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.18.0 — 2026-10-02
+
+**Una especialización frente a otra, en la ventana «Historial».** Una pestaña
+nueva, *Especializaciones*, responde a «¿cómo le va a esta especialización
+frente a aquella?» con las salidas del historial. Se aplica a un personaje
+seguido o a todos los de la carpeta, **un rol cada vez**: el daño de un tanque
+junto al de un mago no es una comparación de especializaciones.
+
+Como en la evolución, **solo se compara dentro del mismo contenido**: la misma
+mazmorra al mismo nivel de llave, el mismo jefe en la misma dificultad, y solo
+las salidas que cuentan (llaves terminadas, jefes derrotados). La lista de la
+izquierda conserva únicamente los contenidos jugados con al menos dos
+especializaciones; al elegir uno se ve, para cada especialización, el número de
+salidas, la **mediana** (una salida atípica no la distorsiona), el rango de
+mínimo a máximo, el nivel de objeto y la diferencia respecto a la primera fila,
+con un gráfico de barras de las medianas (desde cero, para no magnificar una
+diferencia pequeña). La medida se abre sobre el rol más jugado (daño
+recibido/s para los tanques, sanación/s, daño/s); el daño recibido solo se
+asigna a los tanques, así que hacen falta dos especializaciones de tanque para
+compararlo.
+
+No es una clasificación: la primera fila es la más jugada, no la mejor, y la
+diferencia depende del nivel de objeto, de los jugadores y del grupo, algo que
+la pestaña recuerda. Una fila apoyada en menos de tres salidas se marca con ‡.
+Nada desaparece en silencio: los contenidos jugados con una sola
+especialización y las salidas cuya especialización el registro no escribe se
+cuentan bajo la tabla. El rol se lee ahora primero de la especialización, lo que
+corrige salidas cuyo identificador no se conocía al guardarlas. Ninguna cifra
+existente cambia.
+
 ## 0.17.0 — 2026-10-02
 
 **La evolución de un personaje, en la ventana «Historial».** Una pestaña nueva,

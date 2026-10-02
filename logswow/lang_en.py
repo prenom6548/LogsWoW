@@ -999,6 +999,41 @@ TEXTS = {
         'Nights',
     'Évolution':
         'Progress',
+    # history: one specialization against another
+    ' Contenus comparables ':
+        ' Comparable content ',
+    ' Médiane par spécialisation ':
+        ' Median per specialization ',
+    ' Spécialisations du contenu choisi ':
+        ' Specializations of the chosen content ',
+    "Aucun contenu n'a été joué avec au moins deux spécialisations de ce rôle dans ce dossier.":
+        'No content was played with at least two specializations of this role in this folder.',
+    'Contenus joués avec une seule spécialisation, non comparés : %d.':
+        'Content played with a single specialization, not compared: %d.',
+    'Min – max':
+        'Min – max',
+    'Médiane':
+        'Median',
+    "Médiane des sorties comptées (clés terminées, boss tués) d'un même contenu et d'un même niveau, pour un rôle à la fois. L'écart est celui de chaque spécialisation par rapport à la première ligne, la plus jouée : ce n'est pas un classement. Il dépend aussi du niveau d'objet, des joueurs et du groupe ; avec plusieurs personnages, il mêle leurs joueurs.":
+        'Median of the counted runs (finished keys, killed bosses) of the same content and level, one role at a time. The gap is that of each specialization against the first row, the most played: it is not a ranking. It also depends on item level, players and group; with several characters, it mixes their players.',
+    'Persos':
+        'Chars',
+    "Sorties dont la spécialisation n'est pas écrite dans le journal ou que LogsWoW ne connaît pas, non comparées : %d.":
+        'Runs whose specialization is not written in the log or not known to LogsWoW, not compared: %d.',
+    'Spécialisations':
+        'Specializations',
+    'Spés':
+        'Specs',
+    'Tous les personnages suivis':
+        'All followed characters',
+    'Écart / 1re':
+        'Gap / 1st',
+    '‡ Moins de %d sorties : une médiane sur si peu de sorties dit peu de chose.':
+        '‡ Fewer than %d runs: a median over so few runs says little.',
+    '… et %d autres dans le tableau':
+        '… and %d more in the table',
+    'Rôle :':
+        'Role:',
 }
 
 # The French nouns `fmt.plural` agrees, and their English forms.
