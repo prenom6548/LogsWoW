@@ -6,6 +6,30 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.17.0 — 2026-10-02
+
+**The evolution of a character, in the "History" window.** A new tab,
+*Progress*, shows one of the characters you follow, run after run. The
+results are grouped **by content**: a dungeon and a key level, or a boss and
+a difficulty. A +12 is never compared with a +13, nor a kill with a wipe: that
+would make the figures say what they do not.
+
+For each content: the number of runs, the first and the last value, the change
+(the last run against the first), the item level at the start and at the end,
+and a curve. The measure opens on what matters for the character's role
+(**damage taken/s** for a tank, **healing/s** for a healer, **damage/s** for a
+dps) and changes in one click; you can also show only keys or only bosses. A
+table lists every run with its context: date, level, outcome (with the
+remaining health of a boss that was not killed), length, specialization, item
+level, damage/s, healing/s, taken/s, deaths, the group's composition (tanks /
+healers / dps) and the game's version.
+
+It is never a grade. An abandoned or interrupted key and a boss that was not
+killed stay listed (marked †) but do not enter the trend; the tab says when a
+content mixes several specializations, or when runs come from a file computed
+by an older version of LogsWoW. The other views (one specialization against
+another, best key and best kill) will follow. No existing figure changes.
+
 ## 0.16.0 — 2026-10-02
 
 **The history: keeping your nights to compare yourself.** A "History…" button

@@ -192,7 +192,11 @@ lu serait pire que pas de rapport du tout.
   enregistré sans votre accord, seuls les personnages cochés laissent leur
   nom, une soirée pèse de l'ordre de 30 Ko, et l'on supprime une soirée ou un
   dossier d'un clic. Clés entières (avec leurs pulls et leurs boss) et boss de
-  raid ; pas de trash de raid. Les comparaisons viendront ensuite.
+  raid ; pas de trash de raid. L'onglet **Évolution** montre un personnage
+  sorties après sorties, contenu par contenu (même donjon et même niveau,
+  même boss et même difficulté), avec à côté le niveau d'objet, la
+  spécialisation, le groupe et la version du jeu ; ce n'est jamais une note.
+  Les autres comparaisons viendront ensuite.
 - **Aperçu et comparaison des clés dans la fenêtre.** À droite de la liste
   des combats, deux onglets suivent ce que vous cochez : l'aperçu (durée,
   dégâts, soins, morts, une ligne par joueur avec son niveau d'objet) et

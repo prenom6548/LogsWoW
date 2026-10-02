@@ -207,7 +207,11 @@ wäre schlimmer als gar kein Bericht.
   nichts gespeichert, nur die angehakten Charaktere hinterlassen ihren Namen,
   ein Abend wiegt etwa 30 KB, und einen Abend oder Ordner löschen Sie mit einem
   Klick. Ganze Schlüssel (mit Pulls und Bossen) und Raid-Bosse; kein Raid-Trash.
-  Die Vergleiche folgen.
+  Der Reiter **Entwicklung** zeigt einen Charakter Durchgang für
+  Durchgang, Inhalt für Inhalt (derselbe Dungeon und dieselbe Stufe, derselbe
+  Boss und dieselbe Schwierigkeit), mit Gegenstandsstufe, Spezialisierung,
+  Gruppe und Spielversion daneben; nie eine Note. Die anderen Vergleiche
+  folgen.
 - **Vorschau und Schlüsselvergleich im Fenster.** Rechts neben der
   Kampfliste folgen zwei Reiter dem, was Sie ankreuzen: die Übersicht
   (Dauer, Schaden, Heilung, Tode, eine Zeile pro Spieler mit seiner

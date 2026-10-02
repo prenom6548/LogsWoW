@@ -3,6 +3,31 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.17.0 — 2026-10-02
+
+**L'évolution d'un personnage, dans la fenêtre « Historique ».** Un nouvel
+onglet, *Évolution*, montre un des personnages que vous suivez, sortie après
+sortie. Le résultat est regroupé **par contenu** : un donjon et un niveau de
+clé, ou un boss et une difficulté. On ne compare jamais une +12 à une +13, ni
+un kill à un wipe : ce serait faire dire aux chiffres ce qu'ils ne disent pas.
+
+Pour chaque contenu : le nombre de sorties, la première et la dernière valeur,
+l'écart (la dernière sortie par rapport à la première), le niveau d'objet du
+début et de la fin, et une courbe. La mesure s'ouvre sur ce qui compte pour le
+rôle du personnage (**dégâts subis/s** pour un tank, **soins/s** pour un
+soigneur, **dégâts/s** pour un dps) et se change d'un clic ; on peut aussi ne
+montrer que les clés ou que les boss. Un tableau liste toutes les sorties avec
+leur contexte : date, niveau, issue (avec la vie restante d'un boss non tué),
+durée, spécialisation, niveau d'objet, dégâts/s, soins/s, subis/s, morts,
+composition du groupe (tanks / soigneurs / dps) et version du jeu.
+
+Ce n'est jamais une note. Une clé abandonnée ou interrompue et un boss non tué
+restent listés (marqués †) mais n'entrent pas dans la tendance ; l'onglet dit
+quand un contenu mêle plusieurs spécialisations, ou quand des sorties viennent
+d'un fichier calculé par une version plus ancienne de LogsWoW. Les autres vues
+(une spécialisation contre une autre, meilleure clé et meilleur kill) viendront
+ensuite. Aucun chiffre existant ne change.
+
 ## 0.16.0 — 2026-10-02
 
 **L'historique : garder ses soirées pour se comparer.** Un bouton

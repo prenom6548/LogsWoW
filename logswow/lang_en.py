@@ -954,6 +954,51 @@ TEXTS = {
         'Folder:',
     'Personnages suivis au total : %d':
         'Characters followed in total: %d',
+    # history: evolution of a character
+    'Clés et boss':
+        'Keys and bosses',
+    'Clés seulement':
+        'Keys only',
+    'Boss seulement':
+        'Bosses only',
+    'Certaines sorties ont été comptées avec une ancienne version des règles de calcul : leurs chiffres ne sont pas forcément comparables.':
+        'Some runs were counted with an older version of the counting rules: their figures are not necessarily comparable.',
+    '† Hors tendance : clé abandonnée ou interrompue, boss non tué.':
+        '† Left out of the trend: abandoned or interrupted key, boss not killed.',
+    ' Par contenu ':
+        ' By content ',
+    ' Toutes les sorties ':
+        ' Every run ',
+    "Écart : la dernière sortie par rapport à la première, dans un même contenu et un même niveau (ou une même difficulté). Il dépend aussi du niveau d'objet, du groupe et des affixes, affichés à côté : ce n'est pas une note. Groupe : tanks / soigneurs / dps.":
+        'Change: the last run against the first, in the same content and the same level (or difficulty). It also depends on item level, group and affixes, shown beside it: it is not a grade. Group: tanks / healers / dps.',
+    'Spécialisations différentes dans « %s » : %s.':
+        'Different specializations in "%s": %s.',
+    'Contenu':
+        'Content',
+    'Sorties':
+        'Runs',
+    'Première':
+        'First',
+    'Dernière':
+        'Last',
+    ' Tendance ':
+        ' Trend ',
+    'Groupe':
+        'Group',
+    "Aucun personnage suivi dans ce dossier : suivez-en un dans l'onglet « Soirées », puis ajoutez des soirées.":
+        'No character followed in this folder: follow one in the "Nights" tab, then add nights.',
+    'Aucune sortie de ce personnage dans ce dossier.':
+        'No run of this character in this folder.',
+    'Personnage :':
+        'Character:',
+    'Mesure :':
+        'Measure:',
+    'Afficher :':
+        'Show:',
+    'Soirées':
+        'Nights',
+    'Évolution':
+        'Progress',
 }
 
 # The French nouns `fmt.plural` agrees, and their English forms.
@@ -968,6 +1013,7 @@ PLURALS = {
     'mort': ('death', 'deaths'),
     'pull': ('pull', 'pulls'),
     'soirée': ('night', 'nights'),
+    'sortie': ('run', 'runs'),
     'sort': ('spell', 'spells'),
     'unité': ('unit', 'units'),
 }

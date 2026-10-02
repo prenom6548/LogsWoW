@@ -954,6 +954,51 @@ TEXTS = {
         'Ordner:',
     'Personnages suivis au total : %d':
         'Gefolgte Charaktere insgesamt: %d',
+    # history: evolution of a character
+    'Clés et boss':
+        'Schlüssel und Bosse',
+    'Clés seulement':
+        'Nur Schlüssel',
+    'Boss seulement':
+        'Nur Bosse',
+    'Certaines sorties ont été comptées avec une ancienne version des règles de calcul : leurs chiffres ne sont pas forcément comparables.':
+        'Einige Durchgänge wurden mit einer älteren Version der Zählregeln erfasst: Ihre Zahlen sind nicht unbedingt vergleichbar.',
+    '† Hors tendance : clé abandonnée ou interrompue, boss non tué.':
+        '† Nicht im Trend: abgebrochener oder unterbrochener Schlüssel, nicht besiegter Boss.',
+    ' Par contenu ':
+        ' Nach Inhalt ',
+    ' Toutes les sorties ':
+        ' Alle Durchgänge ',
+    "Écart : la dernière sortie par rapport à la première, dans un même contenu et un même niveau (ou une même difficulté). Il dépend aussi du niveau d'objet, du groupe et des affixes, affichés à côté : ce n'est pas une note. Groupe : tanks / soigneurs / dps.":
+        'Abweichung: der letzte Durchgang im Vergleich zum ersten, im gleichen Inhalt und auf der gleichen Stufe (oder Schwierigkeit). Sie hängt auch von Gegenstandsstufe, Gruppe und Affixen ab, die daneben angezeigt werden: Es ist keine Note. Gruppe: Tanks / Heiler / DPS.',
+    'Spécialisations différentes dans « %s » : %s.':
+        'Verschiedene Spezialisierungen in „%s“: %s.',
+    'Contenu':
+        'Inhalt',
+    'Sorties':
+        'Durchgänge',
+    'Première':
+        'Erster',
+    'Dernière':
+        'Letzter',
+    ' Tendance ':
+        ' Trend ',
+    'Groupe':
+        'Gruppe',
+    "Aucun personnage suivi dans ce dossier : suivez-en un dans l'onglet « Soirées », puis ajoutez des soirées.":
+        'Kein Charakter in diesem Ordner gefolgt: Folgen Sie im Reiter „Abende“ einem und fügen Sie dann Abende hinzu.',
+    'Aucune sortie de ce personnage dans ce dossier.':
+        'Kein Durchgang dieses Charakters in diesem Ordner.',
+    'Personnage :':
+        'Charakter:',
+    'Mesure :':
+        'Messwert:',
+    'Afficher :':
+        'Anzeigen:',
+    'Soirées':
+        'Abende',
+    'Évolution':
+        'Entwicklung',
 }
 
 # The French nouns `fmt.plural` agrees, and their German forms.
@@ -968,6 +1013,7 @@ PLURALS = {
     'mort': ('Tod', 'Tode'),
     'pull': ('Pull', 'Pulls'),
     'soirée': ('Abend', 'Abende'),
+    'sortie': ('Durchgang', 'Durchgänge'),
     'sort': ('Zauber', 'Zauber'),
     'unité': ('Einheit', 'Einheiten'),
 }

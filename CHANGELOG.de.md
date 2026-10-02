@@ -8,6 +8,34 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.17.0 — 2026-10-02
+
+**Die Entwicklung eines Charakters, im Fenster „Verlauf“.** Ein neuer Reiter,
+*Entwicklung*, zeigt einen der Charaktere, denen Sie folgen, Durchgang für
+Durchgang. Die Ergebnisse sind **nach Inhalt** gruppiert: ein Dungeon und eine
+Schlüsselstufe oder ein Boss und eine Schwierigkeit. Eine +12 wird nie mit einer
++13 verglichen, ein Kill nie mit einem Wipe: Das ließe die Zahlen etwas sagen,
+was sie nicht sagen.
+
+Für jeden Inhalt: die Zahl der Durchgänge, der erste und der letzte Wert, die
+Abweichung (der letzte Durchgang gegenüber dem ersten), die Gegenstandsstufe zu
+Beginn und am Ende und eine Kurve. Der Messwert öffnet sich auf dem, was für die
+Rolle des Charakters zählt (**erlittener Schaden/s** für einen Tank,
+**Heilung/s** für einen Heiler, **Schaden/s** für einen DPS) und wechselt mit
+einem Klick; man kann auch nur Schlüssel oder nur Bosse zeigen. Eine Tabelle
+listet alle Durchgänge mit ihrem Kontext: Datum, Stufe, Ergebnis (mit der
+verbleibenden Gesundheit eines nicht getöteten Bosses), Dauer, Spezialisierung,
+Gegenstandsstufe, Schaden/s, Heilung/s, Erlittenes/s, Tode, Zusammensetzung der
+Gruppe (Tanks / Heiler / DPS) und Spielversion.
+
+Es ist nie eine Note. Ein abgebrochener oder unterbrochener Schlüssel und ein
+nicht getöteter Boss bleiben aufgelistet (mit † markiert), gehen aber nicht in
+den Trend ein; der Reiter sagt, wenn ein Inhalt mehrere Spezialisierungen
+mischt oder wenn Durchgänge aus einer Datei stammen, die eine ältere
+LogsWoW-Version berechnet hat. Die anderen Ansichten (eine Spezialisierung
+gegen eine andere, bester Schlüssel und bester Kill) folgen. Keine bestehende
+Zahl ändert sich.
+
 ## 0.16.0 — 2026-10-02
 
 **Der Verlauf: Ihre Abende aufbewahren, um sich zu vergleichen.** Eine

@@ -1683,10 +1683,33 @@ widgets are `HistoryWindow`, whose dialogs (`_ask_name`, `_confirm`, `_error`,
   characters followed, night added (6.6 KB, one key with its pulls and bosses),
   automatic setting switched on, status line at each step.
 
-**Still to build**: the views -- evolution of a character, specialization against
-specialization, best timed key and best kill per specialization, **always with the
-context beside** (item level, key level, dungeon, composition) and never a verdict
-that the log cannot give.
+**The evolution of a character (0.17.0, 2026-10-02)** -- the first view, asked for as
+"commence par l'évolution d'un personnage". `history_views.py` is the data (no Tk, no
+HTML, so a page can draw the same later); `gui_evolution.py` is the tab, "Évolution" /
+"Progress" beside "Soirées" in the history window.
+
+- **A run** is one appearance of a followed character in a key or a boss fight (bosses
+  inside a key too), with the context the night kept: dungeon and level or boss and
+  difficulty, outcome, spec, item level, composition, game version, whether the night was
+  read by an older analysis. Read from the files as they are, never raising on an odd
+  field (`_dict/_list/_whole/_complete`): a bad file is skipped, an odd figure counts as 0.
+- **Only the same content is compared**: (dungeon, level) or (boss, difficulty). A group's
+  change is `preview.change` (last against first, "-0 %" never printed). **What counts in
+  a trend**: a finished key (`preview.COMPARABLE`) and a killed boss; abandoned or
+  interrupted keys and wipes stay listed, marked "†", with a wipe's remaining boss health.
+- **The measure opens on the role** (`default_metric`: tank -> damage taken per second,
+  healer -> healing, dps -> damage), changeable; damage taken is given to tanks only, as in
+  `preview`. Mixed specializations in one content and older-analysis nights are said in
+  notes under the table, never hidden.
+- **A Canvas, not a unicode sparkline**: the bars rendered badly in the Treeview, and
+  `chart_points` (lowest at the bottom, a flat line when equal, gaps kept) is testable
+  without a screen. Driven under Xvfb on four real logs (a tank, 35 runs, 21 contents).
+- Tests: `TestEvolutionOfACharacter` (run ordering regardless of file order, kinds, odd
+  content, chart, row texts, the widget). Seven mutations each fail a test.
+
+**Still to build**: specialization against specialization, best timed key and best kill
+per specialization, **always with the context beside** (item level, key level, dungeon,
+composition) and never a verdict that the log cannot give.
 
 ### Performance, measured
 
@@ -1730,6 +1753,8 @@ logswow/report_layouts.py   the three layouts: long page, CSS-only tabs, folder 
                         write_streamed, which writes a page as it is drawn
 logswow/history.py      the history: one file per night, folders, followed characters
 logswow/gui_history.py  the history's window: folders, who to follow, add / automatic, nights kept
+logswow/history_views.py the history's views as data: runs of a character, same-content groups, trends
+logswow/gui_evolution.py the "Évolution" tab of the history window: groups, chart, every run
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
 logswow/fmt.py          formatters (compact, percent, size, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
@@ -1840,7 +1865,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 306 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 319 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSeventhAuditFindings`), and each one was regression-checked the

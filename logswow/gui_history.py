@@ -13,6 +13,7 @@ window is `HistoryWindow`, tested when a display exists.
 """
 
 from . import fmt, history
+from .gui_evolution import EvolutionTab
 from .i18n import N_, _
 from .specs import DPS, HEAL, TANK, label_of
 
@@ -201,10 +202,19 @@ class HistoryWindow:
         tk, ttk = self.app.tk, self.app.ttk
         top = self.top = tk.Toplevel(self.app.root)
         top.title(_("Historique"))
-        top.minsize(820, 640)
+        top.minsize(1000, 720)
+        top.geometry("1180x860")
         top.protocol("WM_DELETE_WINDOW", self.close)
-        outer = ttk.Frame(top, padding=12)
-        outer.pack(fill="both", expand=True)
+        close = ttk.Button(top, text=_("Fermer"), command=self.close)
+        close.pack(side="bottom", anchor="e", padx=12, pady=(0, 12))
+        book = ttk.Notebook(top)
+        book.pack(fill="both", expand=True, padx=6, pady=(6, 6))
+        outer = ttk.Frame(book, padding=12)
+        book.add(outer, text=_("Soirées"))
+        evolution = ttk.Frame(book, padding=12)
+        book.add(evolution, text=_("Évolution"))
+        self.book = book
+        self.evolution = EvolutionTab(self, evolution)
         outer.columnconfigure(0, weight=1)
         outer.rowconfigure(3, weight=1)
         outer.rowconfigure(6, weight=1)
@@ -291,8 +301,6 @@ class HistoryWindow:
         self.status = tk.StringVar(value="")
         ttk.Label(outer, textvariable=self.status, anchor="w", wraplength=780,
                   justify="left").grid(row=7, column=0, sticky="ew", pady=(10, 0))
-        close = ttk.Button(outer, text=_("Fermer"), command=self.close)
-        close.grid(row=8, column=0, sticky="e", pady=(6, 0))
 
     # -- showing the state ---------------------------------------------------------
 
@@ -330,6 +338,7 @@ class HistoryWindow:
             self.suggestion_box.grid_remove()
         self._buttons()
         self.status.set(message or self._hint())
+        self.evolution.refresh()
 
     def _fill_players(self):
         self.players.delete(*self.players.get_children())

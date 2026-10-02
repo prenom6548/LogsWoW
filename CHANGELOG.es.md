@@ -7,6 +7,31 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.17.0 — 2026-10-02
+
+**La evolución de un personaje, en la ventana «Historial».** Una pestaña nueva,
+*Evolución*, muestra uno de los personajes que sigue, salida tras salida. Los
+resultados se agrupan **por contenido**: una mazmorra y un nivel de llave, o un
+jefe y una dificultad. Nunca se compara una +12 con una +13, ni un kill con un
+wipe: sería hacer decir a las cifras lo que no dicen.
+
+Para cada contenido: el número de salidas, el primer y el último valor, la
+diferencia (la última salida respecto a la primera), el nivel de objeto al
+principio y al final, y una curva. La medida se abre sobre lo que cuenta para el
+rol del personaje (**daño recibido/s** para un tanque, **sanación/s** para un
+sanador, **daño/s** para un dps) y se cambia con un clic; también puede mostrar
+solo llaves o solo jefes. Una tabla lista todas las salidas con su contexto:
+fecha, nivel, resultado (con la vida restante de un jefe no derrotado),
+duración, especialización, nivel de objeto, daño/s, sanación/s, recibido/s,
+muertes, composición del grupo (tanques / sanadores / dps) y versión del juego.
+
+Nunca es una nota. Una llave abandonada o interrumpida y un jefe no derrotado
+siguen listados (marcados con †) pero no entran en la tendencia; la pestaña
+avisa cuando un contenido mezcla varias especializaciones, o cuando hay salidas
+de un archivo calculado por una versión anterior de LogsWoW. Las otras vistas
+(una especialización frente a otra, mejor llave y mejor kill) vendrán después.
+Ninguna cifra existente cambia.
+
 ## 0.16.0 — 2026-10-02
 
 **El historial: guardar sus noches para compararse.** Un botón «Historial…» abre

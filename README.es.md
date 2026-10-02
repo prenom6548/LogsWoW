@@ -193,7 +193,11 @@ que ningún informe.
   temporada, «con mis amigos»). Desactivado por defecto: no se guarda nada sin
   su consentimiento, solo los personajes marcados dejan su nombre, una noche
   pesa unos 30 KB, y se elimina una noche o una carpeta con un clic. Llaves
-  enteras (con sus pulls y jefes) y jefes de banda; sin basura de banda. Las
+  enteras (con sus pulls y jefes) y jefes de banda; sin basura de banda. La
+  pestaña **Evolución** muestra un personaje
+  salida tras salida, contenido por contenido (misma mazmorra y mismo nivel,
+  mismo jefe y misma dificultad), con el nivel de objeto, la especialización,
+  el grupo y la versión del juego al lado; nunca es una nota. Las otras
   comparaciones vendrán después.
 - **Vista previa y comparación de llaves en la ventana.** A la derecha de
   la lista de combates, dos pestañas siguen lo que marque: el resumen

@@ -954,6 +954,51 @@ TEXTS = {
         'Carpeta:',
     'Personnages suivis au total : %d':
         'Personajes seguidos en total: %d',
+    # history: evolution of a character
+    'Clés et boss':
+        'Llaves y jefes',
+    'Clés seulement':
+        'Solo llaves',
+    'Boss seulement':
+        'Solo jefes',
+    'Certaines sorties ont été comptées avec une ancienne version des règles de calcul : leurs chiffres ne sont pas forcément comparables.':
+        'Algunas salidas se contaron con una versión anterior de las reglas de cálculo: sus cifras no son necesariamente comparables.',
+    '† Hors tendance : clé abandonnée ou interrompue, boss non tué.':
+        '† Fuera de la tendencia: llave abandonada o interrumpida, jefe no derrotado.',
+    ' Par contenu ':
+        ' Por contenido ',
+    ' Toutes les sorties ':
+        ' Todas las salidas ',
+    "Écart : la dernière sortie par rapport à la première, dans un même contenu et un même niveau (ou une même difficulté). Il dépend aussi du niveau d'objet, du groupe et des affixes, affichés à côté : ce n'est pas une note. Groupe : tanks / soigneurs / dps.":
+        'Diferencia: la última salida respecto a la primera, en el mismo contenido y el mismo nivel (o dificultad). Depende también del nivel de objeto, del grupo y de los afijos, mostrados al lado: no es una nota. Grupo: tanques / sanadores / dps.',
+    'Spécialisations différentes dans « %s » : %s.':
+        'Especializaciones distintas en «%s»: %s.',
+    'Contenu':
+        'Contenido',
+    'Sorties':
+        'Salidas',
+    'Première':
+        'Primera',
+    'Dernière':
+        'Última',
+    ' Tendance ':
+        ' Tendencia ',
+    'Groupe':
+        'Grupo',
+    "Aucun personnage suivi dans ce dossier : suivez-en un dans l'onglet « Soirées », puis ajoutez des soirées.":
+        'Ningún personaje seguido en esta carpeta: siga uno en la pestaña «Noches» y añada después noches.',
+    'Aucune sortie de ce personnage dans ce dossier.':
+        'Ninguna salida de este personaje en esta carpeta.',
+    'Personnage :':
+        'Personaje:',
+    'Mesure :':
+        'Medida:',
+    'Afficher :':
+        'Mostrar:',
+    'Soirées':
+        'Noches',
+    'Évolution':
+        'Evolución',
 }
 
 # The French nouns `fmt.plural` agrees, and their Spanish forms.
@@ -968,6 +1013,7 @@ PLURALS = {
     'mort': ('muerte', 'muertes'),
     'pull': ('pull', 'pulls'),
     'soirée': ('noche', 'noches'),
+    'sortie': ('salida', 'salidas'),
     'sort': ('hechizo', 'hechizos'),
     'unité': ('unidad', 'unidades'),
 }

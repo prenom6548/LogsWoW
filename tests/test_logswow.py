@@ -4921,6 +4921,310 @@ class TestHistoryWindow(unittest.TestCase):
         self.assertIn("Nom de dossier invalide", shown.call_args[0][0])
 
 
+class TestEvolutionOfACharacter(unittest.TestCase):
+    """The first view of the history (2026-10-02): one character, run after run."""
+
+    BRAISE, ARDOISE = "Player-9999-00000003", "Player-9999-00000001"
+
+    def setUp(self):
+        import tempfile
+
+        self._temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temporary.cleanup)
+        self.root = os.path.join(self._temporary.name, "historique")
+        self.log, self.segments = run_fixture()
+        from logswow import history
+
+        self.slug = history.create_folder(self.root, "Saison 1")
+        self._count = 0
+
+    def _night(self, date, scale=1.0, level=None, ilvl=None, spec=None, build="12.1.0",
+               analysis=None, outcome=None, guid=None):
+        """Save a night made from the fixture's, with the figures scaled and the context set."""
+        import copy
+        from logswow import history
+
+        record = copy.deepcopy(history.build_night(self.log, self.segments,
+                                                   [self.BRAISE, self.ARDOISE]))
+        self._count += 1
+        record["identity"] = "night-%d" % self._count
+        record["date"] = date
+        record["game"]["build"] = build
+        if analysis is not None:
+            record["analysis"] = analysis
+        for fight in record["fights"]:
+            fight["start"] = "%sT20:00:00" % date
+            if fight["type"] == "key":
+                if level is not None:
+                    fight["level"] = level
+                if outcome is not None:
+                    fight["outcome"] = outcome
+            for row in fight["players"]:
+                for name in ("damage", "healing", "taken"):
+                    row[name] = int(row[name] * scale)
+                if ilvl is not None:
+                    row["ilvl"] = ilvl
+                if spec is not None and row["guid"] == self.BRAISE:
+                    row["spec_id"] = spec
+        history.save_night(self.root, self.slug, record)
+
+    def test_the_runs_of_a_character_come_oldest_first_with_the_context_beside_them(self):
+        from logswow import history_views as views
+
+        self._night("2026-10-03", scale=1.1, level=8, ilvl=312.0)
+        self._night("2026-10-01", scale=1.0, level=7, ilvl=310.0)
+        runs = views.runs_of(self.root, self.slug, self.BRAISE)
+        self.assertEqual([run.date for run in runs],
+                         ["2026-10-01"] * 3 + ["2026-10-03"] * 3)
+        keys = [run for run in runs if run.kind == "key"]
+        self.assertEqual([(run.name, run.level_text(), run.ilvl) for run in keys],
+                         [("Donjon d'essai", "+7", 310.0), ("Donjon d'essai", "+8", 312.0)])
+        bosses = [run for run in runs if run.kind == "boss"]
+        self.assertEqual({run.content_id for run in bosses}, {9001, 9002})
+        self.assertEqual(keys[0].composition, (0, 0, 0))      # a spec the table lacks: unknown
+        self.assertEqual(keys[0].build, "12.1.0")
+        self.assertEqual(views.runs_of(self.root, self.slug, "Player-9999-00000042"), [])
+
+    def test_only_runs_of_the_same_content_are_compared_and_the_change_is_last_against_first(self):
+        from logswow import history_views as views
+
+        for date, scale in (("2026-10-01", 1.0), ("2026-10-02", 1.1), ("2026-10-03", 1.21)):
+            self._night(date, scale=scale)
+        self._night("2026-10-04", scale=3.0, level=8)             # another level: another content
+        runs = views.runs_of(self.root, self.slug, self.BRAISE)
+        groups = {(g.name, g.level_text): g for g in views.trend_groups(runs, "dps")}
+        seven = groups[("Donjon d'essai", "+7")]
+        self.assertEqual(len(seven.runs), 3)
+        self.assertAlmostEqual(seven.change, 0.21, places=2)
+        self.assertEqual(len(seven.spark), 3)
+        self.assertEqual(seven.spark[0], views.SPARK[0])
+        self.assertEqual(seven.spark[-1], views.SPARK[-1])
+        eight = groups[("Donjon d'essai", "+8")]
+        self.assertEqual(len(eight.runs), 1)
+        self.assertIsNone(eight.change)                           # one run: nothing to compare
+
+    def test_a_wipe_and_an_abandoned_key_are_listed_but_leave_the_trend(self):
+        from logswow import history_views as views
+
+        self._night("2026-10-01")
+        self._night("2026-10-02", outcome="abandonnée")
+        runs = views.runs_of(self.root, self.slug, self.BRAISE)
+        groups = {g.name: g for g in views.trend_groups(runs, "dps")}
+        key = groups["Donjon d'essai"]
+        self.assertEqual((len(key.listed), len(key.runs)), (2, 1))
+        wipe = groups["Eclat d'essai"]
+        self.assertEqual((len(wipe.listed), len(wipe.runs)), (2, 0))      # all wipes
+        self.assertIsNone(wipe.change)
+        self.assertEqual(wipe.spark, "")
+        self.assertEqual(groups["Golem d'essai"].runs[0].outcome, "réussite")
+
+    def test_the_measure_opens_on_the_role_and_damage_taken_is_a_tank_s_alone(self):
+        from logswow import history_views as views
+
+        self._night("2026-10-01", spec=73)                        # Protection warrior: a tank
+        runs = views.runs_of(self.root, self.slug, self.BRAISE)
+        key = [run for run in runs if run.kind == "key"][0]
+        self.assertEqual((key.role, views.default_metric([key])), ("tank", "taken"))
+        self.assertIsNotNone(key.value("taken"))
+        self.assertEqual(views.default_metric([]), "dps")
+        for spec, role, metric in ((257, "soigneur", "hps"), (1480, "dps", "dps")):
+            self._night("2026-10-02", spec=spec)
+            latest = views.runs_of(self.root, self.slug, self.BRAISE)[-1]
+            self.assertEqual((latest.role, views.default_metric([latest])), (role, metric))
+            self.assertIsNone(latest.value("taken") if role != "tank" else None)
+            from logswow import history
+
+            for night in history.list_nights(self.root)[1:]:
+                history.delete_night(self.root, night.path)
+
+    def test_runs_are_ordered_by_when_they_began_whatever_order_the_file_wrote_them_in(self):
+        import json
+        from logswow import history, history_views as views
+
+        self._night("2026-10-01")
+        night = history.list_nights(self.root)[0]
+        with open(night.path, encoding="utf-8") as handle:
+            record = json.load(handle)
+        record["fights"].reverse()
+        starts = ["2026-10-01T22:00:00", "2026-10-01T21:00:00", "2026-10-01T20:00:00"]
+        for fight, start in zip(record["fights"], starts):
+            fight["start"] = start
+        with open(night.path, "w", encoding="utf-8") as handle:
+            json.dump(record, handle)
+        runs = views.runs_of(self.root, self.slug, self.BRAISE)
+        self.assertEqual([run.start for run in runs], sorted(starts))
+
+    def test_keys_and_bosses_can_be_shown_apart(self):
+        from logswow import history_views as views
+
+        self._night("2026-10-01")
+        runs = views.runs_of(self.root, self.slug, self.BRAISE)
+
+        def names(kinds):
+            return sorted(group.name for group in views.trend_groups(runs, "dps", kinds))
+
+        self.assertEqual(names((views.KEY,)), ["Donjon d'essai"])
+        self.assertEqual(names((views.BOSS,)), ["Eclat d'essai", "Golem d'essai"])
+        self.assertEqual(len(names((views.KEY, views.BOSS))), 3)
+
+    def test_a_character_who_changed_specialization_or_an_older_count_is_flagged(self):
+        from logswow import gui_evolution, history_views as views
+
+        self._night("2026-10-01", spec=73)
+        self._night("2026-10-02", spec=1480, analysis=0)
+        runs = views.runs_of(self.root, self.slug, self.BRAISE)
+        groups = views.trend_groups(runs, "dps", kinds=("boss",))
+        golem = [g for g in groups if g.name == "Golem d'essai"][0]
+        self.assertTrue(golem.mixed_specs)
+        self.assertTrue(golem.old_analysis)
+        notes = gui_evolution.notes_for(groups)
+        self.assertTrue(any("Spécialisations différentes" in note for note in notes))
+        self.assertTrue(any("ancienne version des règles" in note for note in notes))
+        self.assertTrue(any("\u2020" in note for note in notes))        # the wipe is outside
+
+    def test_the_folder_lists_who_was_followed_most_and_a_bad_file_is_skipped(self):
+        from logswow import history, history_views as views
+
+        self.assertEqual(views.followed_in_folder(self.root, self.slug), [])
+        self._night("2026-10-01")
+        found = views.followed_in_folder(self.root, self.slug)
+        self.assertEqual([(guid, name) for guid, name, _n in found],
+                         [(self.BRAISE, "Braise"), (self.ARDOISE, "Ardoise")])
+        self.assertGreater(found[0][2], found[1][2])
+        with open(os.path.join(self.root, self.slug, "abime.json"), "w") as handle:
+            handle.write("{not json")
+        self.assertEqual(len(views.followed_in_folder(self.root, self.slug)), 2)
+        self.assertEqual(views.followed_in_folder(self.root, "absent"), [])
+        self.assertEqual(len(history.list_nights(self.root)), 1)
+
+    def test_a_night_with_odd_content_gives_runs_where_it_can_and_never_raises(self):
+        import json
+        from logswow import history, history_views as views
+
+        self._night("2026-10-01")
+        night = history.list_nights(self.root)[0]
+        with open(night.path, encoding="utf-8") as handle:
+            record = json.load(handle)
+        record["fights"].extend([None, 3, {"type": "key"}, {"type": "encounter", "players": 4},
+                                 {"type": "key", "players": [None, {"guid": ""}, {"name": "x"}],
+                                  "bosses": [None, "x"]}])
+        record["format"] = history.FORMAT_VERSION + 1                      # a newer file
+        with open(night.path, "w", encoding="utf-8") as handle:
+            json.dump(record, handle)
+        runs = views.runs_of(self.root, self.slug, self.BRAISE)
+        self.assertEqual(len(runs), 3)
+
+    def test_sparklines_are_scaled_between_the_extremes_and_never_invent_a_slope(self):
+        from logswow.history_views import SPARK, SPARK_LENGTH, sparkline
+
+        self.assertEqual(sparkline([1, 2, 3, 4, 5, 6, 7, 8]), SPARK)
+        self.assertEqual(sparkline([5, 5, 5]), SPARK[3] * 3)
+        self.assertEqual(sparkline([]), "")
+        self.assertEqual(sparkline([None, None]), "")
+        self.assertEqual(sparkline([None, 1, 3]), SPARK[0] + SPARK[-1])
+        self.assertEqual(len(sparkline(list(range(100)))), SPARK_LENGTH)
+
+    def test_the_chart_places_the_lowest_at_the_bottom_the_highest_at_the_top_and_keeps_gaps(self):
+        from logswow.gui_evolution import chart_points
+
+        points, (low, high) = chart_points([10.0, None, 30.0, 20.0], 300, 150)
+        self.assertEqual((low, high), (10.0, 30.0))
+        self.assertIsNone(points[1])
+        (x0, y0), (x2, y2), (x3, y3) = points[0], points[2], points[3]
+        self.assertGreater(y0, y3)                      # lower value, lower on screen (larger y)
+        self.assertGreater(y3, y2)
+        self.assertLess(x0, x2)
+        self.assertLess(x2, x3)
+        self.assertEqual(y0, 150 - 26)                  # the bottom of the plot area
+        self.assertEqual(y2, 12)                        # the top
+        flat, (flat_low, flat_high) = chart_points([5.0, 5.0, 5.0], 300, 150)
+        self.assertEqual(len({y for _x, y in flat}), 1)                  # no invented slope
+        self.assertEqual((flat_low, flat_high), (5.0, 5.0))
+        alone, _range = chart_points([7.0], 300, 150)
+        self.assertEqual(len(alone), 1)
+        self.assertEqual(chart_points([None, None], 300, 150), ([None, None], (None, None)))
+        self.assertEqual(chart_points([], 300, 150), ([], (None, None)))
+
+    def test_the_rows_the_window_shows_carry_the_figure_the_context_and_the_boss_health(self):
+        import json
+        from logswow import gui_evolution, history, history_views as views
+
+        self._night("2026-10-01", ilvl=310.0)
+        self._night("2026-10-02", ilvl=315.5, scale=1.5)
+        night = history.list_nights(self.root)[-1]
+        with open(night.path, encoding="utf-8") as handle:
+            record = json.load(handle)
+        for fight in record["fights"]:
+            if fight["name"] == "Eclat d'essai":
+                fight["boss_health_end"] = 0.4
+        with open(night.path, "w", encoding="utf-8") as handle:
+            json.dump(record, handle)
+        runs = views.runs_of(self.root, self.slug, self.BRAISE)
+        groups = views.trend_groups(runs, "dps")
+        rows = {row[0]: row for row in gui_evolution.group_rows(groups)}
+        golem = rows["Golem d'essai"]
+        self.assertEqual(golem[1:3], ("Mythique", "2"))
+        self.assertTrue(golem[5].startswith("+50"))                       # 3350 -> 5025
+        self.assertEqual(golem[6], "310 \u2192 315,5")                     # item level beside it
+        self.assertEqual(rows["Eclat d'essai"][2], "0/2")                 # none in the trend
+        every = gui_evolution.run_rows(runs)
+        wipes = [row for row in every if row[1].startswith("Eclat")]
+        self.assertEqual(len(wipes), 2)
+        self.assertTrue(all("\u2020" in row[1] for row in wipes))
+        self.assertIn("échec (40", wipes[-1][3])                           # the boss's health left
+        self.assertEqual(len(every[0]), 13)
+        self.assertEqual(len(gui_evolution.group_rows(groups)[0]), 7)
+
+    def _window(self):
+        """The history window with a history of its own; skipped with no screen."""
+        from logswow import gui
+
+        try:
+            import tkinter
+            root = tkinter.Tk()
+        except (ImportError, Exception) as error:        # noqa: BLE001 -- no screen here
+            self.skipTest("pas de fenetre possible ici : %s" % str(error).splitlines()[0])
+        self.addCleanup(root.destroy)
+        self.addCleanup(__import__("gc").collect)
+        self.addCleanup(lambda: root.eval("foreach job [after info] {after cancel $job}"))
+        app = gui.App(root, locations=[self._temporary.name], history_root=self.root)
+        return app, root
+
+    def test_the_evolution_tab_lists_the_followed_characters_runs_and_narrows_on_a_selection(self):
+        from logswow import history
+
+        self._night("2026-10-01", spec=1480, ilvl=310.0)
+        self._night("2026-10-02", spec=1480, ilvl=312.0, scale=1.2)
+        app, root = self._window()
+        window = app.history_window
+        window.show()
+        root.update()
+        tab = window.evolution
+        self.assertEqual(tab.guids[0], self.BRAISE)
+        self.assertIn("Braise", tab.who_box.get())
+        self.assertEqual(tab.metric_box.get(), "Dégâts/s")                # a damage dealer
+        self.assertEqual(len(tab.group_table.get_children()), 3)          # key, two bosses
+        self.assertEqual(len(tab.run_table.get_children()), 6)
+        tab.group_table.selection_set(tab.group_table.get_children()[0])
+        root.update()
+        self.assertEqual(len(tab.run_table.get_children()), 2)            # one content, two nights
+        tab.show_box.current(2)                                           # bosses only
+        tab.redraw()
+        self.assertEqual(len(tab.group_table.get_children()), 2)
+        tab.show_box.current(1)                                           # keys only
+        tab.metric_box.current(1)
+        tab.redraw()
+        self.assertEqual(len(tab.group_table.get_children()), 1)
+        self.assertEqual(tab.metric_box.get(), "Soins/s")
+        history.untrack(self.root, self.BRAISE)                           # nothing followed
+        for night in history.list_nights(self.root):
+            history.delete_night(self.root, night.path)
+        window.refresh()
+        self.assertEqual(tab.guids, [])
+        self.assertIn("Aucun personnage suivi", tab.message.cget("text"))
+        self.assertEqual(len(tab.group_table.get_children()), 0)
+
+
 class TestSeventhAuditFindings(unittest.TestCase):
     """The 2026-09-29 audit of 0.12.1: a full read of every file, the
     tools of the earlier audits again, and one real 364 MB Mythic+ night.
