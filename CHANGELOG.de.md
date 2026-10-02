@@ -39,6 +39,73 @@ beschädigte Abenddatei (eine unendliche Zahl, ein Datum als Liste, ein Feld
 anderen Typs) konnte eine Liste oder Ansicht anhalten. Nun hält sie nichts mehr
 an. Keine bestehende Zahl ändert sich.
 
+### Außerdem in dieser Veröffentlichung
+
+Diese Versionen hatten nie eine eigene Veröffentlichung: Ihre Notizen sind hier zusammengefasst, damit nichts von dem fehlt, was sich geändert hat.
+
+#### 0.18.0
+
+**Eine Spezialisierung gegen eine andere, im Fenster „Verlauf“.** Ein neuer
+Reiter, *Spezialisierungen*, beantwortet „wie schlägt sich diese
+Spezialisierung gegenüber jener?“ mit den Durchgängen des Verlaufs. Er
+bezieht sich auf einen gefolgten Charakter oder auf alle des Ordners, **jeweils
+für eine Rolle**: Der Schaden eines Tanks neben dem eines Magiers ist kein
+Vergleich von Spezialisierungen.
+
+Wie bei der Entwicklung **wird nur innerhalb desselben Inhalts verglichen**:
+derselbe Dungeon auf derselben Schlüsselstufe, derselbe Boss auf derselben
+Schwierigkeit, und nur Durchgänge, die zählen (beendete Schlüssel, besiegte
+Bosse). Die Liste links behält nur Inhalte, die mit mindestens zwei
+Spezialisierungen gespielt wurden; ein Inhalt zeigt für jede Spezialisierung die
+Zahl der Durchgänge, den **Median** (ein Ausreißer verfälscht ihn nicht), die
+Spanne von Minimum bis Maximum, die Gegenstandsstufe und die Abweichung
+gegenüber der ersten Zeile, dazu ein Balkendiagramm der Mediane (bei null
+beginnend, damit ein kleiner Unterschied nicht vergrößert wird). Der Messwert
+öffnet sich auf der meistgespielten Rolle (erlittener Schaden/s für Tanks,
+Heilung/s, Schaden/s); erlittener Schaden wird nur Tanks zugeschrieben, für
+einen Vergleich braucht es also zwei Tank-Spezialisierungen.
+
+Es ist keine Rangliste: Die erste Zeile ist die meistgespielte, nicht die beste,
+und die Abweichung hängt von Gegenstandsstufe, Spielern und Gruppe ab, was der
+Reiter sagt. Eine Zeile mit weniger als drei Durchgängen ist mit ‡ markiert.
+Nichts verschwindet stillschweigend: Inhalte mit nur einer Spezialisierung und
+Durchgänge, deren Spezialisierung das Protokoll nicht schreibt, werden unter der
+Tabelle gezählt. Die Rolle wird nun zuerst aus der Spezialisierung gelesen, was
+Durchgänge korrigiert, deren Kennung beim Speichern noch unbekannt war. Keine
+bestehende Zahl ändert sich.
+
+#### 0.16.0
+
+**Der Verlauf: Ihre Abende aufbewahren, um sich zu vergleichen.** Eine
+Schaltfläche „Verlauf…“ öffnet ein Fenster, um Abend für Abend den Verlauf Ihrer
+Charaktere aufzubauen. Bei der ersten Benutzung erklärt es das Prinzip und lässt
+Sie einen ersten Ordner anlegen, den Sie beliebig nennen (eine Saison, „mit meinen
+Freunden“…); ein Menü erlaubt es, jederzeit weitere Ordner zu erstellen, umzubenennen
+oder zu löschen und einen Abend von einem in einen anderen zu verschieben.
+
+**Ohne Ihre Zustimmung wird nichts gespeichert.** Sie haken die Charaktere an, denen
+Sie folgen: Nur sie hinterlassen ihren Namen im Verlauf; andere Spieler (zum Beispiel
+eine Zufallsgruppe) erscheinen nur in den Gruppensummen. „Diesen Abend zum Verlauf
+hinzufügen“ speichert ihn auf Anfrage; ein Kontrollkästchen, standardmäßig aus,
+speichert jedes gelesene Protokoll, aber nur wenn ein gefolgter Charakter mitgespielt
+hat. Jeder Abend ist eine kleine lesbare Datei (etwa 30 KB: die von LogsWoW berechneten
+Zahlen, nie die Ereignisse des Protokolls), nur auf diesem Computer gespeichert. Einen
+Abend oder einen ganzen Ordner zu löschen ist ein Klick und berührt nie Ihre
+Kampfprotokolle.
+
+Ein Schlüssel wird ganz aufbewahrt, mit jedem seiner Pulls (Dauer, Schaden, Tode und
+die durchschnittliche Gesundheit der beteiligten Gegner) und seinen Bossen; ein
+Raid-Boss mit seiner Schwierigkeit und, falls er nicht gefallen ist, seiner verbleibenden
+Gesundheit. Raid-Trash wird nicht aufbewahrt.
+
+Ändert sich die Spielversion zwischen zwei Protokollen (ein neuer Patch, eine neue
+Erweiterung), schlägt das Fenster einen neuen Ordner vor: Das Protokoll nennt nicht die
+Saison, nur die Version des Clients, und Sie entscheiden. Keine bestehende Zahl ändert sich.
+
+#### 0.4.0
+
+**Das Fenster, damit das Terminal nicht mehr nötig ist.** Ohne weitere Angabe gestartet (Doppelklick auf die Datei unter Windows), öffnet LogsWoW ein Fenster in drei Schritten: das Protokoll, die Kämpfe, der Bericht („Bericht erstellen und öffnen“ zeigt ihn im Browser). Ein großes Protokoll wird an einem Fortschrittsbalken verfolgt und lässt sich abbrechen; verweigert der Ordner des Protokolls das Schreiben oder existiert eine gleichnamige Datei, die kein Bericht ist, fragt das Fenster, wohin geschrieben werden soll, statt etwas zu überschreiben. Die Terminal-Befehle ändern sich nicht; `fenetre` öffnet das Fenster vom Terminal aus. Unter Linux Mint, Ubuntu und Debian verlangt das Fenster einmal `sudo apt install python3-tk` und sagt es selbst, wenn es fehlt.
+
 ## 0.19.0 — 2026-10-02
 
 **Das Beste jeder Spezialisierung, im Fenster „Verlauf“.** Ein neuer Reiter,
@@ -64,6 +131,8 @@ Spezialisierung). Durchgänge, deren Spezialisierung das Protokoll nicht
 schreibt, werden unter den Tabellen gezählt. Keine bestehende Zahl ändert sich.
 
 ## 0.18.0 — 2026-10-02
+
+*Nie allein veröffentlicht: Ihre Notizen sind in denen der 0.20.0 zusammengefasst.*
 
 **Eine Spezialisierung gegen eine andere, im Fenster „Verlauf“.** Ein neuer
 Reiter, *Spezialisierungen*, beantwortet „wie schlägt sich diese
@@ -123,6 +192,8 @@ gegen eine andere, bester Schlüssel und bester Kill) folgen. Keine bestehende
 Zahl ändert sich.
 
 ## 0.16.0 — 2026-10-02
+
+*Nie allein veröffentlicht: Ihre Notizen sind in denen der 0.20.0 zusammengefasst.*
 
 **Der Verlauf: Ihre Abende aufbewahren, um sich zu vergleichen.** Eine
 Schaltfläche „Verlauf…“ öffnet ein Fenster, um Abend für Abend den Verlauf Ihrer

@@ -35,6 +35,66 @@ Fixed along the way, found by fuzzing the history's files: a damaged night
 file (an infinite number, a date as a list, a field of another type) could stop
 a list or a view. It no longer stops anything. No existing figure changes.
 
+### Also in this release
+
+These versions never had a release of their own: their notes are gathered here, so that nothing that changed is missing.
+
+#### 0.18.0
+
+**One specialization against another, in the "History" window.** A new tab,
+*Specializations*, answers "how does this specialization do against that
+one?" with the runs of the history. It works on one followed character, or on
+all those of the folder, **one role at a time**: a tank's damage beside a mage's
+is not a comparison of specializations.
+
+As with the progress view, **only the same content is compared**: the same
+dungeon at the same key level, the same boss at the same difficulty, and only
+the runs that count (finished keys, killed bosses). The list on the left keeps
+only the content played with at least two specializations; choosing one gives,
+for each specialization, the number of runs, the **median** (one extreme run
+does not skew it), the range from minimum to maximum, the item level and the
+gap to the first row, with a bar chart of the medians (starting at zero, so a
+small difference is not magnified). The measure opens on the role played most
+(damage taken/s for tanks, healing/s, damage/s); damage taken is given to
+tanks only, so two tank specializations are needed to compare it.
+
+It is not a ranking: the first row is the most played, not the best, and the
+gap depends on item level, players and group, which the tab says. A row backed
+by fewer than three runs is marked ‡. Nothing disappears quietly: content
+played with a single specialization, and runs whose specialization the log does
+not write, are counted under the table. The role is now read from the
+specialization first, which fixes runs whose id was not known when they were
+saved. No existing figure changes.
+
+#### 0.16.0
+
+**The history: keeping your nights to compare yourself.** A "History…" button
+opens a window to build, night after night, the history of your characters. On
+first use it explains the idea and has you create a first folder, named however
+you like (a season, "with my friends"…); a menu lets you create, rename or
+delete others at any time, and move a night from one to another.
+
+**Nothing is saved without your consent.** You tick the characters to follow:
+only they leave their name in the history; other players (a pick-up group, for
+example) appear only in the group totals. "Add this night to the history" saves
+it on request; a checkbox, off by default, saves every log read, but only if a
+followed character played in it. Each night is a small readable file (about 30 KB:
+the figures LogsWoW computed, never the log's events), kept on this computer only.
+Deleting a night or a whole folder is one click, and never touches your combat logs.
+
+A key is kept whole, with each of its pulls (length, damage, deaths and the
+average health of the enemies engaged) and its bosses; a raid boss is kept with
+its difficulty and, if it did not fall, its remaining health. Raid trash is not
+kept.
+
+When the game version changes between two logs (a new patch, a new expansion),
+the window offers to start a new folder: the log does not say the season, only
+the client's version, and you decide. No existing figure changes.
+
+#### 0.4.0
+
+**The window, so that the terminal is no longer needed.** Launched with nothing else (a double-click on the file on Windows), LogsWoW opens a window in three steps: the log, the fights, the report ("Create the report and open it" shows it in the browser). A large log is followed on a progress bar and can be cancelled; if the log's folder refuses writing, or a file of the same name that is not a report exists, the window asks where to write rather than overwrite anything. The terminal commands do not change; `fenetre` opens the window from the terminal. On Linux Mint, Ubuntu and Debian the window asks once for `sudo apt install python3-tk`, and says so itself if it is missing.
+
 ## 0.19.0 — 2026-10-02
 
 **The best of each specialization, in the "History" window.** A new tab,
@@ -59,6 +119,8 @@ specialization the log does not write are counted under the tables. No existing
 figure changes.
 
 ## 0.18.0 — 2026-10-02
+
+*Never published on its own: its notes are gathered in those of 0.20.0.*
 
 **One specialization against another, in the "History" window.** A new tab,
 *Specializations*, answers "how does this specialization do against that
@@ -110,6 +172,8 @@ by an older version of LogsWoW. The other views (one specialization against
 another, best key and best kill) will follow. No existing figure changes.
 
 ## 0.16.0 — 2026-10-02
+
+*Never published on its own: its notes are gathered in those of 0.20.0.*
 
 **The history: keeping your nights to compare yourself.** A "History…" button
 opens a window to build, night after night, the history of your characters. On

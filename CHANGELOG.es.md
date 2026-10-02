@@ -38,6 +38,69 @@ de noche dañado (un número infinito, una fecha como lista, un campo de otro
 tipo) podía detener una lista o una vista. Ya no detiene nada. Ninguna cifra
 existente cambia.
 
+### También en esta publicación
+
+Estas versiones nunca tuvieron publicación propia: sus notas se reúnen aquí, para que no falte nada de lo que cambió.
+
+#### 0.18.0
+
+**Una especialización frente a otra, en la ventana «Historial».** Una pestaña
+nueva, *Especializaciones*, responde a «¿cómo le va a esta especialización
+frente a aquella?» con las salidas del historial. Se aplica a un personaje
+seguido o a todos los de la carpeta, **un rol cada vez**: el daño de un tanque
+junto al de un mago no es una comparación de especializaciones.
+
+Como en la evolución, **solo se compara dentro del mismo contenido**: la misma
+mazmorra al mismo nivel de llave, el mismo jefe en la misma dificultad, y solo
+las salidas que cuentan (llaves terminadas, jefes derrotados). La lista de la
+izquierda conserva únicamente los contenidos jugados con al menos dos
+especializaciones; al elegir uno se ve, para cada especialización, el número de
+salidas, la **mediana** (una salida atípica no la distorsiona), el rango de
+mínimo a máximo, el nivel de objeto y la diferencia respecto a la primera fila,
+con un gráfico de barras de las medianas (desde cero, para no magnificar una
+diferencia pequeña). La medida se abre sobre el rol más jugado (daño
+recibido/s para los tanques, sanación/s, daño/s); el daño recibido solo se
+asigna a los tanques, así que hacen falta dos especializaciones de tanque para
+compararlo.
+
+No es una clasificación: la primera fila es la más jugada, no la mejor, y la
+diferencia depende del nivel de objeto, de los jugadores y del grupo, algo que
+la pestaña recuerda. Una fila apoyada en menos de tres salidas se marca con ‡.
+Nada desaparece en silencio: los contenidos jugados con una sola
+especialización y las salidas cuya especialización el registro no escribe se
+cuentan bajo la tabla. El rol se lee ahora primero de la especialización, lo que
+corrige salidas cuyo identificador no se conocía al guardarlas. Ninguna cifra
+existente cambia.
+
+#### 0.16.0
+
+**El historial: guardar sus noches para compararse.** Un botón «Historial…» abre
+una ventana para constituir, noche tras noche, el historial de sus personajes. En el
+primer uso explica el principio y le hace crear una primera carpeta, que usted nombra
+como quiera (una temporada, «con mis amigos»…); un menú permite crear, renombrar o
+eliminar otras en cualquier momento, y mover una noche de una a otra.
+
+**No se guarda nada sin su consentimiento.** Usted marca los personajes que sigue:
+solo ellos dejan su nombre en el historial; los demás jugadores (un grupo al azar, por
+ejemplo) solo aparecen en los totales del grupo. «Añadir esta noche al historial» la
+guarda a petición; una casilla, desactivada por defecto, guarda cada registro leído,
+pero solo si un personaje seguido participó. Cada noche es un archivo pequeño y legible
+(unos 30 KB: las cifras que LogsWoW calculó, nunca los eventos del registro), guardado
+solo en este ordenador. Eliminar una noche o una carpeta entera se hace con un clic, y
+nunca toca sus registros de combate.
+
+Una llave se guarda entera, con cada uno de sus pulls (duración, daño, muertes y la
+salud media de los enemigos implicados) y sus jefes; un jefe de banda, con su dificultad
+y, si no cayó, su salud restante. La basura de banda no se guarda.
+
+Cuando la versión del juego cambia entre dos registros (un parche nuevo, una expansión
+nueva), la ventana propone empezar una carpeta nueva: el registro no dice la temporada,
+solo la versión del cliente, y usted decide. Ninguna cifra existente cambia.
+
+#### 0.4.0
+
+**La ventana, para no pasar más por el terminal.** Lanzado sin nada más (doble clic en el archivo en Windows), LogsWoW abre una ventana en tres pasos: el registro, los combates, el informe («Crear el informe y abrirlo» lo muestra en el navegador). Un registro grande se sigue en una barra de progreso y puede cancelarse; si la carpeta del registro rechaza la escritura, o existe un archivo del mismo nombre que no es un informe, la ventana pregunta dónde escribir en lugar de sobrescribir nada. Los comandos del terminal no cambian; `fenetre` abre la ventana desde el terminal. En Linux Mint, Ubuntu y Debian la ventana pide una vez `sudo apt install python3-tk` y avisa ella misma si falta.
+
 ## 0.19.0 — 2026-10-02
 
 **Lo mejor de cada especialización, en la ventana «Historial».** Una pestaña
@@ -62,6 +125,8 @@ salidas cuya especialización el registro no escribe se cuentan bajo las tablas.
 Ninguna cifra existente cambia.
 
 ## 0.18.0 — 2026-10-02
+
+*Nunca publicada por sí sola: sus notas se reúnen en las de la 0.20.0.*
 
 **Una especialización frente a otra, en la ventana «Historial».** Una pestaña
 nueva, *Especializaciones*, responde a «¿cómo le va a esta especialización
@@ -117,6 +182,8 @@ de un archivo calculado por una versión anterior de LogsWoW. Las otras vistas
 Ninguna cifra existente cambia.
 
 ## 0.16.0 — 2026-10-02
+
+*Nunca publicada por sí sola: sus notas se reúnen en las de la 0.20.0.*
 
 **El historial: guardar sus noches para compararse.** Un botón «Historial…» abre
 una ventana para constituir, noche tras noche, el historial de sus personajes. En el

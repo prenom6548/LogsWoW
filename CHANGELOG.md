@@ -34,6 +34,93 @@ fichier de soirée abîmé (un nombre infini, une date en liste, un champ
 d'un autre type) pouvait arrêter une liste ou une vue. Il n'arrête plus rien.
 Aucun chiffre existant ne change.
 
+### Aussi dans cette publication
+
+Ces versions n'ont jamais eu leur propre publication : leurs notes sont réunies ici, pour que rien de ce qui a changé ne manque.
+
+#### 0.18.0
+
+**Une spécialisation contre une autre, dans la fenêtre « Historique ».** Un
+nouvel onglet, *Spécialisations*, répond à « comment se comporte telle
+spécialisation, comparée à telle autre ? » avec les sorties de l'historique.
+Il porte sur un personnage suivi, ou sur tous ceux du dossier, **un rôle à la fois** :
+dégâts d'un tank et dégâts d'un mage ne sont pas une comparaison de spécialisations.
+
+Comme pour l'évolution, **on ne compare que dans un même contenu** : un même
+donjon au même niveau de clé, un même boss à la même difficulté, et seulement
+les sorties qui comptent (clés terminées, boss tués). La liste de gauche ne
+garde que les contenus joués avec au moins deux spécialisations ; choisir un
+contenu donne, pour chaque spécialisation, le nombre de sorties, la **médiane**
+(une sortie hors norme ne la fausse pas), la plage du minimum au maximum, le
+niveau d'objet et l'écart par rapport à la première ligne, avec un graphique
+en barres des médianes (partant de zéro, pour ne pas grossir une petite
+différence). La mesure s'ouvre sur le rôle le plus joué (dégâts subis/s pour
+les tanks, soins/s, dégâts/s) ; les dégâts subis ne sont donnés qu'aux tanks,
+il faut donc deux spécialisations de tank pour les comparer.
+
+Ce n'est pas un classement : la première ligne est la plus jouée, pas la
+meilleure, et l'écart dépend du niveau d'objet, des joueurs et du groupe, ce
+que l'onglet rappelle. Une ligne appuyée sur moins de trois sorties est marquée
+‡. Rien ne disparaît en silence : les contenus joués avec une seule
+spécialisation, et les sorties dont le journal n'écrit pas la spécialisation,
+sont comptés sous le tableau. Le rôle se lit désormais d'abord dans la
+spécialisation, ce qui corrige les sorties dont l'identifiant n'était pas
+connu au moment de l'enregistrement. Aucun chiffre existant ne change.
+
+#### 0.16.0
+
+**L'historique : garder ses soirées pour se comparer.** Un bouton
+« Historique… » ouvre une fenêtre pour constituer, soirée après soirée,
+l'historique de vos personnages. Au premier usage, elle explique le principe
+et vous fait créer un premier dossier, que vous nommez comme vous voulez (une
+saison, « avec mes amis »…) ; un menu permet d'en créer, renommer ou supprimer
+d'autres à tout moment, et de déplacer une soirée de l'un à l'autre.
+
+**Rien n'est enregistré sans votre accord.** Vous cochez les personnages à
+suivre : seuls eux laissent leur nom dans l'historique ; les autres joueurs
+(un groupe de hasard, par exemple) n'apparaissent que dans les totaux du
+groupe. « Ajouter cette soirée à l'historique » l'enregistre à la demande ; une
+case, désactivée par défaut, l'enregistre à chaque journal lu, mais seulement
+si un personnage suivi y a joué. Chaque soirée est un petit fichier lisible
+(de l'ordre de 30 Ko : les chiffres que LogsWoW a calculés, jamais les
+événements du journal), rangé sur cet ordinateur uniquement. Supprimer une
+soirée ou un dossier entier se fait d'un clic, et ne touche jamais à vos
+journaux de combat.
+
+Une clé est gardée entière, avec chacun de ses pulls (durée, dégâts, morts et
+la vie moyenne des ennemis engagés) et ses boss ; un boss de raid l'est avec sa
+difficulté et, s'il n'est pas tombé, sa vie restante. Les trash de raid ne sont
+pas gardés.
+
+Quand la version du jeu change entre deux journaux (un nouveau patch, une
+nouvelle extension), la fenêtre propose de commencer un nouveau dossier : le
+journal ne dit pas la saison, seulement la version du client, et vous
+décidez. Aucun chiffre existant ne change.
+
+#### 0.4.0
+
+**Une fenêtre, pour ne plus passer par le terminal.**
+
+- Lancé sans rien d'autre — double-clic sur le fichier sous Windows,
+  `python3 logswow-0.20.0.pyz` ou une entrée de menu sous Linux — LogsWoW
+  ouvre une fenêtre en trois étapes : **le journal** (la liste de ceux
+  qu'il a trouvés, du plus récent au plus ancien, ou « Choisir un autre
+  fichier… »), **les combats** (tous cochés, ou seulement ceux qu'on
+  choisit), **le rapport** (« Créer le rapport et l'ouvrir » l'affiche
+  dans le navigateur).
+- La lecture d'un gros journal se suit sur une barre de progression, et
+  peut s'annuler. La fenêtre reste utilisable pendant ce temps.
+- Si le dossier du journal refuse l'écriture, ou si un fichier du même
+  nom qui n'est pas un rapport existe déjà, la fenêtre demande où écrire
+  la page plutôt que d'écraser quoi que ce soit.
+- Un rapport d'un seul combat porte son numéro dans son nom
+  (`…-combat-3.html`), pour ne pas remplacer celui de toute la soirée.
+- Sous Linux Mint, Ubuntu et Debian, la fenêtre demande une fois
+  `sudo apt install python3-tk` ; elle le dit elle-même s'il manque.
+  `INSTALL.md` explique comment l'ajouter au menu des applications.
+- Les commandes du terminal ne changent pas ; `fenetre` ouvre la fenêtre
+  depuis le terminal.
+
 ## 0.19.0 — 2026-10-02
 
 **Le meilleur de chaque spécialisation, dans la fenêtre « Historique ».** Un
@@ -61,6 +148,8 @@ spécialisation sont comptées sous les tableaux. Aucun chiffre existant ne
 change.
 
 ## 0.18.0 — 2026-10-02
+
+*Jamais publiée seule : ses notes sont réunies dans celles de la 0.20.0.*
 
 **Une spécialisation contre une autre, dans la fenêtre « Historique ».** Un
 nouvel onglet, *Spécialisations*, répond à « comment se comporte telle
@@ -115,6 +204,8 @@ d'un fichier calculé par une version plus ancienne de LogsWoW. Les autres vues
 ensuite. Aucun chiffre existant ne change.
 
 ## 0.16.0 — 2026-10-02
+
+*Jamais publiée seule : ses notes sont réunies dans celles de la 0.20.0.*
 
 **L'historique : garder ses soirées pour se comparer.** Un bouton
 « Historique… » ouvre une fenêtre pour constituer, soirée après soirée,
@@ -606,7 +697,7 @@ journal écrit de deux façons qui ne concordent pas.
 
 ## 0.4.0 — 2026-09-27
 
-*Jamais publiée seule : son contenu est arrivé avec la 0.5.0.*
+*Jamais publiée seule : ses notes sont réunies dans celles de la 0.20.0 (la 0.5.0 ne les reprenait pas).*
 
 **Une fenêtre, pour ne plus passer par le terminal.**
 
