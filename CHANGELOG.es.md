@@ -7,6 +7,37 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.20.0 — 2026-10-02
+
+**El historial como página web.** Las tres vistas de la ventana «Historial»
+(evolución de un personaje, especializaciones unas contra otras, récords)
+también se escriben como página HTML: el botón **«Escribir la página…»** de la
+ventana o el comando `logswow historique` (`--dossier` elige la carpeta, `-o`
+el archivo). La página se abre en el navegador.
+
+Sigue las reglas de todos los informes: **ningún script, nada se descarga**, un
+solo archivo. Tres pestañas (Evolución, Especializaciones, Récords) y la
+elección del personaje («todos los personajes seguidos» o uno de ellos)
+funcionan sin script, como las pestañas de los informes. La evolución muestra
+un personaje contenido por contenido, con su curva y sus salidas; las
+especializaciones se comparan rol por rol, con barras que parten de cero; los
+récords dan la mejor llave y el mejor kill de cada especialización. **Las cifras
+no se recalculan para la página**: son las mismas filas que en la ventana, con
+las mismas notas bajo las tablas (mediana, ‡, «no es una clasificación»).
+Existe en francés, inglés, alemán y español, y sigue el tema oscuro como los
+informes.
+
+Es una página aparte, no una parte del informe de un registro: un informe se
+hace con ese registro y está pensado para compartirse, mientras que el
+historial abarca varias noches y lleva el nombre de sus personajes seguidos. La
+página nunca sobrescribe un archivo que no sea una página de LogsWoW (salvo con
+`--force`), ni nada dentro de la propia carpeta del historial.
+
+Corregido de paso, hallado al desordenar los archivos del historial: un archivo
+de noche dañado (un número infinito, una fecha como lista, un campo de otro
+tipo) podía detener una lista o una vista. Ya no detiene nada. Ninguna cifra
+existente cambia.
+
 ## 0.19.0 — 2026-10-02
 
 **Lo mejor de cada especialización, en la ventana «Historial».** Una pestaña

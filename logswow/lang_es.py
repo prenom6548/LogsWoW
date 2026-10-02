@@ -1063,6 +1063,53 @@ TEXTS = {
         'Tiempo',
     'En temps':
         'A tiempo',
+    # the history page and its command
+    '%d kills · %d spés':
+        '%d kills · %d esp.',
+    '%s du %s au %s':
+        '%s del %s al %s',
+    '%s est un dossier : donnez un nom de fichier avec -o.':
+        '%s es una carpeta: indique un nombre de archivo con -o.',
+    "%s existe et n'est pas un rapport LogsWoW : refus de l'écraser. Choisissez un autre nom, ou ajoutez --force si c'est voulu.":
+        '%s existe y no es un informe de LogsWoW: me niego a sobrescribirlo. Elija otro nombre o añada --force si es lo que quiere.',
+    "Aucun historique pour l'instant : ajoutez une soirée depuis la fenêtre (bouton « Historique… »).\n":
+        'Todavía no hay historial: añada una noche desde la ventana (botón «Historial…»).\n',
+    'Aucune soirée dans ce dossier.':
+        'Ninguna noche en esta carpeta.',
+    'Choisissez un personnage ci-dessus pour voir son évolution.':
+        'Elija arriba un personaje para ver su evolución.',
+    "Les chiffres viennent des soirées gardées dans ce dossier de l'historique ; seuls les personnages suivis y portent un nom. Rien ici n'est un classement des joueurs ni un parse.":
+        'Las cifras proceden de las noches guardadas en esta carpeta del historial; solo los personajes seguidos llevan nombre en ella. Nada de esto es una clasificación de jugadores ni un parse.',
+    "LogsWoW %s · page écrite à partir de l'historique local. Licence AGPL-3.0 ou ultérieure ; code source : github.com/prenom6548/LogsWoW. Aucune donnée ne quitte cette machine.":
+        'LogsWoW %s · página escrita a partir del historial local. Licencia AGPL-3.0 o posterior; código fuente: github.com/prenom6548/LogsWoW. Ningún dato sale de esta máquina.',
+    'Meilleur kill par spécialisation':
+        'Mejor kill por especialización',
+    'Meilleure clé par spécialisation':
+        'Mejor llave por especialización',
+    'NOM':
+        'NOMBRE',
+    "Où écrire la page de l'historique ?":
+        '¿Dónde escribir la página del historial?',
+    "Page de l'historique écrite : %s\n":
+        'Página del historial escrita: %s\n',
+    'Page écrite : %s':
+        'Página escrita: %s',
+    'Personnages suivis : %d':
+        'Personajes seguidos: %d',
+    'Quel dossier ? Choisissez-en un avec --dossier parmi : %s.\n':
+        '¿Qué carpeta? Elija una con --dossier entre: %s.\n',
+    "Refus d'écrire la page dans le dossier de l'historique lui-même (%s). Choisissez un autre endroit avec -o.":
+        'Me niego a escribir la página dentro de la propia carpeta del historial (%s). Elija otro lugar con -o.',
+    "dossier de l'historique à écrire (défaut : le dossier actif)":
+        'carpeta del historial que escribir (por defecto: la activa)',
+    'jeu %s':
+        'juego %s',
+    'Écrire la page…':
+        'Escribir la página…',
+    "écraser le fichier de sortie même s'il n'est pas une page LogsWoW (jamais l'historique lui-même)":
+        'sobrescribir el archivo de salida aunque no sea una página de LogsWoW (nunca el propio historial)',
+    "écrit la page de l'historique (évolution, spécialisations, records)":
+        'escribe la página del historial (evolución, especializaciones, récords)',
 }
 
 # The French nouns `fmt.plural` agrees, and their Spanish forms.

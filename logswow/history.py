@@ -525,12 +525,14 @@ class Night:
 
     def __init__(self, path, folder, record):
         self.path, self.folder = path, folder
-        self.identity = record.get("identity", "")
-        self.date = record.get("date", "")
-        self.source = record.get("source", "")
-        self.build = (record.get("game") or {}).get("build", "")
+        self.identity = str(record.get("identity", ""))
+        self.date = str(record.get("date", ""))
+        self.source = str(record.get("source", ""))
+        game = record.get("game")
+        self.build = str(game.get("build", "")) if isinstance(game, dict) else ""
         self.analysis = record.get("analysis", 0)
-        self.fights = len(record.get("fights") or [])
+        fights = record.get("fights")
+        self.fights = len(fights) if isinstance(fights, list) else 0
         self.size_bytes = os.path.getsize(path)
 
 

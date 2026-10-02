@@ -239,6 +239,34 @@ def _refuse_folder(folder, log, force):
               "Choisissez un autre dossier, ou ajoutez --force si c'est voulu.\n") % folder)
 
 
+def command_history(args):
+    """`historique`: write the page of a history folder (evolution, specializations, records)."""
+    from . import history, report_history
+
+    root = history.default_root()
+    folders = history.list_folders(root)
+    if not folders:
+        sys.stderr.write(_("Aucun historique pour l'instant : ajoutez une soirée depuis la "
+                           "fenêtre (bouton « Historique… »).\n"))
+        return 2
+    wanted = (args.folder or history.config(root)["dossier_actif"] or "").strip().lower()
+    chosen = [folder for folder in folders if wanted in (folder.slug, folder.name.lower())]
+    if not chosen and not args.folder and len(folders) == 1:
+        chosen = folders
+    if not chosen:
+        sys.stderr.write(_("Quel dossier ? Choisissez-en un avec --dossier parmi : %s.\n")
+                         % ", ".join(folder.name for folder in folders))
+        return 2
+    folder = chosen[0]
+    out = args.out or "historique-%s.html" % folder.slug
+    reason = report_history.write_page(root, folder.slug, out, args.force)
+    if reason:
+        sys.stderr.write(reason + "\n")
+        return 2
+    sys.stdout.write(_("Page de l'historique écrite : %s\n") % out)
+    return 0
+
+
 def default_output(log, layout):
     """Next to the log: a page under its name, or a folder under its name."""
     stem = os.path.splitext(log)[0]
@@ -498,6 +526,19 @@ def build_parser():
                "it, pt, ru, ko, zh, ou off pour ne mettre aucun lien"),
     )
     report.set_defaults(func=command_report)
+
+    history_page = subparsers.add_parser(
+        "historique", help=_("écrit la page de l'historique (évolution, spécialisations, records)"))
+    language_option(history_page)
+    history_page.add_argument(
+        "--dossier", dest="folder", default=None, metavar=_("NOM"),
+        help=_("dossier de l'historique à écrire (défaut : le dossier actif)"))
+    history_page.add_argument("-o", "--out", default=None, help=_("fichier de sortie (.html)"))
+    history_page.add_argument(
+        "--force", action="store_true",
+        help=_("écraser le fichier de sortie même s'il n'est pas une page LogsWoW "
+               "(jamais l'historique lui-même)"))
+    history_page.set_defaults(func=command_history)
 
     listing = common(subparsers.add_parser("list", help=_("liste les combats du fichier")))
     listing.set_defaults(func=command_list)

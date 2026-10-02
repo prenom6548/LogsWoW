@@ -3,6 +3,37 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.20.0 — 2026-10-02
+
+**L'historique en page web.** Les trois vues de la fenêtre « Historique »
+(évolution d'un personnage, spécialisations les unes contre les autres,
+records) s'écrivent aussi dans une page HTML : le bouton **« Écrire la
+page… »** de la fenêtre, ou la commande `logswow historique` (`--dossier` pour
+choisir le dossier, `-o` pour le fichier). La page s'ouvre dans le navigateur.
+
+Elle suit les règles de tous les rapports : **aucun script, rien de chargé**,
+un seul fichier. Trois onglets (Évolution, Spécialisations, Records) et un
+choix de personnage (« tous les personnages suivis » ou l'un d'eux) se
+manœuvrent sans script, comme les onglets des rapports. L'évolution montre
+un personnage contenu par contenu, avec sa courbe et ses sorties ; les
+spécialisations sont comparées rôle par rôle, avec des barres à partir de
+zéro ; les records donnent la meilleure clé et le meilleur kill de chaque
+spécialisation. **Les chiffres ne sont pas recalculés pour la page** : ce sont
+les mêmes lignes que dans la fenêtre, avec les mêmes notes sous les tableaux
+(médiane, ‡, « pas un classement »). Elle existe en français, anglais,
+allemand et espagnol, et passe en thème sombre comme les rapports.
+
+C'est une page à part, pas une partie du rapport d'un journal : un rapport est
+fait de ce journal-là et se partage, alors que l'historique couvre plusieurs
+soirées et porte le nom de vos personnages suivis. La page n'écrase jamais un
+fichier qui n'est pas une page LogsWoW (sauf `--force`), ni rien dans le
+dossier de l'historique lui-même.
+
+Corrigé au passage, trouvé en brouillant les fichiers de l'historique : un
+fichier de soirée abîmé (un nombre infini, une date en liste, un champ
+d'un autre type) pouvait arrêter une liste ou une vue. Il n'arrête plus rien.
+Aucun chiffre existant ne change.
+
 ## 0.19.0 — 2026-10-02
 
 **Le meilleur de chaque spécialisation, dans la fenêtre « Historique ».** Un

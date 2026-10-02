@@ -13,100 +13,19 @@ it, and the tab says so.
 """
 
 from . import fmt, history, history_views
+from .history_tables import (EVOLUTION_GROUPS, EVOLUTION_NOTE, EVOLUTION_RUNS, NO_FOLLOWED, NO_RUNS,
+                             chart_points, evolution_notes, group_rows, run_rows, value_text,
+                             window_columns)
 from .i18n import N_, _
-from .preview import change_text, ilvl_text, metric_label
-from .specs import label_of
-from .timestamps import format_duration
+from .preview import metric_label
 
 SHOW_CHOICES = (("all", N_("Clés et boss")), ("keys", N_("Clés seulement")),
                 ("bosses", N_("Boss seulement")))
 CHART_WIDTH, CHART_HEIGHT = 340, 170
 LINE, AXIS, TEXT = "#4a6984", "#aaaaaa", "#444444"
+notes_for = evolution_notes          # the name the tests and this tab have always used
 KINDS = {"all": (history_views.KEY, history_views.BOSS), "keys": (history_views.KEY,),
          "bosses": (history_views.BOSS,)}
-
-
-# -- rows, testable without a screen -----------------------------------------------------------
-
-def value_text(value):
-    return "—" if value is None else fmt.compact(value)
-
-
-def group_rows(groups):
-    """[(content, level, runs, first, last, change, item level)] for the first table."""
-    rows = []
-    for group in groups:
-        if group.ilvl_first is None:
-            ilvl = ""
-        elif group.ilvl_first == group.ilvl_last:
-            ilvl = ilvl_text(group.ilvl_last)
-        else:
-            ilvl = "%s → %s" % (ilvl_text(group.ilvl_first), ilvl_text(group.ilvl_last))
-        count = ("%d" % len(group.runs) if len(group.runs) == len(group.listed)
-                 else "%d/%d" % (len(group.runs), len(group.listed)))
-        rows.append((group.name, group.level_text, count,
-                     value_text(group.first), value_text(group.last),
-                     change_text(group.change), ilvl))
-    return rows
-
-
-def run_rows(runs):
-    """One row per run for the second table: the three figures, with the context beside."""
-    rows = []
-    for run in runs:
-        mark = "" if run.counts else "†"            # listed, left out of the trend
-        health = run.boss_health_end
-        outcome = _(run.outcome)
-        if health is not None and run.kind == history_views.BOSS and run.outcome != "réussite":
-            outcome = "%s (%s)" % (outcome, fmt.percent(health))
-        rows.append((
-            run.date, run.name + mark, run.level_text(), outcome,
-            format_duration(run.duration_ms), label_of(run.spec_id) or "?",
-            ilvl_text(run.ilvl) if run.ilvl is not None else "",
-            value_text(run.value("dps")), value_text(run.value("hps")),
-            value_text(run.value("taken")), run.row.get("deaths", 0),
-            "%d/%d/%d" % run.composition, run.build or "?"))
-    return rows
-
-
-def notes_for(groups):
-    """The warnings that apply to what is listed: a mixed specialization, an older count."""
-    notes = []
-    for group in groups:
-        if group.mixed_specs:
-            notes.append(_("Spécialisations différentes dans « %s » : %s.") % (
-                group.name, ", ".join(label_of(spec) or "?" for spec in group.specs)))
-    if any(group.old_analysis for group in groups):
-        notes.append(_("Certaines sorties ont été comptées avec une ancienne version des règles "
-                       "de calcul : leurs chiffres ne sont pas forcément comparables."))
-    if any(len(group.listed) != len(group.runs) for group in groups):
-        notes.append(_("† Hors tendance : clé abandonnée ou interrompue, boss non tué."))
-    return notes
-
-
-def chart_points(values, width, height, left=46, right=12, top=12, bottom=26):
-    """([(x, y) or None per value], (low, high)): the values placed in a plot area.
-
-    The lowest value sits at the bottom and the highest at the top, so the line shows the
-    shape and the labels say the scale; equal values give a flat line in the middle, never a
-    slope. The runs are spaced evenly (a run is a run, whatever the days between). A gap
-    (None) stays a gap.
-    """
-    present = [value for value in values if value is not None]
-    if not present:
-        return [None] * len(values), (None, None)
-    low, high = min(present), max(present)
-    plot_w, plot_h = width - left - right, height - top - bottom
-    points = []
-    for index, value in enumerate(values):
-        if value is None:
-            points.append(None)
-            continue
-        x = left + (plot_w / 2.0 if len(values) == 1 else plot_w * index / (len(values) - 1))
-        flat = high - low < 1e-9
-        y = top + (plot_h / 2.0 if flat else plot_h * (1 - (value - low) / (high - low)))
-        points.append((x, y))
-    return points, (low, high)
 
 
 # -- the tab -------------------------------------------------------------------------------------
@@ -162,10 +81,8 @@ class EvolutionTab:
         by_content.grid(row=2, column=0, sticky="nsew", pady=(8, 0), padx=(0, 8))
         by_content.columnconfigure(0, weight=1)
         by_content.rowconfigure(0, weight=1)
-        self.group_table = app._table(by_content, (
-            ("name", _("Contenu"), 200), ("level", _("Niveau"), 88), ("runs", _("Sorties"), 62),
-            ("first", _("Première"), 80), ("last", _("Dernière"), 80), ("change", _("Écart"), 64),
-            ("ilvl", "ilvl", 104)), height=6, select="browse")
+        self.group_table = app._table(by_content, window_columns(EVOLUTION_GROUPS), height=6,
+                                      select="browse")
         self.group_table.master.grid(row=0, column=0, sticky="nsew")
         self.group_table.bind("<<TreeviewSelect>>", lambda _event: self._fill_runs())
 
@@ -179,19 +96,12 @@ class EvolutionTab:
         every.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
         every.columnconfigure(0, weight=1)
         every.rowconfigure(0, weight=1)
-        self.run_table = app._table(every, (
-            ("date", _("Date"), 88), ("name", _("Contenu"), 170), ("level", _("Niveau"), 84),
-            ("outcome", _("Issue"), 106), ("time", _("Durée"), 52),
-            ("spec", _("Spécialisation"), 196), ("ilvl", "ilvl", 52), ("dps", _("Dégâts/s"), 74),
-            ("hps", _("Soins/s"), 68), ("taken", _("Subis/s"), 68), ("deaths", _("Morts"), 50),
-            ("group", _("Groupe"), 62), ("game", _("Jeu"), 54)), height=8, select="browse")
+        self.run_table = app._table(every, window_columns(EVOLUTION_RUNS), height=8,
+                                    select="browse")
         self.run_table.master.grid(row=0, column=0, sticky="nsew")
 
-        self.note = ttk.Label(frame, justify="left", wraplength=800, foreground="#555", text=_(
-            "Écart : la dernière sortie par rapport à la première, dans un même contenu et un "
-            "même niveau (ou une même difficulté). Il dépend aussi du niveau d'objet, du groupe "
-            "et des affixes, affichés à côté : ce n'est pas une note. Groupe : tanks / "
-            "soigneurs / dps."))
+        self.note = ttk.Label(frame, justify="left", wraplength=800, foreground="#555",
+                              text=_(EVOLUTION_NOTE))
         self.note.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         self.warnings = ttk.Label(frame, justify="left", wraplength=800, foreground="#8a4b00",
                                   text="")
@@ -226,9 +136,7 @@ class EvolutionTab:
         index = self.who_box.current()
         if not self.guids or not 0 <= index < len(self.guids):
             self.runs, self.groups = [], []
-            self.message.configure(text=_(
-                "Aucun personnage suivi dans ce dossier : suivez-en un dans l'onglet « Soirées », "
-                "puis ajoutez des soirées."))
+            self.message.configure(text=_(NO_FOLLOWED))
             self._clear()
             return
         self.runs = history_views.runs_of(self.root, self._slug(), self.guids[index])
@@ -239,7 +147,7 @@ class EvolutionTab:
         kinds = KINDS[SHOW_CHOICES[max(0, self.show_box.current())][0]]
         self.groups = history_views.trend_groups(self.runs, metric, kinds)
         self.message.configure(text="" if self.groups else
-                               _("Aucune sortie de ce personnage dans ce dossier."))
+                               _(NO_RUNS))
         self.group_table.delete(*self.group_table.get_children())
         for number, row in enumerate(group_rows(self.groups)):
             self.group_table.insert("", "end", iid=str(number), values=row)

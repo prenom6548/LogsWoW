@@ -1063,6 +1063,53 @@ TEXTS = {
         'Zeit',
     'En temps':
         'Rechtzeitig',
+    # the history page and its command
+    '%d kills · %d spés':
+        '%d Kills · %d Spez.',
+    '%s du %s au %s':
+        '%s vom %s bis %s',
+    '%s est un dossier : donnez un nom de fichier avec -o.':
+        '%s ist ein Ordner: Geben Sie mit -o einen Dateinamen an.',
+    "%s existe et n'est pas un rapport LogsWoW : refus de l'écraser. Choisissez un autre nom, ou ajoutez --force si c'est voulu.":
+        '%s existiert und ist kein LogsWoW-Bericht: Das Überschreiben wird verweigert. Wählen Sie einen anderen Namen oder fügen Sie --force hinzu, wenn es gewollt ist.',
+    "Aucun historique pour l'instant : ajoutez une soirée depuis la fenêtre (bouton « Historique… »).\n":
+        'Noch kein Verlauf: Fügen Sie im Fenster einen Abend hinzu (Schaltfläche „Verlauf…“).\n',
+    'Aucune soirée dans ce dossier.':
+        'Kein Abend in diesem Ordner.',
+    'Choisissez un personnage ci-dessus pour voir son évolution.':
+        'Wählen Sie oben einen Charakter, um seine Entwicklung zu sehen.',
+    "Les chiffres viennent des soirées gardées dans ce dossier de l'historique ; seuls les personnages suivis y portent un nom. Rien ici n'est un classement des joueurs ni un parse.":
+        'Die Zahlen stammen aus den in diesem Verlaufsordner gespeicherten Abenden; nur gefolgte Charaktere tragen darin einen Namen. Nichts hier ist eine Rangliste von Spielern oder ein Parse.',
+    "LogsWoW %s · page écrite à partir de l'historique local. Licence AGPL-3.0 ou ultérieure ; code source : github.com/prenom6548/LogsWoW. Aucune donnée ne quitte cette machine.":
+        'LogsWoW %s · Seite aus dem lokalen Verlauf geschrieben. Lizenz AGPL-3.0 oder später; Quellcode: github.com/prenom6548/LogsWoW. Keine Daten verlassen diesen Rechner.',
+    'Meilleur kill par spécialisation':
+        'Bester Kill pro Spezialisierung',
+    'Meilleure clé par spécialisation':
+        'Bester Schlüssel pro Spezialisierung',
+    'NOM':
+        'NAME',
+    "Où écrire la page de l'historique ?":
+        'Wohin soll die Verlaufsseite geschrieben werden?',
+    "Page de l'historique écrite : %s\n":
+        'Verlaufsseite geschrieben: %s\n',
+    'Page écrite : %s':
+        'Seite geschrieben: %s',
+    'Personnages suivis : %d':
+        'Gefolgte Charaktere: %d',
+    'Quel dossier ? Choisissez-en un avec --dossier parmi : %s.\n':
+        'Welcher Ordner? Wählen Sie einen mit --dossier aus: %s.\n',
+    "Refus d'écrire la page dans le dossier de l'historique lui-même (%s). Choisissez un autre endroit avec -o.":
+        'Die Seite wird nicht in den Verlaufsordner selbst geschrieben (%s). Wählen Sie mit -o einen anderen Ort.',
+    "dossier de l'historique à écrire (défaut : le dossier actif)":
+        'zu schreibender Verlaufsordner (Standard: der aktive Ordner)',
+    'jeu %s':
+        'Spiel %s',
+    'Écrire la page…':
+        'Seite schreiben…',
+    "écraser le fichier de sortie même s'il n'est pas une page LogsWoW (jamais l'historique lui-même)":
+        'die Ausgabedatei überschreiben, auch wenn sie keine LogsWoW-Seite ist (nie den Verlauf selbst)',
+    "écrit la page de l'historique (évolution, spécialisations, records)":
+        'schreibt die Verlaufsseite (Entwicklung, Spezialisierungen, Rekorde)',
 }
 
 # The French nouns `fmt.plural` agrees, and their German forms.

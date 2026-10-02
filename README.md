@@ -200,7 +200,9 @@ lu serait pire que pas de rapport du tout.
   spécialisations jouées (médiane, plage, niveau d'objet), sans classement.
   L'onglet **Records** donne, pour chaque spécialisation, sa meilleure clé
   (la plus haute dans les temps) et son meilleur kill de raid (le plus rapide,
-  boss par boss), avec le contexte à côté.
+  boss par boss), avec le contexte à côté. Les trois vues s'écrivent aussi
+  en **page web** (bouton « Écrire la page… » ou `logswow historique`) : un
+  fichier, sans script, avec les mêmes chiffres que la fenêtre.
 - **Aperçu et comparaison des clés dans la fenêtre.** À droite de la liste
   des combats, deux onglets suivent ce que vous cochez : l'aperçu (durée,
   dégâts, soins, morts, une ligne par joueur avec son niveau d'objet) et

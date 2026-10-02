@@ -5594,6 +5594,276 @@ class TestRecordsOfASpecialization(_FixtureNights, unittest.TestCase):
         self.assertIn("Aucun personnage suivi", tab.message.cget("text"))
 
 
+class TestHistoryPage(_FixtureNights, unittest.TestCase):
+    """The history on a page (2026-10-02): the three views of the window, written as one file
+    that runs nothing and fetches nothing, from the same rows the window shows."""
+
+    FROST, UNHOLY = 251, 252
+
+    def tearDown(self):
+        from logswow.i18n import set_language
+
+        set_language("fr")
+
+    def _fill(self):
+        for date, level in (("2026-10-01", 7), ("2026-10-02", 8)):
+            self._night(date, level=level, spec=self.FROST, spec_ardoise=self.UNHOLY,
+                        boss_duration=300000, score=300.0, key_time=1500000, ilvl=310.0)
+
+    def _page(self, language="fr"):
+        from logswow.i18n import set_language
+        from logswow.report_history import HistoryPage
+
+        set_language(language)
+        out = os.path.join(self._temporary.name, "historique.html")
+        HistoryPage(self.root, self.slug, out).write()
+        with open(out, encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_the_page_is_ours_self_contained_and_well_formed(self):
+        from html.parser import HTMLParser
+
+        from logswow.report_layouts import is_our_report
+
+        self._fill()
+        page = self._page()
+        out = os.path.join(self._temporary.name, "historique.html")
+        self.assertTrue(is_our_report(out))
+        self.assertTrue(page.startswith("<!doctype html>"))
+        self.assertIn("<title>LogsWoW \u2014 Historique \u2014 Saison 1</title>", page)
+        for banned in ("<script", "<iframe", "@import", "stylesheet", " src=", "url(", "http"):
+            self.assertNotIn(banned, page)
+
+        class Balanced(HTMLParser):
+            void = {"input", "meta", "br", "link"}
+
+            def __init__(self):
+                super().__init__()
+                self.stack, self.errors = [], []
+
+            def handle_starttag(self, tag, attrs):
+                if tag not in self.void:
+                    self.stack.append(tag)
+
+            def handle_endtag(self, tag):
+                if not self.stack or self.stack.pop() != tag:
+                    self.errors.append(tag)
+
+        parser = Balanced()
+        parser.feed(page)
+        self.assertEqual((parser.errors, parser.stack), ([], []))
+
+    def test_every_tab_and_every_character_has_a_button_and_its_rules(self):
+        import re
+
+        self._fill()
+        page = self._page()
+        tabs = re.findall(r"<input type=radio name=hx id=hx-(\w+)", page)
+        who = re.findall(r"<input type=radio name=hw id=hw-(\d+)", page)
+        self.assertEqual(tabs, ["evo", "spec", "rec"])
+        self.assertEqual(who, ["0", "1", "2"])                   # all, then the two followed
+        for key in tabs:
+            self.assertIn("#hx-%s:checked~.hv-%s{display:block}" % (key, key), page)
+            self.assertIn("for=hx-%s " % key, page)
+        for index in who:
+            self.assertIn("#hw-%s:checked~.hv .hs-%s{display:block}" % (index, index), page)
+            self.assertEqual(len(re.findall(r"class='hs hs-%s'" % index, page)), 3)  # one per view
+        self.assertEqual(page.count(" checked"), 2)              # the first tab, "all"
+
+    def test_the_page_shows_the_window_s_rows(self):
+        from logswow import history_tables as tables, history_views as views
+
+        self._fill()
+        page = self._page()
+        plain = page.replace("&#x27;", "'")
+        runs = views.runs_in_folder(self.root, self.slug)
+        groups, _single, _unknown = views.spec_comparison(runs, "dps", "dps")
+        self.assertTrue(groups)
+        for group in groups:
+            for row in tables.spec_rows(group):
+                for cell in row:
+                    self.assertIn("%s</td>" % cell, plain)
+        records, _unknown = views.key_records(runs)
+        for row in tables.key_rows(records):
+            self.assertIn(row[1], plain)
+        kills, _unknown = views.kill_groups(runs)
+        self.assertTrue(kills)
+        self.assertIn("5:00", page)                              # the Golem, killed in five minutes
+        trend = views.trend_groups(views.runs_of(self.root, self.slug, self.BRAISE), "dps")
+        self.assertIn("<polyline", page)                         # a trend of two runs is drawn
+        self.assertTrue(trend)
+
+    def test_what_a_name_holds_is_text_and_never_markup(self):
+        import json
+
+        from logswow import history
+
+        self._fill()
+        payload = "<script>alert('x')</script>"
+        for night in history.list_nights(self.root):
+            with open(night.path, encoding="utf-8") as handle:
+                record = json.load(handle)
+            for fight in record["fights"]:
+                fight["name"] = payload if fight["type"] == "encounter" else fight["name"]
+                for row in fight["players"]:
+                    if row["guid"] == self.BRAISE:
+                        row["name"] = payload
+            with open(night.path, "w", encoding="utf-8") as handle:
+                json.dump(record, handle)
+        page = self._page()
+        self.assertNotIn("<script", page)
+        self.assertIn("&lt;script&gt;", page)
+
+    def test_an_empty_folder_and_a_folder_with_nobody_followed_still_make_a_page(self):
+        from logswow import history
+
+        page = self._page()
+        self.assertIn("Aucune soir\u00e9e dans ce dossier.", page)
+        self.assertIn("Aucune cl\u00e9 termin\u00e9e ni aucun kill", page)
+        self._fill()
+        history.untrack(self.root, self.BRAISE)
+        history.untrack(self.root, self.ARDOISE)
+        for night in history.list_nights(self.root):
+            history.delete_night(self.root, night.path)
+        history.save_night(self.root, self.slug, history.build_night(self.log, self.segments, ()))
+        page = self._page()
+        self.assertIn("Personnages suivis : 0", page)
+
+    def test_a_night_with_odd_fields_never_stops_the_page_or_the_lists(self):
+        """Found by fuzzing the stored nights (1,600 rounds): infinity where a number goes, a
+        list for a date, a boolean for the fights, a dictionary for a GUID or a build."""
+        import json
+
+        from logswow import history, history_views as views
+
+        self._fill()
+        odd_fights = ("fights", True), ("date", ["2026"]), ("game", {"build": {"a": 1}}), \
+            ("identity", 7), ("source", [1])
+        for number, night in enumerate(history.list_nights(self.root)):
+            with open(night.path, encoding="utf-8") as handle:
+                record = json.load(handle)
+            for key, value in odd_fights[1:]:
+                if key != "date" or number == 0:               # one date odd, one not: they sort
+                    record[key] = value
+            row = record["fights"][0]["players"][0]
+            row["spec_id"] = float("inf")
+            row["ilvl"] = float("inf")
+            row["damage"] = float("inf")
+            row["name"] = ["not", "a", "name"]
+            record["fights"][0]["difficulty_id"] = float("inf")
+            record["fights"][0]["score"] = float("inf")
+            record["fights"][-1]["players"][0]["guid"] = {"a": 1}
+            record["fights"][1]["type"] = ["x"]
+            with open(night.path, "w", encoding="utf-8") as handle:
+                json.dump(record, handle)
+        self.assertEqual(len(history.list_nights(self.root, self.slug)), 2)
+        views.followed_in_folder(self.root, self.slug)
+        views.characters_and_runs(self.root, self.slug)
+        self.assertIn("<!doctype html>", self._page())
+        for night in history.list_nights(self.root):
+            with open(night.path, encoding="utf-8") as handle:
+                record = json.load(handle)
+            record["fights"] = True
+            with open(night.path, "w", encoding="utf-8") as handle:
+                json.dump(record, handle)
+        self.assertEqual([night.fights for night in history.list_nights(self.root)], [0, 0])
+        self.assertIn("<!doctype html>", self._page())
+
+    def test_the_page_comes_out_in_every_language_without_french_left_in_its_frame(self):
+        self._fill()
+        french = ("\u00c9volution", "Sp\u00e9cialisations", "Meilleure cl\u00e9",
+                  "Personnages suivis", "Tous les personnages", "Mesure :")
+        for language, words in (("en", ("Progress", "Specializations", "Best key",
+                                        "Followed characters", "All followed characters")),
+                                ("de", ("Entwicklung", "Spezialisierungen", "Bester Schl\u00fcssel",
+                                        "Gefolgte Charaktere", "Alle gefolgten Charaktere")),
+                                ("es", ("Evoluci\u00f3n", "Especializaciones", "Mejor llave",
+                                        "Personajes seguidos", "Todos los personajes seguidos"))):
+            page = self._page(language)
+            self.assertIn("<html lang=%s>" % language, page)
+            for word in words:
+                self.assertIn(word, page)
+            for word in french[1:]:
+                self.assertNotIn(">" + word, page)
+
+    def test_the_page_is_never_written_over_a_foreign_file_a_folder_or_the_history(self):
+        from logswow import report_history
+
+        self._fill()
+        foreign = os.path.join(self._temporary.name, "journal.txt")
+        with open(foreign, "w", encoding="utf-8") as handle:
+            handle.write("a combat log")
+        self.assertIn("refus de l'\u00e9craser",
+                      report_history.write_page(self.root, self.slug, foreign))
+        with open(foreign, encoding="utf-8") as handle:
+            self.assertEqual(handle.read(), "a combat log")
+        self.assertIsNone(report_history.write_page(self.root, self.slug, foreign, force=True))
+        self.assertIsNone(report_history.write_page(self.root, self.slug, foreign))   # now ours
+        self.assertIn("est un dossier",
+                      report_history.write_page(self.root, self.slug, self._temporary.name))
+        night = os.path.join(self.root, self.slug, "x.html")
+        self.assertIn("dossier de l'historique",
+                      report_history.write_page(self.root, self.slug, night, force=True))
+        self.assertFalse(os.path.exists(night))
+        from logswow import history
+
+        night_file = history.list_nights(self.root)[0].path
+        self.assertIn("dossier de l'historique",
+                      report_history.write_page(self.root, self.slug, night_file, force=True))
+        missing = os.path.join(self._temporary.name, "absent", "page.html")
+        self.assertIn("Impossible d'\u00e9crire",
+                      report_history.write_page(self.root, self.slug, missing))
+
+    def test_the_command_writes_the_active_folder_or_the_one_named(self):
+        import io
+        from unittest import mock
+
+        from logswow import cli, history
+
+        self._fill()
+        history.set_config(self.root, dossier_actif=self.slug)
+        out = os.path.join(self._temporary.name, "page.html")
+        with mock.patch.dict(os.environ, {"LOGSWOW_HISTORIQUE": self.root}), \
+                mock.patch("sys.stdout", new_callable=io.StringIO) as stdout:
+            self.assertEqual(cli.main(["historique", "-o", out]), 0)
+            self.assertIn(out, stdout.getvalue())
+            self.assertTrue(os.path.exists(out))
+            os.remove(out)
+            self.assertEqual(cli.main(["historique", "--dossier", "saison 1", "-o", out]), 0)
+            with mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+                self.assertEqual(cli.main(["historique", "--dossier", "nope", "-o", out]), 2)
+                self.assertIn("Saison 1", stderr.getvalue())
+                os.remove(out)
+                with open(out, "w", encoding="utf-8") as handle:
+                    handle.write("not ours")
+                self.assertEqual(cli.main(["historique", "-o", out]), 2)
+                self.assertIn("refus de l'\u00e9craser", stderr.getvalue())
+        with mock.patch.dict(os.environ, {"LOGSWOW_HISTORIQUE": os.path.join(
+                self._temporary.name, "none")}), \
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+            self.assertEqual(cli.main(["historique"]), 2)
+            self.assertIn("Aucun historique", stderr.getvalue())
+
+    def test_the_window_writes_the_page_and_opens_it(self):
+        self._fill()
+        app, root = self._window()
+        window = app.history_window
+        window.show()
+        root.update()
+        out = os.path.join(self._temporary.name, "from-window.html")
+        opened, errors = [], []
+        window._ask_page_path = lambda initial: out
+        window._open_page = opened.append
+        window._error = errors.append
+        window.write_page()
+        self.assertEqual((opened, errors), ([out], []))
+        self.assertTrue(os.path.exists(out))
+        self.assertIn("Page \u00e9crite", window.status.get())
+        window._ask_page_path = lambda initial: ""
+        window.write_page()
+        self.assertEqual(opened, [out])                          # giving up writes nothing more
+
+
 class TestSeventhAuditFindings(unittest.TestCase):
     """The 2026-09-29 audit of 0.12.1: a full read of every file, the
     tools of the earlier audits again, and one real 364 MB Mythic+ night.

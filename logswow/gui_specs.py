@@ -13,70 +13,19 @@ players, which the tab says.
 """
 
 from . import fmt, history, history_views
-from .gui_evolution import KINDS, SHOW_CHOICES, value_text
-from .i18n import N_, _
-from .preview import change_text, ilvl_text, metric_label, role_label
-from .specs import DPS, HEAL, TANK, label_of
+from .gui_evolution import KINDS, SHOW_CHOICES
+from .history_tables import (ALL_CHARACTERS, NO_FOLLOWED, NO_SPEC_GROUPS, ROLES, SPEC_CONTENTS,
+                             SPEC_NOTE, SPEC_ROWS, bar_lengths, content_rows, spec_notes,
+                             spec_rows, value_text, window_columns)
+from .i18n import _
+from .preview import metric_label, role_label
+from .specs import label_of
 
-ALL_CHARACTERS = N_("Tous les personnages suivis")
-ROLES = (DPS, HEAL, TANK)          # the order of the role box
+notes_for = spec_notes               # the name the tests and this tab have always used
 CHART_WIDTH, CHART_HEIGHT = 470, 204
 MAX_BARS = 8
 BAR_HEIGHT, LABEL_WIDTH, VALUE_WIDTH = 16, 180, 56
 BAR, TEXT, REFERENCE = "#4a6984", "#444444", "#2f4f6b"
-
-
-# -- rows, testable without a screen -----------------------------------------------------------
-
-def content_rows(groups):
-    """[(content, level, specializations, runs)] for the list of comparable contents."""
-    return [(group.name, group.level_text, len(group.rows), group.total) for group in groups]
-
-
-def spec_rows(group):
-    """One row per specialization of a content: runs, median, range, item level, gap."""
-    rows = []
-    for row in group.rows:
-        gap = "" if row is group.rows[0] else change_text(group.gap(row))
-        spread = "—" if row.low is None else (
-            value_text(row.low) if row.low == row.high
-            else "%s – %s" % (value_text(row.low), value_text(row.high)))
-        rows.append((
-            label_of(row.spec_id) or "?",
-            "%d%s" % (len(row.runs), "‡" if row.thin else ""), row.characters,
-            value_text(row.median), spread,
-            ilvl_text(row.ilvl) if row.ilvl is not None else "", gap or "—"))
-    return rows
-
-
-def notes_for(groups, single, unknown):
-    """What was left out or needs care: said, never hidden."""
-    notes = []
-    if single:
-        notes.append(_("Contenus joués avec une seule spécialisation, non comparés : %d.") % single)
-    if unknown:
-        notes.append(_("Sorties dont la spécialisation n'est pas écrite dans le journal ou que "
-                       "LogsWoW ne connaît pas, non comparées : %d.") % unknown)
-    if any(row.thin for group in groups for row in group.rows):
-        notes.append(_("‡ Moins de %d sorties : une médiane sur si peu de sorties dit peu de "
-                       "chose.") % history_views.LOW_SAMPLE)
-    if any(row.old_analysis for group in groups for row in group.rows):
-        notes.append(_("Certaines sorties ont été comptées avec une ancienne version des règles "
-                       "de calcul : leurs chiffres ne sont pas forcément comparables."))
-    return notes
-
-
-def bar_lengths(values, plot_width):
-    """The bar of each value, in pixels, from zero: the longest fills `plot_width`.
-
-    A bar starts at zero because a length stands for a quantity; cutting the axis would make a
-    small difference look large. None (no figure) and zero give no bar.
-    """
-    present = [value for value in values if value is not None and value > 0]
-    if not present:
-        return [0.0] * len(values)
-    top = max(present)
-    return [0.0 if value is None or value <= 0 else plot_width * value / top for value in values]
 
 
 # -- the tabs ------------------------------------------------------------------------------------
@@ -171,9 +120,8 @@ class SpecsTab(FolderCharacters):
         contents.grid(row=2, column=0, sticky="nsew", pady=(8, 0), padx=(0, 8))
         contents.columnconfigure(0, weight=1)
         contents.rowconfigure(0, weight=1)
-        self.content_table = app._table(contents, (
-            ("name", _("Contenu"), 200), ("level", _("Niveau"), 88),
-            ("specs", _("Spés"), 52), ("runs", _("Sorties"), 62)), height=6, select="browse")
+        self.content_table = app._table(contents, window_columns(SPEC_CONTENTS), height=6,
+                                        select="browse")
         self.content_table.master.grid(row=0, column=0, sticky="nsew")
         self.content_table.bind("<<TreeviewSelect>>", lambda _event: self._fill_specs())
 
@@ -187,19 +135,11 @@ class SpecsTab(FolderCharacters):
         specs.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
         specs.columnconfigure(0, weight=1)
         specs.rowconfigure(0, weight=1)
-        self.spec_table = app._table(specs, (
-            ("spec", _("Spécialisation"), 250), ("runs", _("Sorties"), 66),
-            ("chars", _("Persos"), 62), ("median", _("Médiane"), 84),
-            ("range", _("Min – max"), 170), ("ilvl", "ilvl", 70),
-            ("gap", _("Écart / 1re"), 90)), height=6, select="browse")
+        self.spec_table = app._table(specs, window_columns(SPEC_ROWS), height=6, select="browse")
         self.spec_table.master.grid(row=0, column=0, sticky="nsew")
 
-        self.note = ttk.Label(frame, justify="left", wraplength=800, foreground="#555", text=_(
-            "Médiane des sorties comptées (clés terminées, boss tués) d'un même contenu et d'un "
-            "même niveau, pour un rôle à la fois. L'écart est celui de chaque spécialisation par "
-            "rapport à la première ligne, la plus jouée : ce n'est pas un classement. Il dépend "
-            "aussi du niveau d'objet, des joueurs et du groupe ; avec plusieurs personnages, il "
-            "mêle leurs joueurs."))
+        self.note = ttk.Label(frame, justify="left", wraplength=800, foreground="#555",
+                              text=_(SPEC_NOTE))
         self.note.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         self.warnings = ttk.Label(frame, justify="left", wraplength=800, foreground="#8a4b00",
                                   text="")
@@ -215,9 +155,7 @@ class SpecsTab(FolderCharacters):
         """Recompute the comparison for the characters, the role, the measure and the kinds."""
         self.groups = []
         if not self.guids:
-            self.message.configure(text=_(
-                "Aucun personnage suivi dans ce dossier : suivez-en un dans l'onglet « Soirées », "
-                "puis ajoutez des soirées."))
+            self.message.configure(text=_(NO_FOLLOWED))
             self._clear()
             return
         runs = self._runs()
@@ -229,9 +167,7 @@ class SpecsTab(FolderCharacters):
         metric = history_views.METRICS[max(0, self.metric_box.current())]
         kinds = KINDS[SHOW_CHOICES[max(0, self.show_box.current())][0]]
         self.groups, single, unknown = history_views.spec_comparison(runs, role, metric, kinds)
-        self.message.configure(text="" if self.groups else _(
-            "Aucun contenu n'a été joué avec au moins deux spécialisations de ce rôle dans ce "
-            "dossier."))
+        self.message.configure(text="" if self.groups else _(NO_SPEC_GROUPS))
         self.content_table.delete(*self.content_table.get_children())
         for number, row in enumerate(content_rows(self.groups)):
             self.content_table.insert("", "end", iid=str(number), values=row)

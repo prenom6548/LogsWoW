@@ -8,6 +8,37 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.20.0 — 2026-10-02
+
+**Der Verlauf als Webseite.** Die drei Ansichten des Fensters „Verlauf“
+(Entwicklung eines Charakters, Spezialisierungen gegeneinander, Rekorde)
+lassen sich auch als HTML-Seite schreiben: über die Schaltfläche **„Seite
+schreiben…“** des Fensters oder den Befehl `logswow historique` (`--dossier`
+wählt den Ordner, `-o` die Datei). Die Seite öffnet sich im Browser.
+
+Sie folgt den Regeln aller Berichte: **kein Skript, nichts wird geladen**, eine
+einzige Datei. Drei Reiter (Entwicklung, Spezialisierungen, Rekorde) und die
+Wahl des Charakters („alle gefolgten Charaktere“ oder einer davon) funktionieren
+ohne Skript, wie die Reiter der Berichte. Die Entwicklung zeigt einen Charakter
+Inhalt für Inhalt, mit Kurve und Durchgängen; die Spezialisierungen werden
+Rolle für Rolle verglichen, mit bei null beginnenden Balken; die Rekorde geben
+den besten Schlüssel und den besten Kill jeder Spezialisierung. **Die Zahlen
+werden für die Seite nicht neu berechnet**: Es sind dieselben Zeilen wie im
+Fenster, mit denselben Hinweisen unter den Tabellen (Median, ‡, „keine
+Rangliste“). Sie gibt es auf Französisch, Englisch, Deutsch und Spanisch, und
+sie folgt wie die Berichte dem dunklen Thema.
+
+Es ist eine eigene Seite, kein Teil des Berichts eines Protokolls: Ein Bericht
+entsteht aus diesem einen Protokoll und ist zum Teilen gedacht, während der
+Verlauf mehrere Abende umfasst und die Namen Ihrer gefolgten Charaktere trägt.
+Die Seite überschreibt nie eine Datei, die keine LogsWoW-Seite ist (außer mit
+`--force`), und nichts im Verlaufsordner selbst.
+
+Nebenbei behoben, beim Durcheinanderbringen der Verlaufsdateien gefunden: Eine
+beschädigte Abenddatei (eine unendliche Zahl, ein Datum als Liste, ein Feld
+anderen Typs) konnte eine Liste oder Ansicht anhalten. Nun hält sie nichts mehr
+an. Keine bestehende Zahl ändert sich.
+
 ## 0.19.0 — 2026-10-02
 
 **Das Beste jeder Spezialisierung, im Fenster „Verlauf“.** Ein neuer Reiter,

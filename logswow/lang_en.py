@@ -1063,6 +1063,53 @@ TEXTS = {
         'Time',
     'En temps':
         'In time',
+    # the history page and its command
+    '%d kills · %d spés':
+        '%d kills · %d specs',
+    '%s du %s au %s':
+        '%s from %s to %s',
+    '%s est un dossier : donnez un nom de fichier avec -o.':
+        '%s is a folder: give a file name with -o.',
+    "%s existe et n'est pas un rapport LogsWoW : refus de l'écraser. Choisissez un autre nom, ou ajoutez --force si c'est voulu.":
+        '%s exists and is not a LogsWoW report: refusing to overwrite it. Choose another name, or add --force if it is meant.',
+    "Aucun historique pour l'instant : ajoutez une soirée depuis la fenêtre (bouton « Historique… »).\n":
+        'No history yet: add a night from the window ("History…" button).\n',
+    'Aucune soirée dans ce dossier.':
+        'No night in this folder.',
+    'Choisissez un personnage ci-dessus pour voir son évolution.':
+        'Choose a character above to see its progress.',
+    "Les chiffres viennent des soirées gardées dans ce dossier de l'historique ; seuls les personnages suivis y portent un nom. Rien ici n'est un classement des joueurs ni un parse.":
+        'The figures come from the nights kept in this history folder; only followed characters carry a name in it. Nothing here is a ranking of players or a parse.',
+    "LogsWoW %s · page écrite à partir de l'historique local. Licence AGPL-3.0 ou ultérieure ; code source : github.com/prenom6548/LogsWoW. Aucune donnée ne quitte cette machine.":
+        'LogsWoW %s · page written from the local history. AGPL-3.0-or-later licence; source code: github.com/prenom6548/LogsWoW. No data leaves this machine.',
+    'Meilleur kill par spécialisation':
+        'Best kill per specialization',
+    'Meilleure clé par spécialisation':
+        'Best key per specialization',
+    'NOM':
+        'NAME',
+    "Où écrire la page de l'historique ?":
+        'Where to write the history page?',
+    "Page de l'historique écrite : %s\n":
+        'History page written: %s\n',
+    'Page écrite : %s':
+        'Page written: %s',
+    'Personnages suivis : %d':
+        'Followed characters: %d',
+    'Quel dossier ? Choisissez-en un avec --dossier parmi : %s.\n':
+        'Which folder? Choose one with --dossier among: %s.\n',
+    "Refus d'écrire la page dans le dossier de l'historique lui-même (%s). Choisissez un autre endroit avec -o.":
+        'Refusing to write the page inside the history folder itself (%s). Choose another place with -o.',
+    "dossier de l'historique à écrire (défaut : le dossier actif)":
+        'history folder to write (default: the active folder)',
+    'jeu %s':
+        'game %s',
+    'Écrire la page…':
+        'Write the page…',
+    "écraser le fichier de sortie même s'il n'est pas une page LogsWoW (jamais l'historique lui-même)":
+        'overwrite the output file even if it is not a LogsWoW page (never the history itself)',
+    "écrit la page de l'historique (évolution, spécialisations, records)":
+        'writes the history page (progress, specializations, records)',
 }
 
 # The French nouns `fmt.plural` agrees, and their English forms.

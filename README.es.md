@@ -202,7 +202,9 @@ que ningún informe.
   especializaciones jugadas (mediana, rango, nivel de objeto), sin
   clasificación. La pestaña **Récords** da, para cada especialización, su
   mejor llave (la más alta a tiempo) y su mejor kill de banda (el más
-  rápido, jefe por jefe), con el contexto al lado.
+  rápido, jefe por jefe), con el contexto al lado. Las tres vistas también se
+  escriben como **página web** (botón «Escribir la página…» o `logswow
+  historique`): un archivo, sin script, con las mismas cifras que la ventana.
 - **Vista previa y comparación de llaves en la ventana.** A la derecha de
   la lista de combates, dos pestañas siguen lo que marque: el resumen
   (duración, daño, sanación, muertes, una línea por jugador con su nivel

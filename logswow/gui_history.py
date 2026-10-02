@@ -12,7 +12,9 @@ The logic that needs no screen is at the top (`player_rows`, `night_rows`,
 window is `HistoryWindow`, tested when a display exists.
 """
 
-from . import fmt, history
+import os
+
+from . import fmt, history, report_history
 from .gui_evolution import EvolutionTab
 from .gui_records import RecordsTab
 from .gui_specs import SpecsTab
@@ -157,6 +159,36 @@ class HistoryWindow:
 
         messagebox.showinfo("LogsWoW", text, parent=self.top)
 
+    def _ask_page_path(self, initial):
+        """Where to write the history's page: a path, or "" when the reader gives up."""
+        from tkinter import filedialog
+
+        return filedialog.asksaveasfilename(
+            parent=self.top, title=_("Où écrire la page de l'historique ?"),
+            initialdir=os.path.expanduser("~"), initialfile=initial, defaultextension=".html",
+            filetypes=((_("Page web"), "*.html"),))
+
+    def _open_page(self, path):
+        from . import gui
+
+        gui.open_in_browser(path)
+
+    def write_page(self):
+        """Write the active folder's page (evolution, specializations, records) and open it."""
+        slug = history.config(self.root)["dossier_actif"]
+        if not slug:
+            self._error(_("Choisissez d'abord un dossier."))
+            return
+        out = self._ask_page_path("historique-%s.html" % slug)
+        if not out:
+            return
+        reason = report_history.write_page(self.root, slug, out)
+        if reason:
+            self._error(reason)
+            return
+        self._open_page(out)
+        self.refresh(_("Page écrite : %s") % out)
+
     def _pick_folder(self, title, prompt, choices):
         """A folder among `choices` ([(slug, label)]), or None: a small modal list."""
         ttk, tk = self.app.ttk, self.app.tk
@@ -206,8 +238,10 @@ class HistoryWindow:
         top.minsize(1000, 720)
         top.geometry("1260x880")
         top.protocol("WM_DELETE_WINDOW", self.close)
-        close = ttk.Button(top, text=_("Fermer"), command=self.close)
-        close.pack(side="bottom", anchor="e", padx=12, pady=(0, 12))
+        buttons = ttk.Frame(top)
+        buttons.pack(side="bottom", fill="x", padx=12, pady=(0, 12))
+        ttk.Button(buttons, text=_("Fermer"), command=self.close).pack(side="right")
+        ttk.Button(buttons, text=_("Écrire la page…"), command=self.write_page).pack(side="left")
         book = ttk.Notebook(top)
         book.pack(fill="both", expand=True, padx=6, pady=(6, 6))
         outer = ttk.Frame(book, padding=12)

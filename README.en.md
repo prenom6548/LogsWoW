@@ -189,7 +189,9 @@ misread file would be worse than no report at all.
   specializations played (median, range, item level), with no ranking.
   The **Records** tab gives, for each specialization, its best key (the
   highest in time) and its best raid kill (the fastest, boss by boss), with
-  the context beside it.
+  the context beside it. The three views can also be written as a **web
+  page** ("Write the page…" button or `logswow historique`): one file, no
+  script, with the same figures as the window.
 - **Preview and comparison of keys in the window.** To the right of the
   list of fights, two tabs follow what you tick: the overview (length,
   damage, healing, deaths, a line per player with their item level) and

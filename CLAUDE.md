@@ -1769,8 +1769,46 @@ The owner's two words, "meilleure clé et meilleur kill", needed a definition ea
   kill, boss inside a key, unknown spec, best-first order, kill without a length) each fail
   a test.
 
-**Still to build**: nothing planned. A page rendering of the three views (they are data
-first, so a page can draw the same) would be the natural next step if the owner wants one.
+**The history as a page (0.20.0, 2026-10-02)** -- `report_history.py`, asked for as "affiche
+aussi ces trois vues dans la page html". Decisions, with the reason:
+
+- **A page of its own, not a section of a log's report.** A report is made from one log and is
+  the artefact a reader shares; the history spans many nights and carries the followed
+  characters' names. Written by the window's "Écrire la page…" button and by
+  `logswow historique [--dossier NOM] [-o fichier] [--force]`. Its `<title>` starts
+  `LogsWoW — Historique — ...`, so `is_our_report` knows it and the report commands treat it
+  as ours.
+- **No script, nothing fetched**, like every page here: three tab radios (`hx-evo/spec/rec`) and
+  one radio per character (`hw-0` is "all", then `hw-1..N`, most runs first), CSS shows the pane
+  whose buttons are checked (`rules()`); charts are inline SVG (`trend_chart`, `bars_chart`);
+  the styling is the report's own `CSS` plus a few rules. Every view is rendered once per
+  choice of characters, so the file is about twice the data (735 KB on six real nights
+  following 78 players); an evolution has no "all": the page says to choose a character.
+- **The figures are not recomputed**: `history_tables.py` holds the rows, columns (with the
+  window's widths and the page's alignment), notes and long texts (`EVOLUTION_NOTE`,
+  `SPEC_NOTE`, `RECORD_NOTE`, `NO_*`) that the three window tabs and the page both call, on the
+  same `history_views` objects, so a number on the page is the number in the window. The
+  windows kept their old names for them (`gui_evolution.group_rows`, ...) by importing.
+  The page shows the role's measure only (the window lets the reader change it).
+- **The page never replaces what it must not** (`refusal`): a file that is not a LogsWoW page
+  unless `--force`, a folder, and **anything inside the history root, forced or not** -- a
+  night is a file a page must not overwrite.
+- **Fuzzing the stored nights found real crashes**, older than the page and reached by the
+  window too: `Night` took a date, a source or a build of any type and `list_nights` sorted
+  them; `fights` that was not a list; an infinite number as a spec id or a level
+  (`"spe %d" % inf` raises `OverflowError`); a list as a fight's type or a dictionary as a
+  GUID. `history_views._finite/_whole/_real` and `Night`'s `str()` fix them; 1,600 rounds of
+  fuzzing after that, no exception. A test keeps the five shapes.
+- Checked in Chromium on six real nights (735 KB): tabs and characters switch, 46 contents
+  fold open, dark theme, no request leaves the file; the four languages parse with every tag
+  closed and no French word left in the page's text.
+- Tests: `TestHistoryPage` (self-contained and well-formed, a button and a rule for every tab
+  and character, the window's rows on the page, names as text, empty and anonymous folders,
+  four languages, refusals, the command, the window's button). Seven mutations (cell and label
+  escaping, a missing rule, the history guard, the foreign-file refusal, no default tab) each
+  fail a test.
+
+**Still to build**: nothing planned.
 
 ### Performance, measured
 
@@ -1818,10 +1856,12 @@ logswow/history_views.py the history's views as data: runs of a character, same-
 logswow/gui_evolution.py the "Évolution" tab of the history window: groups, chart, every run
 logswow/gui_specs.py     the "Spécialisations" tab: contents played with two specs, medians, bars
 logswow/gui_records.py   the "Records" tab: best key and best raid kill of each specialization
+logswow/history_tables.py rows, columns, notes of the three views: the one place the window and the page share
+logswow/report_history.py the history as one page: tabs and characters in CSS, SVG charts, write_page
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
 logswow/fmt.py          formatters (compact, percent, size, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
-logswow/cli.py          report / list / diagnose / where / fenetre
+logswow/cli.py          report / list / diagnose / where / fenetre / historique
 logswow/gui.py          the window (Tkinter): pick a log, the fights, write and open the page
 logswow/specs.py        specialization ids -> class, spec, role
 logswow/schools.py      damage schools: bit mask -> physical, magic, mixed; French names
@@ -1928,7 +1968,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 340 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 350 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSeventhAuditFindings`), and each one was regression-checked the

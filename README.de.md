@@ -215,7 +215,10 @@ wäre schlimmer als gar kein Bericht.
   Spezialisierungen nebeneinander (Median, Spanne, Gegenstandsstufe), ohne
   Rangliste. Der Reiter **Rekorde** gibt für jede Spezialisierung ihren
   besten Schlüssel (den höchsten rechtzeitigen) und ihren besten Raid-Kill
-  (den schnellsten, Boss für Boss), mit dem Kontext daneben.
+  (den schnellsten, Boss für Boss), mit dem Kontext daneben. Die drei
+  Ansichten lassen sich auch als **Webseite** schreiben (Schaltfläche „Seite
+  schreiben…“ oder `logswow historique`): eine Datei, ohne Skript, mit
+  denselben Zahlen wie das Fenster.
 - **Vorschau und Schlüsselvergleich im Fenster.** Rechts neben der
   Kampfliste folgen zwei Reiter dem, was Sie ankreuzen: die Übersicht
   (Dauer, Schaden, Heilung, Tode, eine Zeile pro Spieler mit seiner

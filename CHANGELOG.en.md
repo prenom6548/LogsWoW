@@ -6,6 +6,35 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.20.0 — 2026-10-02
+
+**The history as a web page.** The three views of the "History" window
+(a character's progress, specializations against each other, records) can
+also be written as an HTML page: the **"Write the page…"** button of the
+window, or the command `logswow historique` (`--dossier` to choose the
+folder, `-o` for the file). The page opens in the browser.
+
+It follows the rules of every report: **no script, nothing fetched**, one
+file. Three tabs (Progress, Specializations, Records) and a choice of
+character ("all followed characters" or one of them) work without a script,
+like the tabs of the reports. The progress view shows one character content
+by content, with its curve and its runs; specializations are compared role by
+role, with bars starting at zero; the records give each specialization's best
+key and best kill. **The figures are not recomputed for the page**: they are
+the same rows as in the window, with the same notes under the tables (median,
+‡, "not a ranking"). It exists in French, English, German and Spanish, and
+follows the dark theme like the reports.
+
+It is a page of its own, not a part of a log's report: a report is made from
+that one log and is meant to be shared, while the history spans several nights
+and carries the names of your followed characters. The page never overwrites a
+file that is not a LogsWoW page (unless `--force`), nor anything inside the
+history folder itself.
+
+Fixed along the way, found by fuzzing the history's files: a damaged night
+file (an infinite number, a date as a list, a field of another type) could stop
+a list or a view. It no longer stops anything. No existing figure changes.
+
 ## 0.19.0 — 2026-10-02
 
 **The best of each specialization, in the "History" window.** A new tab,

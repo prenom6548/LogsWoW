@@ -98,6 +98,25 @@ def runs_in_folder(root, slug):
     return runs
 
 
+def characters_and_runs(root, slug):
+    """([every run, oldest first], [(guid, name, that character's runs)] most runs first).
+
+    One pass over the nights, for the page that shows every character at once.
+    """
+    by_guid, names = {}, {}
+    for guid, run in _runs_of_folder(root, slug):
+        by_guid.setdefault(guid, []).append(run)
+        names[guid] = run.row.get("name", "") or names.get(guid, "")
+    key = lambda run: (run.start or run.date or "")        # noqa: E731
+    everyone = sorted((run for runs in by_guid.values() for run in runs), key=key)
+    characters = []
+    for guid, runs in by_guid.items():
+        runs.sort(key=key)
+        characters.append((guid, names[guid], runs))
+    characters.sort(key=lambda item: (-len(item[2]), item[1].lower()))
+    return everyone, characters
+
+
 def runs_of(root, slug, guid):
     """Every run of one character in a folder, oldest first (ties keep file order)."""
     runs = [run for run_guid, run in _runs_of_folder(root, slug) if run_guid == guid]
@@ -111,7 +130,7 @@ def _runs_of_folder(root, slug):
             record, notes = history.read_night(night.path)
         except history.HistoryError:
             continue
-        for fight in record.get("fights") or []:
+        for fight in _list(record.get("fights")):
             yield from _runs_of_fight(record, fight, notes, inside_key=False)
 
 
@@ -119,31 +138,31 @@ def _runs_of_fight(record, fight, notes, inside_key):
     """The runs of one fight record and of the bosses it holds; what is odd is skipped."""
     if not isinstance(fight, dict):
         return
-    kind = {"key": KEY, "encounter": BOSS}.get(fight.get("type"))
+    kind = {"key": KEY, "encounter": BOSS}.get(str(fight.get("type")))
     if kind is not None:
         group = _dict(fight.get("group"))
         composition = _dict(group.get("composition"))
         for row in _list(fight.get("players")):
-            if not isinstance(row, dict) or not row.get("guid"):
+            if not isinstance(row, dict) or not isinstance(row.get("guid"), str) \
+                    or not row["guid"]:
                 continue
             row = _complete(row)
             yield row["guid"], Run(
                 kind=kind, start=str(fight.get("start", "")), date=str(record.get("date", "")),
-                night=record.get("source", ""),
-                build=_dict(record.get("game")).get("build", ""),
+                night=str(record.get("source", "")),
+                build=str(_dict(record.get("game")).get("build", "")),
                 old_analysis="older_analysis" in notes, name=str(fight.get("name", "")),
                 content_id=_whole(fight.get("instance_id" if kind == KEY else "encounter_id")),
                 level=_whole(fight.get("level")), difficulty_id=_whole(fight.get("difficulty_id")),
                 outcome=str(fight.get("outcome", "")), duration_ms=_whole(fight.get("duration_ms")),
                 spec_id=_whole(row.get("spec_id")),
                 role=role_of(_whole(row.get("spec_id"))) or row.get("role") or "",
-                ilvl=row.get("ilvl") if isinstance(row.get("ilvl"), (int, float)) else None,
+                ilvl=_real(row.get("ilvl")),
                 row=row, composition=(_whole(composition.get("tank")),
                                       _whole(composition.get("healer")),
                                       _whole(composition.get("dps"))),
-                score=fight.get("score"), key_time_ms=fight.get("key_time_ms"),
-                boss_health_end=fight.get("boss_health_end") if isinstance(
-                    fight.get("boss_health_end"), (int, float)) else None,
+                score=_real(fight.get("score")), key_time_ms=_real(fight.get("key_time_ms")),
+                boss_health_end=_real(fight.get("boss_health_end")),
                 inside_key=inside_key)
     for boss in _list(fight.get("bosses")):
         yield from _runs_of_fight(record, boss, notes, inside_key=True)
@@ -157,14 +176,26 @@ def _list(value):
     return value if isinstance(value, list) else []
 
 
+def _finite(value):
+    """Whether a value is a real, finite number (a boolean, NaN or infinity is not one)."""
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and value == value and abs(value) != float("inf"))
+
+
 def _whole(value):
-    """A number as the file gave it, or 0: a figure that is not one must not stop a view."""
-    return value if isinstance(value, (int, float)) and not isinstance(value, bool) else 0
+    """A whole number as the file gave it, or 0: a figure that is not one must not stop a view."""
+    return int(value) if _finite(value) else 0
+
+
+def _real(value):
+    """A finite number as the file gave it, or None."""
+    return value if _finite(value) else None
 
 
 def _complete(row):
     """The row with every figure `history.rates` reads: a missing or odd one counts as zero."""
     out = dict(row)
+    out["name"] = str(row.get("name") or "")
     for name in ("damage", "healing", "absorb_done", "taken", "absorbed", "deaths"):
         out[name] = _whole(row.get(name))
     return out
@@ -351,7 +382,7 @@ TIMED = "dans les temps"
 
 def _number(value, default):
     """A figure as the file gave it, or the default: records never stop on an odd field."""
-    return value if isinstance(value, (int, float)) and not isinstance(value, bool) else default
+    return value if _finite(value) else default
 
 
 def key_rank(run):
