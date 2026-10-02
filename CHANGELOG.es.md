@@ -7,6 +7,34 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.15.0 — 2026-10-02
+
+**Una vista previa en la ventana, antes de escribir la página.** Bajo la
+lista de combates, tres pestañas siguen lo que marque: *Resumen*
+(duración, daño, sanación, muertes y una línea por jugador), *Llaves* (la
+comparación, más abajo) y *Equipo*. Ve lo que diría el informe y solo
+escribe la página si quiere ir más lejos.
+
+**Comparar dos llaves de la misma mazmorra y del mismo nivel**, en la
+ventana y en la página («Comparación de llaves», bajo la lista de
+combates), con, para el grupo y para cada jugador: el **daño por
+segundo**, la **sanación por segundo** (escudos incluidos, como los
+sitios en línea), las muertes, y para el **tanque** el **daño recibido
+por segundo** (lo que absorbieron los escudos cuenta). La diferencia es la
+de la última llave respecto a la primera. Solo se comparan llaves
+terminadas; una llave abandonada o de otro nivel queda aparte.
+
+**El equipo de los jugadores, en el resumen de cada combate.** El nivel de
+objeto medio del grupo y, plegado bajo la composición, el equipo de cada
+uno: ranura, nivel, encantamientos, gemas. El registro da el número y el
+nivel de cada objeto, nunca su nombre, su icono ni sus estadísticas: vienen
+de la base de objetos del juego, que LogsWoW no tiene (no se conecta a
+nada). Cada objeto es, por tanto, un número con un enlace a Wowhead, que
+solo se sigue si hace clic. El nivel medio sigue la fórmula del juego
+(dieciséis ranuras, sin camisa ni tabardo, un arma a dos manos contada dos
+veces). Leído en 420 líneas de cinco registros: dieciocho ranuras cada vez.
+Ninguna otra cifra cambia.
+
 ## 0.14.0 — 2026-09-29
 
 **Golpes cuerpo a cuerpo recibidos, sobre todo para el tanque.** El

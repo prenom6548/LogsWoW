@@ -27,6 +27,23 @@ import os
 ADVANCED = "{info},{owner},{hp},{maxhp},1500,420,830,240,0,0,1,1100,1300,0,{x},{y},2393,3.14,80"
 
 
+def equipment(ilvl, off_hand=False, missing=()):
+    """The equipment field: 18 slots from `ilvl`, each a little above the last.
+
+    Slot 16 (off hand) stays empty unless `off_hand`; the slots in `missing` are empty.
+    Item ids are fabricated (900000 and up).
+    """
+    slots = []
+    for slot in range(18):
+        if slot in missing or (slot == 16 and not off_hand):
+            slots.append("(0,0,(),(),())")
+            continue
+        enchants = "(7000)" if slot in (4, 8, 11) else "()"
+        gems = "(213743,619)" if slot == 2 else "()"
+        slots.append("(%d,%d,%s,(),%s)" % (900000 + slot, ilvl + slot, enchants, gems))
+    return "[" + ",".join(slots) + "]"
+
+
 def advanced(info, hp=100000, maxhp=100000, owner="0000000000000000", x="100.5", y="-200.5"):
     return ADVANCED.format(info=info, owner=owner, hp=hp, maxhp=maxhp, x=x, y=y)
 
@@ -65,9 +82,14 @@ def build():
     # Specializations, so the report can say who tanked and who healed.
     # Field 25 is the current spec id; the rest is padding of the right
     # shape, not real stats.
-    for guid, spec in ((TANK_GUID, 73), (HEALER_GUID, 257), (DPS_GUID, 1480)):
-        add("23:59:01.050", "COMBATANT_INFO,%s,1,%s,%d,[],[],[],[],0"
-            % (guid, ",".join(["0"] * 22), spec))
+    # Field 28 is the equipment: eighteen (item, ilvl, (enchants), (bonus), (gems)) in slot
+    # order. The ids are invented. The tank wears a shield (a one-hander and an off hand),
+    # the healer a two-handed staff and an empty off hand, the DPS has no neck and no ring.
+    for guid, spec, gear in ((TANK_GUID, 73, equipment(600, off_hand=True)),
+                             (HEALER_GUID, 257, equipment(610)),
+                             (DPS_GUID, 1480, equipment(620, missing=(1, 10)))):
+        add("23:59:01.050", "COMBATANT_INFO,%s,1,%s,%d,[],[],%s,[],0"
+            % (guid, ",".join(["0"] * 22), spec, gear))
     add("23:59:01.100", "SPELL_SUMMON,%s,%s,777,\"Invocation\",0x1" % (DPS, PET))
     # buff applied on the tank, removed 10 s later: 10 s of uptime
     add("23:59:01.200", 'SPELL_AURA_APPLIED,%s,%s,111,"Peau de pierre",0x1,BUFF' % (TANK, TANK))

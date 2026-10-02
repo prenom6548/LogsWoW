@@ -1508,6 +1508,63 @@ front. The snapshot on five inputs moved `melee_taken` and the page
 bytes, nothing else; the invariant checker proves every landed swing
 placed once and inside the player's melee taken, on three real logs.
 
+### The window's preview, the keys side by side, and what a player wore (2026-10-02)
+
+The owner, comparing this project with a separate one built from the same
+brief, took three ideas from it and asked for them here: a **preview in
+the window** before the page is written, **keys compared** with HPS and
+the tank's damage taken per second, and **the players' equipment** in the
+summary -- asking whether equipment needs the internet.
+
+- **What the file says about gear, measured before any code.**
+  `COMBATANT_INFO` field 28 is the equipment: 18 entries in inventory-slot
+  order, each `(itemID, itemLevel, (enchants), (bonus ids), (gems))`, an empty
+  slot `(0,0,(),(),())`, a gem an id followed by its own level. Read on 420
+  lines of five logs (width 34, 18 entries every time, 0 empty slots on
+  any). The file gives **the number and the level of an item, never its
+  name, icon or stats**: those are in the game's item database, which a
+  program that reads only the log does not have. So the answer to the
+  owner is: nothing is fetched. The average item level is computed here;
+  each item is shown as a number with a Wowhead link, followed only on a
+  click (the one exception to "the page fetches nothing", already
+  allowed). A table of item names would be a maintained table: the
+  structural cost of the rotation verdict again. `gear.py` reads it; the
+  average is the game's formula as it is known -- sixteen slots, shirt
+  (3) and tabard (17) out, a main hand with an empty off hand counted
+  twice, an empty slot as zero -- **not confirmed against an outside
+  source**: the file has no field to compare it with. The shirt and the
+  tabard are listed on the page and marked "(non compté)".
+- **Gear lives on the player** (`Player.gear`, the latest `COMBATANT_INFO`
+  wins; kept by GUID in `_gear`, bounded, so no ledger is opened while
+  reading -- the side effect the opening code once had). A key's pulls
+  inherit it in `_settle_pulls`. A fight with no `COMBATANT_INFO` before
+  it (the fixture's keystone) shows "équipement non écrit dans le journal".
+- **One data layer, two readers.** `preview.py` has no Tk and no HTML: the
+  rates, the comparison, the texts. The window (`gui.preview_texts`) and
+  the page (`report_compare.py`) both call it, so they cannot disagree.
+  Rates are over the fight's length: damage/s, healing/s **with shields**
+  (the sites' sum), taken/s = damage taken **plus what shields absorbed**,
+  given to tanks only (role from the spec id). Keys are compared only when
+  finished (`COMPARABLE`) and of the same label (dungeon and level): a +12
+  beside a +13 would make the columns say something they do not. The
+  change is the last run against the first; a rounding that erases the
+  direction prints "0 %", never "-0 %". The fights are numbered the way
+  the window numbers them: the overview's first cell now carries the index,
+  and the comparison's columns say "Clé 3".
+- **The window**: a `ttk.Notebook` of three read-only `Text` widgets
+  (fixed font, columns sized to their content -- a fixed width ran
+  "dans les temps" into the next cell), refreshed 150 ms after the
+  selection settles. The equipment tab shows the **last fight chosen**:
+  twenty fights would repeat eighteen lines per player twenty times.
+- **Proof.** The snapshot on five inputs (fixture, synthetic key, raid
+  night, 951,575-line dungeon night, five-key night) before and after: with
+  the new `gear` fields and the page bytes set aside, every number of every
+  segment is identical. The window was driven under Xvfb on the 364 MB, 22-fight
+  log (tabs, selection, empty selection). Four new logs of 96 to 495 MB
+  (2026-09-29 and 10-01/02) read with zero problems and hold every invariant.
+  The tests that cover it fail without the fix (two-hander doubling, the
+  "-0 %").
+
 ### Performance, measured
 
 261 MB / 896,610 lines (a real raid night, report included) in
@@ -1543,6 +1600,9 @@ logswow/report_timeline.py  the SVG timeline
 logswow/report_panels.py    per-player and per-enemy panels
 logswow/report_casts.py     the cast order by pull: chips, CSS-only filter
 logswow/report_schools.py   physical / magic / mixed shares, per run and per pull
+logswow/gear.py         the equipment `COMBATANT_INFO` writes: items, enchants, gems, average item level
+logswow/preview.py      what the window previews and the page compares: rates, keys side by side (no Tk, no HTML)
+logswow/report_compare.py   the comparison card and each player's gear on the page
 logswow/report_layouts.py   the three layouts: long page, CSS-only tabs, folder of pages;
                         write_streamed, which writes a page as it is drawn
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
@@ -1654,7 +1714,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 259 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 271 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSeventhAuditFindings`), and each one was regression-checked the

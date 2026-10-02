@@ -22,6 +22,7 @@ from .i18n import N_, _, language, spell_label
 from .specs import DPS, HEAL, TANK, label_of, role_of
 from .timestamps import format_duration
 from .report_casts import CastOrderMixin, chip_rules
+from .report_compare import CompareMixin
 from .report_panels import PanelsMixin
 from .report_layouts import LayoutsMixin, write_streamed
 from .report_schools import SCHOOL_CSS, SchoolsMixin
@@ -248,7 +249,8 @@ def _ranking_note(rows, healing, absorbs, support):
     return note
 
 
-class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, LayoutsMixin):
+class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, LayoutsMixin,
+                   CompareMixin):
     """Writes the whole page for a list of segments."""
 
     def __init__(self, log, segments, out_path, wowhead="auto", cast_order=True,
@@ -310,6 +312,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
             css = "ok" if segment.success else ("ko" if segment.is_wipe else "")
             name = (link(segment) if link is not None else
                     "<a href='#s%d' class=name>%s</a>" % (segment.index, fmt.esc(segment.label)))
+            # The number the comparison and the window call this fight by.
+            name = "<span class=dim>%d</span> %s" % (segment.index, name)
             rows.append(
                 "<tr><td>%s%s</td>"
                 "<td class=n>%s</td><td class=n>%s</td><td class=n>%s</td>"
@@ -354,6 +358,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 self._stats(),
                 "".join(rows),
             )
+            + self._comparison()
         )
 
     def _boss_pulls(self):
@@ -714,7 +719,8 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
               "<p class=dim style='margin:10px 0 0;font-size:12px'>Le rôle vient de la "
               "spécialisation que le client écrit au début du combat. Une spécialisation "
               "que cet outil ne connaît pas est affichée par son numéro.</p></div>")
-            % ("".join(rows), self._bystanders(analysis))
+            % ("".join(rows), self._group_ilvl(analysis) + self._equipment(analysis)
+               + self._bystanders(analysis))
         )
 
     @staticmethod

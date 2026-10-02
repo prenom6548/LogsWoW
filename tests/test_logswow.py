@@ -4027,6 +4027,220 @@ class TestLanguages(unittest.TestCase):
         self.assertIn("réussite", out.getvalue())
 
 
+class TestGearAndComparison(unittest.TestCase):
+    """0.15.0: the gear a fight starts with, the keys side by side, the window's preview."""
+
+    @staticmethod
+    def _entry(item, ilvl, enchants="()", gems="()"):
+        return "(%d,%d,%s,(),%s)" % (item, ilvl, enchants, gems)
+
+    def _gear(self, entries):
+        from logswow.gear import parse
+
+        fields = split_fields("COMBATANT_INFO,P,1,%s,73,[],[],[%s],[],0"
+                              % (",".join(["0"] * 22), ",".join(entries)))
+        return parse(fields)
+
+    def _worn(self, ilvl, off_hand=True, empty=()):
+        return [self._entry(0, 0) if index in empty or (index == 16 and not off_hand)
+                else self._entry(900000 + index, ilvl + index) for index in range(18)]
+
+    def test_the_equipment_is_the_field_at_index_28_and_its_average_follows_the_game(self):
+        gear = self._gear(self._worn(600))
+        self.assertEqual(len(gear.items), 18)
+        self.assertEqual(gear.items[2].item_id, 900002)
+        # Sixteen slots, shirt (3) and tabard (17) left out: 600 + the mean of 0..16 but 3.
+        expected = sum(600 + i for i in range(17) if i != 3) / 16.0
+        self.assertAlmostEqual(gear.average, expected)
+        self.assertFalse(gear.two_handed)
+
+    def test_a_two_handed_weapon_counts_twice_and_an_empty_slot_counts_zero(self):
+        two = self._gear(self._worn(600, off_hand=False))
+        base = sum(600 + i for i in range(17) if i != 3 and i != 16)
+        self.assertTrue(two.two_handed)
+        self.assertAlmostEqual(two.average, (base + 615) / 16.0)
+        self.assertEqual(two.empty_slots(), [])           # the weapon fills both hands
+        hole = self._gear(self._worn(600, empty=(1,)))
+        self.assertEqual(hole.empty_slots(), [1])
+        self.assertAlmostEqual(hole.average, (sum(600 + i for i in range(17) if i not in (1, 3)))
+                               / 16.0)
+
+    def test_enchants_and_gems_are_read_and_a_gem_is_an_id_then_its_level(self):
+        entries = self._worn(600)
+        entries[4] = self._entry(900004, 604, "(7000,7001)", "(213743,619,213744,619)")
+        item = self._gear(entries).items[4]
+        self.assertEqual(item.enchants, (7000, 7001))
+        self.assertEqual(item.gems, (213743, 213744))
+
+    def test_a_line_without_equipment_gives_none_rather_than_a_guess(self):
+        from logswow.gear import parse
+
+        self.assertIsNone(parse(split_fields("COMBATANT_INFO,P,1,0,0")))
+        self.assertIsNone(parse(split_fields("COMBATANT_INFO,P,1,%s,73,[],[],[],[],0"
+                                             % ",".join(["0"] * 22))))
+        self.assertIsNone(self._gear(self._worn(600)[:10]))           # too short: not measured
+        self.assertIsNone(self._gear([self._entry(0, 0)] * 18))     # nothing worn at all
+
+    def test_the_fixture_players_carry_their_gear(self):
+        _log, segments = run_fixture()
+        players = segments[0].analysis.players
+        self.assertEqual(len(players), 3)
+        averages = sorted(round(player.gear.average, 1) for player in players.values())
+        self.assertEqual(averages, [round(x, 1) for x in sorted(averages)])
+        self.assertTrue(all(player.gear is not None for player in players.values()))
+
+    def test_rates_are_per_second_and_only_a_tank_gets_damage_taken_per_second(self):
+        from types import SimpleNamespace
+        from logswow import preview
+        from logswow.specs import DPS, TANK
+
+        analysis = SimpleNamespace(duration_ms=100000)
+        player = SimpleNamespace(damage_done=5000000, healing_done=800000, absorb_done=200000,
+                                 damage_taken=3000000, absorbed_taken=1000000,
+                                 short_name="Ardoise", spec_id=73, deaths=1, gear=None)
+        rate = preview.rates(analysis, player)
+        self.assertEqual((rate["dps"], rate["hps"], rate["taken"]), (50000, 10000, 40000))
+        self.assertIn("subis/s", preview.player_line(analysis, player, TANK))
+        self.assertNotIn("subis/s", preview.player_line(analysis, player, DPS))
+
+    def test_a_change_is_the_last_run_against_the_first_and_never_says_minus_zero(self):
+        from logswow import preview
+
+        self.assertAlmostEqual(preview.change([100.0, 90.0, 110.0]), 0.10)
+        self.assertIsNone(preview.change([100.0]))
+        self.assertIsNone(preview.change([0.0, 5.0]))
+        self.assertIsNone(preview.change([None, 5.0]))
+        self.assertEqual(preview.change_text(0.103), "+10\u202f%")
+        self.assertEqual(preview.change_text(-0.0001), preview.change_text(0.0))
+        self.assertNotIn("\u2212", preview.change_text(-0.0001))
+
+    def _two_keys(self):
+        import tempfile
+
+        with open(FIXTURE, encoding="utf-8") as handle:
+            text = handle.read()
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "WoWCombatLog-091826_235900.txt")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(text + text.replace("9/18/2026", "9/19/2026"))
+            log = LogFile(path)
+            splitter = Splitter(analysis_factory=SegmentAnalysis)
+            for event in log.events():
+                splitter.feed(event)
+            return log, splitter.finish()
+
+    def test_only_finished_keys_of_the_same_level_are_lined_up(self):
+        from logswow import preview
+
+        _log, segments = self._two_keys()
+        keys = [segment for segment in segments if segment.kind == "keystone"]
+        self.assertEqual(len(keys), 2)
+        groups = preview.comparison(segments)
+        self.assertEqual([len(group["runs"]) for group in groups], [2])
+        self.assertTrue(groups[0]["players"])
+        self.assertIn("2 clés", preview.comparison_text(groups))
+        keys[1].abandoned = True
+        self.assertEqual([len(g["runs"]) for g in preview.comparison(segments)], [1])
+        self.assertEqual(preview.comparison(segments)[0]["players"], [])
+        keys[1].abandoned = False
+        keys[1].key_level = 8
+        self.assertEqual(sorted(len(g["runs"]) for g in preview.comparison(segments)), [1, 1])
+        self.assertIn("Aucune clé terminée", preview.comparison_text(preview.comparison([])))
+
+    def test_the_columns_of_the_text_never_run_into_each_other(self):
+        from logswow import preview
+
+        _log, segments = self._two_keys()
+        lines = preview.comparison_text(preview.comparison(segments)).splitlines()
+        issue = [line for line in lines if line.startswith("Issue")][0]
+        self.assertIn("dans les temps  dans les temps", issue)     # two cells, two spaces apart
+        head = [line for line in lines if "Clé 3" in line][0]
+        self.assertIn("Clé 4", head)
+        self.assertTrue(head.rstrip().endswith("Écart"))
+
+    def _page(self, log, segments, layout="longue"):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as folder:
+            target = os.path.join(folder, "rapport.html")
+            ReportWriter(log, segments, target, layout=layout).write()
+            with open(target, encoding="utf-8") as handle:
+                return handle.read()
+
+    def test_the_page_carries_the_comparison_the_ilvl_and_the_gear_and_fetches_nothing(self):
+        log, segments = self._two_keys()
+        for layout in ("longue", "onglets"):
+            with self.subTest(layout=layout):
+                page = self._page(log, segments, layout)
+                self.assertIn("<h2>Comparaison des clés</h2>", page)
+                self.assertIn("Clé 3", page)
+                self.assertIn("Clé 4", page)
+                self.assertIn("Niveau d'objet moyen du groupe", page)
+                self.assertIn("objet 900000", page)
+                self.assertIn("(non compté)", page)
+                self.assertIn("Emplacement vide", page)       # the DPS has no neck and no ring
+                # Item links are anchors Wowhead opens on a click, never something fetched.
+                self.assertIn("<a href='https://www.wowhead.com/", page)
+                self.assertNotRegex(page, r"(?i)<(img|script|link|iframe)\b")
+                self.assertNotRegex(page, r"(?i)\bsrc\s*=|@import|url\(")
+        # One key, nothing to line up: no card.
+        self.assertNotIn("Comparaison des clés", self._page(log, segments[:1]))
+        # The first cell of the overview carries the number the comparison calls a fight by.
+        self.assertRegex(self._page(log, segments), r"<span class=dim>3</span> <a href='#s3'")
+
+    def test_the_window_preview_has_the_three_tabs_and_an_empty_message(self):
+        from logswow import gui
+
+        keys = [key for key, _title in gui.PREVIEW_TABS]
+        self.assertEqual(keys, ["overview", "keys", "gear"])
+        empty = gui.preview_texts([])
+        self.assertEqual(set(empty), set(keys))
+        self.assertIn("Cochez", empty["overview"])
+        _log, segments = self._two_keys()
+        texts = gui.preview_texts(segments[:1])
+        self.assertIn("Golem d'essai", texts["overview"])
+        self.assertIn("ilvl", texts["gear"])
+        self.assertIn("(non compté)", texts["gear"])
+        self.assertIn("Aucune clé", texts["keys"])
+        both = gui.preview_texts(segments)
+        self.assertIn("2 clés", both["keys"])
+        self.assertIn("le dernier combat choisi", both["gear"])
+        self.assertNotIn("le dernier combat choisi", texts["gear"])
+
+    def test_the_preview_follows_the_selection_in_the_window(self):
+        """Needs Tkinter and a display; skipped wherever either is missing."""
+        import tempfile
+        from logswow import gui
+
+        try:
+            import tkinter
+            root = tkinter.Tk()
+        except (ImportError, Exception) as error:        # noqa: BLE001 -- no screen here
+            self.skipTest("pas de fenetre possible ici : %s" % str(error).splitlines()[0])
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                log_path = os.path.join(folder, "WoWCombatLog-092726_200000.txt")
+                with open(FIXTURE, "rb") as source, open(log_path, "wb") as copy:
+                    copy.write(source.read())
+                app = gui.App(root, locations=[folder])
+                app.read_selected()
+                deadline = time.time() + 30
+                while app.segments is None and time.time() < deadline:
+                    root.update()
+                    time.sleep(0.02)
+                time.sleep(0.3)
+                root.update()
+                overview = app.previews["overview"]
+                self.assertIn("Golem d'essai", overview.get("1.0", "end"))
+                app.fights.selection_set(())
+                root.update()
+                time.sleep(0.3)
+                root.update()
+                self.assertIn("Cochez", overview.get("1.0", "end"))
+        finally:
+            root.destroy()
+
+
 class TestSeventhAuditFindings(unittest.TestCase):
     """The 2026-09-29 audit of 0.12.1: a full read of every file, the
     tools of the earlier audits again, and one real 364 MB Mythic+ night.

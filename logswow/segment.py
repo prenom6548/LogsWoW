@@ -321,6 +321,8 @@ class Splitter:
                 known = analysis.players.get(guid)
                 if known is not None and not player.spec_id:
                     player.spec_id = known.spec_id
+                if known is not None and player.gear is None:
+                    player.gear = known.gear
             kept.append(pull)
         key.pulls = kept
 

@@ -8,6 +8,38 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.15.0 — 2026-10-02
+
+**Eine Vorschau im Fenster, bevor die Seite geschrieben wird.** Unter
+der Kampfliste folgen drei Reiter dem, was Sie ankreuzen: *Übersicht*
+(Dauer, Schaden, Heilung, Tode und eine Zeile pro Spieler), *Schlüssel*
+(der Vergleich, siehe unten) und *Ausrüstung*. Sie sehen, was der
+Bericht sagen würde, und schreiben die Seite nur, wenn Sie weitergehen
+wollen.
+
+**Zwei Schlüssel desselben Dungeons und derselben Stufe vergleichen**,
+im Fenster und auf der Seite („Vergleich der Schlüssel“, unter der
+Kampfliste), mit, für die Gruppe und für jeden Spieler: **Schaden pro
+Sekunde**, **Heilung pro Sekunde** (Schilde eingeschlossen, wie die
+Online-Seiten), Tode, und für den **Tank** der **erlittene Schaden pro
+Sekunde** (was Schilde absorbiert haben, zählt mit). Die Abweichung ist
+die des letzten Schlüssels gegenüber dem ersten. Verglichen werden nur
+beendete Schlüssel; ein abgebrochener Schlüssel oder einer anderer Stufe
+bleibt für sich.
+
+**Die Ausrüstung der Spieler, in der Zusammenfassung jedes Kampfes.** Die
+durchschnittliche Gegenstandsstufe der Gruppe und, eingeklappt unter der
+Zusammensetzung, die Ausrüstung jedes Spielers: Platz, Stufe,
+Verzauberungen, Edelsteine. Das Protokoll nennt Nummer und Stufe jedes
+Gegenstands, nie seinen Namen, sein Symbol oder seine Werte: Diese
+stammen aus der Gegenstandsdatenbank des Spiels, die LogsWoW nicht hat
+(es verbindet sich mit nichts). Jeder Gegenstand ist daher eine Nummer
+mit einem Wowhead-Link, dem nur bei einem Klick gefolgt wird. Der
+Durchschnitt folgt der Formel des Spiels (sechzehn Plätze, ohne Hemd und
+Wappenrock, eine Zweihandwaffe doppelt gezählt). Gelesen an 420 Zeilen
+aus fünf Protokollen: jedes Mal achtzehn Plätze. Keine andere Zahl
+ändert sich.
+
 ## 0.14.0 — 2026-09-29
 
 **Erhaltene Nahkampfschläge, vor allem für den Tank.** Das Panel jedes

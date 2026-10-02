@@ -6,6 +6,32 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.15.0 — 2026-10-02
+
+**A preview in the window, before the page is written.** Under the list
+of fights, three tabs follow what you tick: *Overview* (length, damage,
+healing, deaths, and a line per player), *Keys* (the comparison, below)
+and *Gear*. You see what the report would say, and only write the page
+if you want to go further.
+
+**Compare two keys of the same dungeon and level**, in the window and on
+the page ("Comparison of keys", under the list of fights), with, for the
+group and for each player: **damage per second**, **healing per second**
+(shields included, as the online sites do), deaths, and for the **tank**
+**damage taken per second** (what shields absorbed counts). The change is
+the last key against the first. Only finished keys are compared; an
+abandoned key or one of another level stays apart.
+
+**The players' gear, in each fight's summary.** The group's average item
+level and, folded under the composition, everyone's gear: slot, level,
+enchantments, gems. The log gives each item's number and level, never
+its name, icon or stats: those come from the game's item database, which
+LogsWoW does not have (it connects to nothing). Each item is therefore a
+number with a Wowhead link, followed only if you click it. The average
+follows the game's formula (sixteen slots, shirt and tabard left out, a
+two-handed weapon counted twice). Read on 420 lines of five logs:
+eighteen slots every time. No other figure changes.
+
 ## 0.14.0 — 2026-09-29
 
 **Melee swings taken, for the tank above all.** The panel of every

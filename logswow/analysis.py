@@ -25,6 +25,7 @@ from .auras import AuraLedger
 from .castorder import MAX_CAST_LOG, classify_triggered
 from .encounters import EncounterLedger
 from .events import FLAGS_IN_GROUP, FLAGS_OPPONENT, Actor, Event
+from .gear import parse as parse_gear
 from .i18n import _, spell_label
 from .models import (
     OTHER_TARGETS,
@@ -162,6 +163,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
         if segment.kind == "encounter" and segment.name:
             self.boss_names.add(canon(segment.name))
         self._specs = {}
+        self._gear = {}
         # Players by GUID: the full name the file gives them, and the
         # unique realm-less label the page uses. Two players can share a
         # name on two realms, and the realm is never shown, so the second
@@ -746,6 +748,7 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
             player = Player(guid, name)
             player.label = self._labels.get(guid, "")
             player.spec_id = self._specs.get(guid, 0)
+            player.gear = self._gear.get(guid)
             self.players[guid] = player
         return player
 
@@ -918,11 +921,21 @@ class SegmentAnalysis(AuraLedger, EncounterLedger, TimelineLedger):
                 ).add(amount, event.is_critical, player.short_name)
 
     def _feed_combatant_info(self, event):
-        """Who each player was: the specialization id, at one fixed field."""
+        """Who each player was: the specialization id, at one fixed field, and what they wore.
+
+        The latest line wins: a player who changed a piece between two bosses of a key is
+        shown with what they had on at the end.
+        """
         fields = event.fields
         if len(fields) < 2 or not isinstance(fields[1], str):
             return
         guid = fields[1]
+        gear = parse_gear(fields)
+        if gear is not None and len(self._gear) < 5000:
+            self._gear[guid] = gear
+            player = self.players.get(guid)
+            if player is not None:
+                player.gear = gear
         spec_id = 0
         if len(fields) > SPEC_ID_INDEX and isinstance(fields[SPEC_ID_INDEX], str):
             spec_id = as_int(fields[SPEC_ID_INDEX], 0)

@@ -235,7 +235,7 @@ class Player:
         "damage_taken", "absorbed_taken", "deaths", "interrupts", "dispels",
         "casts", "damage_by_ability", "healing_by_ability", "taken_by_ability",
         "casts_by_ability", "healing_to", "interrupted_spells", "dispelled_spells",
-        "spec_id", "auras_gained", "auras_applied", "casts_by_spell",
+        "spec_id", "gear", "auras_gained", "auras_applied", "casts_by_spell",
         "_gained_until", "_applied_until", "absorb_done", "pet_casts",
         "absorb_by_ability", "pet_damage_taken",
         "support_damage", "support_healing", "support_by_ability", "support_received",
@@ -300,6 +300,7 @@ class Player:
         self.interrupted_spells = {}
         self.dispelled_spells = {}
         self.spec_id = 0
+        self.gear = None
         self.damage_to_bosses = 0
         # (spell, who put it there, BUFF/DEBUFF) -> milliseconds
         self.auras_gained = {}

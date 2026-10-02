@@ -88,6 +88,15 @@ def resolve(choice=None):
     return PREFIXES.get(language, "")
 
 
+def item_url(item_id, prefix=""):
+    """https://www.wowhead.com/fr/item=271510"""
+    if not item_id:
+        return ""
+    if prefix:
+        return "%s/%s/item=%d" % (BASE, prefix, item_id)
+    return "%s/item=%d" % (BASE, item_id)
+
+
 def spell_url(spell_id, prefix=""):
     """https://www.wowhead.com/fr/spell=1239608"""
     if not spell_id:

@@ -3,6 +3,34 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.15.0 — 2026-10-02
+
+**Un aperçu dans la fenêtre, avant d'écrire la page.** Sous la liste des
+combats, trois onglets suivent ce que vous cochez : *Aperçu* (durée,
+dégâts, soins, morts, et une ligne par joueur), *Clés* (la comparaison,
+ci-dessous) et *Équipement*. On voit ce que le rapport dirait, et on ne
+crée la page que si on veut aller plus loin.
+
+**Comparer deux clés d'un même donjon et du même niveau**, dans la
+fenêtre et sur la page (« Comparaison des clés », sous la liste des
+combats), avec, pour le groupe et pour chaque joueur : les **dégâts par
+seconde**, les **soins par seconde** (boucliers compris, comme les sites
+en ligne), les morts, et pour le **tank** les **dégâts subis par
+seconde** (ce que les boucliers ont absorbé compte). L'écart est celui de
+la dernière clé par rapport à la première. Seules des clés terminées sont
+comparées ; une clé abandonnée ou d'un autre niveau reste à part.
+
+**L'équipement des joueurs, dans le résumé de chaque combat.** Le niveau
+d'objet moyen du groupe, et, replié sous la composition, l'équipement de
+chacun : emplacement, niveau, enchantements, gemmes. Le journal donne le
+numéro et le niveau de chaque objet, jamais son nom, son icône ni ses
+statistiques : ils viennent de la base d'objets du jeu, que LogsWoW n'a
+pas (il ne se connecte à rien). Chaque objet est donc un numéro avec un
+lien Wowhead, suivi seulement si vous cliquez. Le niveau moyen suit la
+formule du jeu (seize emplacements, chemise et tabard exclus, une arme à
+deux mains comptée deux fois). Lu sur 420 lignes de cinq journaux : dix-huit
+emplacements à chaque fois. Aucun autre chiffre ne change.
+
 ## 0.14.0 — 2026-09-29
 
 **Les coups de mêlée reçus, pour le tank surtout.** Le panneau de chaque

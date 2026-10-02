@@ -723,6 +723,137 @@ TEXTS = {
         ' Control en este combate%.0s: el juego no permite parar ni esquivar un golpe por la espalda, y el %s de las %s paradas y esquivas situadas cae delante.',
     "<p class=dim style='font-size:12px;margin:0'>Estimation fiable, mais pas une donnée écrite, et limitée à la mêlée%s: le journal ne dit pas d'où vient un coup. LogsWoW le déduit de la position de l'attaquant et de l'orientation du joueur, que le journal donne ligne par ligne.%s</p>":
         "<p class=dim style='font-size:12px;margin:0'>Una estimación fiable, pero no un dato escrito, y limitada al cuerpo a cuerpo%.0s: el registro no dice de dónde viene un golpe. LogsWoW lo deduce de la posición del atacante y de la orientación del jugador, que el registro da línea a línea.%s</p>",
+    # equipment, comparison of keys, preview (0.15.0)
+    'Tête':
+        'Cabeza',
+    'Cou':
+        'Cuello',
+    'Épaules':
+        'Hombros',
+    'Chemise':
+        'Camisa',
+    'Torse':
+        'Pecho',
+    'Jambes':
+        'Piernas',
+    'Pieds':
+        'Pies',
+    'Poignets':
+        'Muñecas',
+    'Mains':
+        'Manos',
+    'Anneau 1':
+        'Anillo 1',
+    'Anneau 2':
+        'Anillo 2',
+    'Bijou 1':
+        'Abalorio 1',
+    'Bijou 2':
+        'Abalorio 2',
+    'Dos':
+        'Espalda',
+    'Main droite':
+        'Mano derecha',
+    'Main gauche':
+        'Mano izquierda',
+    'Tabard':
+        'Tabardo',
+    'Aperçu':
+        'Resumen',
+    'Clés':
+        'Llaves',
+    'Équipement':
+        'Equipo',
+    'Cochez un ou plusieurs combats pour voir ce que le rapport en dirait.':
+        'Marque uno o varios combates para ver lo que diría el informe.',
+    "Équipement tel qu'il était à « %s »%s.\n\n":
+        'Equipo tal como estaba en «%s»%s.\n\n',
+    ' (le dernier combat choisi)':
+        ' (el último combate elegido)',
+    ' Aperçu des combats choisis ':
+        ' Vista previa de los combates elegidos ',
+    'Aucune clé terminée à comparer : il faut au moins une clé, et deux du même niveau pour les mettre côte à côte.':
+        'No hay ninguna llave terminada que comparar: hace falta al menos una, y dos del mismo nivel para ponerlas una junto a otra.',
+    "Écart : la dernière clé par rapport à la première. Soins/s compte les boucliers ; Subis/s compte ce que les boucliers ont absorbé, et n'est donné qu'aux tanks.":
+        'Diferencia: la última llave respecto a la primera. Sanación/s cuenta los escudos; Recibido/s cuenta lo que absorbieron los escudos, y solo se da a los tanques.',
+    'Aucun joueur dans ce combat.':
+        'Ningún jugador en este combate.',
+    "Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni son icône : ils viennent de la base d'objets du jeu. Le rapport les relie à Wowhead.":
+        'El registro da el número y el nivel de cada objeto, nunca su nombre ni su icono: vienen de la base de objetos del juego. El informe los enlaza con Wowhead.',
+    '%s — %s (%s)':
+        '%s — %s (%s)',
+    'Dégâts %s (%s/s) · Soins %s (%s/s, boucliers compris) · Subis %s · %s':
+        'Daño %s (%s/s) · Sanación %s (%s/s, escudos incluidos) · Recibido %s · %s',
+    'Morts :':
+        'Muertes:',
+    '%s dégâts/s':
+        '%s de daño/s',
+    '%s soins/s':
+        '%s de sanación/s',
+    'Dégâts/s':
+        'Daño/s',
+    'Soins/s':
+        'Sanación/s',
+    'Subis/s':
+        'Recibido/s',
+    "Niveau d'objet moyen du groupe : %s":
+        'Nivel de objeto medio del grupo: %s',
+    'Boss : %s':
+        'Jefe: %s',
+    '%s subis/s':
+        '%s recibido/s',
+    'ilvl %s':
+        'ilvl %s',
+    '%s : %s':
+        '%s: %s',
+    '  %s à %s : %s':
+        '  %s a los %s: %s',
+    'Écart':
+        'Diferencia',
+    '%s : ilvl %s (de %d à %d)':
+        '%s: ilvl %s (de %d a %d)',
+    'Clé %d':
+        'Llave %d',
+    'Groupe : ':
+        'Grupo: ',
+    '%s : équipement non écrit dans le journal':
+        '%s: equipo no escrito en el registro',
+    '  %-12s ilvl %d  objet %d%s%s':
+        '  %-12s ilvl %d  objeto %d%s%s',
+    '  Emplacement vide : %s.':
+        '  Ranura vacía: %s.',
+    '  enchantement %s':
+        '  encantamiento %s',
+    '  gemmes %d':
+        '  gemas %d',
+    'sans résultat':
+        'sin resultado',
+    "<p style='margin:10px 0 0;font-size:12.5px'>Niveau d'objet moyen du groupe%s: <b>%s</b> (de %s à %s).</p>":
+        "<p style='margin:10px 0 0;font-size:12.5px'>Nivel de objeto medio del grupo%s: <b>%s</b> (de %s a %s).</p>",
+    '<h2>Comparaison des clés</h2>':
+        '<h2>Comparación de llaves</h2>',
+    "<p class=dim style='font-size:12.5px'>Écart%s: la dernière clé par rapport à la première. <b>Soins/s</b> compte les boucliers (le journal ne les range pas parmi les soins, les sites en ligne si). <b>Subis/s</b> compte ce que les boucliers ont absorbé : c'est ce qui arrive au tank avant ses protections, et il n'est donné qu'aux tanks. Seules des clés terminées du même niveau sont comparées.</p>":
+        "<p class=dim style='font-size:12.5px'>Diferencia%s: la última llave respecto a la primera. <b>Sanación/s</b> cuenta los escudos (el registro no los clasifica como sanación, los sitios en línea sí). <b>Recibido/s</b> cuenta lo que absorbieron los escudos: es lo que llega al tanque antes de sus protecciones, y solo se da a los tanques. Solo se comparan llaves terminadas del mismo nivel.</p>",
+    "Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni son icône : ils viennent de la base d'objets du jeu, que ce rapport n'a pas (il ne se connecte à rien). Le lien ouvre Wowhead si vous cliquez dessus. Le niveau moyen suit la formule du jeu : seize emplacements, chemise et tabard exclus, une arme à deux mains comptée deux fois, un emplacement vide pour zéro.":
+        'El registro da el número y el nivel de cada objeto, nunca su nombre ni su icono: vienen de la base de objetos del juego, que este informe no tiene (no se conecta a nada). El enlace abre Wowhead si hace clic en él. El nivel medio sigue la fórmula del juego: dieciséis ranuras, sin camisa ni tabardo, un arma a dos manos contada dos veces, una ranura vacía como cero.',
+    'Joueur':
+        'Jugador',
+    'objet %d':
+        'objeto %d',
+    'Emplacement':
+        'Ranura',
+    'Objet':
+        'Objeto',
+    'Niveau':
+        'Nivel',
+    'Enchantements':
+        'Encantamientos',
+    'Gemmes':
+        'Gemas',
+    "<p class=dim style='margin:6px 0 0'>Emplacement vide%s: %s.</p>":
+        "<p class=dim style='margin:6px 0 0'>Ranura vacía%s: %s.</p>",
+    ' (non compté)':
+        ' (no cuenta)',
 }
 
 # The French nouns `fmt.plural` agrees, and their Spanish forms.
@@ -730,6 +861,7 @@ PLURALS = {
     'autre': ('otro', 'otros'),
     'capacité': ('habilidad', 'habilidades'),
     'cible': ('objetivo', 'objetivos'),
+    'clé': ('llave', 'llaves'),
     'combat': ('combate', 'combates'),
     'ennemi': ('enemigo', 'enemigos'),
     'joueur': ('jugador', 'jugadores'),

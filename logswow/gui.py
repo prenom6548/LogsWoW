@@ -42,6 +42,7 @@ from .analysis import PULL_GAP_MS
 from .i18n import N_, _
 from .cli import (Cancelled, _build, _refuse_folder, _refuse_to_overwrite,
                   default_log_locations)
+from . import preview
 from .report import ReportWriter
 from .timestamps import format_duration
 
@@ -57,6 +58,9 @@ ESTIMATE_AFTER_SHARE = 0.02
 # already uses for a selected row, so the window keeps one accent colour.
 BAR_COLOURS = {"background": "#4a6984", "lightcolor": "#5a7fa0",
                "darkcolor": "#3d5870", "bordercolor": "#3d5870"}
+
+# The preview's tabs: (key, French title). The keys are internal.
+PREVIEW_TABS = (("overview", N_("Aperçu")), ("keys", N_("Clés")), ("gear", N_("Équipement")))
 
 # What to type when the toolkit itself is missing, by system. The
 # message names the command rather than a web page to read.
@@ -156,6 +160,21 @@ LAYOUT_CHOICES = (
 )
 
 
+def preview_texts(chosen):
+    """{tab key: text} for the fights ticked: what the page would say, before it is written."""
+    if not chosen:
+        empty = _("Cochez un ou plusieurs combats pour voir ce que le rapport en dirait.")
+        return {key: empty for key, _title in PREVIEW_TABS}
+    keys = preview.comparison_text(preview.comparison(chosen))
+    # One fight's gear, not one per fight: a night of twenty fights would repeat the same
+    # eighteen lines per player twenty times. The last is the gear worn at the end.
+    last = chosen[-1]
+    gear = _("Équipement tel qu'il était à « %s »%s.\n\n") % (
+        last.label, _(" (le dernier combat choisi)") if len(chosen) > 1 else "")
+    gear += preview.gear_text(last)
+    return {"overview": preview.overview_text(chosen), "keys": keys, "gear": gear}
+
+
 def default_report_path(log_path, chosen, segments, layout="onglets"):
     """Next to the log, under its name; one fight gets its number in the name.
 
@@ -248,9 +267,10 @@ class App:
         self.busy = False
         self.log = self.segments = self.log_path = None
         self.last_report = None
+        self._preview_job = None
 
         root.title("LogsWoW %s" % __version__)
-        root.minsize(760, 600)
+        root.minsize(760, 820)
         style = ttk.Style(root)
         if sys.platform.startswith("linux") and "clam" in style.theme_names():
             style.theme_use("clam")
@@ -267,14 +287,16 @@ class App:
         outer.columnconfigure(0, weight=1)
         outer.rowconfigure(0, weight=1)
         outer.rowconfigure(1, weight=1)
+        outer.rowconfigure(2, weight=2)
         self._journal_box(outer).grid(row=0, column=0, sticky="nsew")
         self._fights_box(outer).grid(row=1, column=0, sticky="nsew", pady=(10, 0))
-        self._report_box(outer).grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        self._preview_box(outer).grid(row=2, column=0, sticky="nsew", pady=(10, 0))
+        self._report_box(outer).grid(row=3, column=0, sticky="ew", pady=(10, 0))
         self.status = tk.StringVar(value=_("Choisissez un journal, puis « Lire ce journal »."))
         ttk.Label(outer, textvariable=self.status, anchor="w").grid(
-            row=3, column=0, sticky="ew", pady=(10, 0))
+            row=4, column=0, sticky="ew", pady=(10, 0))
         ttk.Label(outer, text=_("Tout se passe sur cet ordinateur : aucune donnée n'est envoyée."),
-                  foreground="#666").grid(row=4, column=0, sticky="w")
+                  foreground="#666").grid(row=5, column=0, sticky="w")
 
         self.refresh_logs()
         self._update_buttons()
@@ -289,7 +311,7 @@ class App:
         box.rowconfigure(0, weight=1)
         self.logs = self._table(box, (("file", _("Fichier"), 250), ("date", _("Date"), 130),
                                       ("size", _("Taille"), 80), ("folder", _("Dossier"), 260)),
-                                height=6, select="browse")
+                                height=4, select="browse")
         self.logs.master.grid(row=0, column=0, columnspan=2, sticky="nsew")
         self.logs.bind("<Double-1>", lambda _event: self.read_selected())
         self.logs.bind("<<TreeviewSelect>>", lambda _event: self._update_buttons())
@@ -326,15 +348,54 @@ class App:
         self.fights = self._table(box, (("n", "#", 40), ("fight", _("Combat"), 330),
                                         ("time", _("Durée"), 70), ("damage", _("Dégâts"), 120),
                                         ("deaths", _("Morts"), 60), ("outcome", _("Issue"), 110)),
-                                  height=8, select="extended")
+                                  height=6, select="extended")
         self.fights.master.grid(row=0, column=0, sticky="nsew")
-        self.fights.bind("<<TreeviewSelect>>", lambda _event: self._update_buttons())
+        self.fights.bind("<<TreeviewSelect>>", lambda _event: self._selection_changed())
         line = ttk.Frame(box)
         line.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         ttk.Button(line, text=_("Tout sélectionner"), command=self.select_all).pack(side="left")
         self.chosen_label = ttk.Label(line, text="")
         self.chosen_label.pack(side="left", padx=(12, 0))
         return box
+
+    def _preview_box(self, parent):
+        """Three read-only texts under the fights: what the page would say, before writing it."""
+        from tkinter import font
+
+        ttk = self.ttk
+        box = ttk.LabelFrame(parent, text=_(" Aperçu des combats choisis "), padding=8)
+        box.columnconfigure(0, weight=1)
+        box.rowconfigure(0, weight=1)
+        book = ttk.Notebook(box)
+        book.grid(row=0, column=0, sticky="nsew")
+        mono = font.nametofont("TkFixedFont")
+        self.previews = {}
+        for key, title in PREVIEW_TABS:
+            frame = ttk.Frame(book)
+            frame.columnconfigure(0, weight=1)
+            frame.rowconfigure(0, weight=1)
+            text = self.tk.Text(frame, height=14, wrap="none", font=mono, state="disabled",
+                                borderwidth=0, padx=6, pady=4)
+            down = ttk.Scrollbar(frame, orient="vertical", command=text.yview)
+            across = ttk.Scrollbar(frame, orient="horizontal", command=text.xview)
+            text.configure(yscrollcommand=down.set, xscrollcommand=across.set)
+            text.grid(row=0, column=0, sticky="nsew")
+            down.grid(row=0, column=1, sticky="ns")
+            across.grid(row=1, column=0, sticky="ew")
+            book.add(frame, text=_(title))
+            self.previews[key] = text
+        return box
+
+    def _show_preview(self):
+        """Fill the three tabs for the fights ticked now (cheap: the analysis is already done)."""
+        wanted = {int(item) for item in self.fights.selection()}
+        chosen = [segment for segment in (self.segments or []) if segment.index in wanted]
+        texts = preview_texts(chosen)
+        for key, text in self.previews.items():
+            text.configure(state="normal")
+            text.delete("1.0", "end")
+            text.insert("1.0", texts[key])
+            text.configure(state="disabled")
 
     def _report_box(self, parent):
         tk, ttk = self.tk, self.ttk
@@ -455,6 +516,17 @@ class App:
 
     def select_all(self):
         self.fights.selection_set(self.fights.get_children())
+
+    def _selection_changed(self):
+        """A tick or an untick: the buttons, and the preview once the clicking has settled."""
+        self._update_buttons()
+        if self._preview_job is not None:
+            self.root.after_cancel(self._preview_job)
+        self._preview_job = self.root.after(150, self._refresh_preview)
+
+    def _refresh_preview(self):
+        self._preview_job = None
+        self._show_preview()
 
     def write_selected(self):
         """Write the page for the chosen fights, then open it."""

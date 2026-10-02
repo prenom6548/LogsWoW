@@ -723,6 +723,137 @@ TEXTS = {
         ' Check on this fight%.0s: the game allows no parry or dodge of a swing from behind, and %s of the %s placed parries and dodges do fall in front.',
     "<p class=dim style='font-size:12px;margin:0'>Estimation fiable, mais pas une donnée écrite, et limitée à la mêlée%s: le journal ne dit pas d'où vient un coup. LogsWoW le déduit de la position de l'attaquant et de l'orientation du joueur, que le journal donne ligne par ligne.%s</p>":
         "<p class=dim style='font-size:12px;margin:0'>A reliable estimate, but not something the log writes, and limited to melee%.0s: the log does not say where a swing came from. LogsWoW infers it from the attacker's position and the player's facing, which the log gives line by line.%s</p>",
+    # equipment, comparison of keys, preview (0.15.0)
+    'Tête':
+        'Head',
+    'Cou':
+        'Neck',
+    'Épaules':
+        'Shoulders',
+    'Chemise':
+        'Shirt',
+    'Torse':
+        'Chest',
+    'Jambes':
+        'Legs',
+    'Pieds':
+        'Feet',
+    'Poignets':
+        'Wrists',
+    'Mains':
+        'Hands',
+    'Anneau 1':
+        'Ring 1',
+    'Anneau 2':
+        'Ring 2',
+    'Bijou 1':
+        'Trinket 1',
+    'Bijou 2':
+        'Trinket 2',
+    'Dos':
+        'Back',
+    'Main droite':
+        'Main hand',
+    'Main gauche':
+        'Off hand',
+    'Tabard':
+        'Tabard',
+    'Aperçu':
+        'Overview',
+    'Clés':
+        'Keys',
+    'Équipement':
+        'Gear',
+    'Cochez un ou plusieurs combats pour voir ce que le rapport en dirait.':
+        'Tick one or more fights to see what the report would say about them.',
+    "Équipement tel qu'il était à « %s »%s.\n\n":
+        'Gear as it was at "%s"%s.\n\n',
+    ' (le dernier combat choisi)':
+        ' (the last fight chosen)',
+    ' Aperçu des combats choisis ':
+        ' Preview of the fights chosen ',
+    'Aucune clé terminée à comparer : il faut au moins une clé, et deux du même niveau pour les mettre côte à côte.':
+        'No finished key to compare: it takes at least one key, and two of the same level to set them side by side.',
+    "Écart : la dernière clé par rapport à la première. Soins/s compte les boucliers ; Subis/s compte ce que les boucliers ont absorbé, et n'est donné qu'aux tanks.":
+        'Change: the last key against the first. Healing/s counts shields; Taken/s counts what shields absorbed, and is given to tanks only.',
+    'Aucun joueur dans ce combat.':
+        'No player in this fight.',
+    "Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni son icône : ils viennent de la base d'objets du jeu. Le rapport les relie à Wowhead.":
+        "The log gives each item's number and level, never its name or icon: those come from the game's item database. The report links them to Wowhead.",
+    '%s — %s (%s)':
+        '%s — %s (%s)',
+    'Dégâts %s (%s/s) · Soins %s (%s/s, boucliers compris) · Subis %s · %s':
+        'Damage %s (%s/s) · Healing %s (%s/s, shields included) · Taken %s · %s',
+    'Morts :':
+        'Deaths:',
+    '%s dégâts/s':
+        '%s damage/s',
+    '%s soins/s':
+        '%s healing/s',
+    'Dégâts/s':
+        'Damage/s',
+    'Soins/s':
+        'Healing/s',
+    'Subis/s':
+        'Taken/s',
+    "Niveau d'objet moyen du groupe : %s":
+        'Average item level of the group: %s',
+    'Boss : %s':
+        'Boss: %s',
+    '%s subis/s':
+        '%s taken/s',
+    'ilvl %s':
+        'ilvl %s',
+    '%s : %s':
+        '%s: %s',
+    '  %s à %s : %s':
+        '  %s at %s: %s',
+    'Écart':
+        'Change',
+    '%s : ilvl %s (de %d à %d)':
+        '%s: ilvl %s (from %d to %d)',
+    'Clé %d':
+        'Key %d',
+    'Groupe : ':
+        'Group: ',
+    '%s : équipement non écrit dans le journal':
+        '%s: gear not written in the log',
+    '  %-12s ilvl %d  objet %d%s%s':
+        '  %-12s ilvl %d  item %d%s%s',
+    '  Emplacement vide : %s.':
+        '  Empty slot: %s.',
+    '  enchantement %s':
+        '  enchant %s',
+    '  gemmes %d':
+        '  gems %d',
+    'sans résultat':
+        'no result',
+    "<p style='margin:10px 0 0;font-size:12.5px'>Niveau d'objet moyen du groupe%s: <b>%s</b> (de %s à %s).</p>":
+        "<p style='margin:10px 0 0;font-size:12.5px'>Average item level of the group%s: <b>%s</b> (from %s to %s).</p>",
+    '<h2>Comparaison des clés</h2>':
+        '<h2>Comparison of keys</h2>',
+    "<p class=dim style='font-size:12.5px'>Écart%s: la dernière clé par rapport à la première. <b>Soins/s</b> compte les boucliers (le journal ne les range pas parmi les soins, les sites en ligne si). <b>Subis/s</b> compte ce que les boucliers ont absorbé : c'est ce qui arrive au tank avant ses protections, et il n'est donné qu'aux tanks. Seules des clés terminées du même niveau sont comparées.</p>":
+        "<p class=dim style='font-size:12.5px'>Change%s: the last key against the first. <b>Healing/s</b> counts shields (the log does not file them under healing, the online sites do). <b>Taken/s</b> counts what shields absorbed: it is what reaches the tank before their protections, and it is given to tanks only. Only finished keys of the same level are compared.</p>",
+    "Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni son icône : ils viennent de la base d'objets du jeu, que ce rapport n'a pas (il ne se connecte à rien). Le lien ouvre Wowhead si vous cliquez dessus. Le niveau moyen suit la formule du jeu : seize emplacements, chemise et tabard exclus, une arme à deux mains comptée deux fois, un emplacement vide pour zéro.":
+        "The log gives each item's number and level, never its name or icon: those come from the game's item database, which this report does not have (it connects to nothing). The link opens Wowhead if you click it. The average level follows the game's formula: sixteen slots, shirt and tabard excluded, a two-handed weapon counted twice, an empty slot counted as zero.",
+    'Joueur':
+        'Player',
+    'objet %d':
+        'item %d',
+    'Emplacement':
+        'Slot',
+    'Objet':
+        'Item',
+    'Niveau':
+        'Level',
+    'Enchantements':
+        'Enchantments',
+    'Gemmes':
+        'Gems',
+    "<p class=dim style='margin:6px 0 0'>Emplacement vide%s: %s.</p>":
+        "<p class=dim style='margin:6px 0 0'>Empty slot%s: %s.</p>",
+    ' (non compté)':
+        ' (not counted)',
 }
 
 # The French nouns `fmt.plural` agrees, and their English forms.
@@ -730,6 +861,7 @@ PLURALS = {
     'autre': ('other', 'others'),
     'capacité': ('ability', 'abilities'),
     'cible': ('target', 'targets'),
+    'clé': ('key', 'keys'),
     'combat': ('fight', 'fights'),
     'ennemi': ('enemy', 'enemies'),
     'joueur': ('player', 'players'),

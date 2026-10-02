@@ -723,6 +723,137 @@ TEXTS = {
         ' Kontrolle in diesem Kampf%.0s: Das Spiel erlaubt kein Parieren oder Ausweichen bei einem Schlag von hinten, und %s der %s verorteten Paraden und Ausweichmanöver liegen tatsächlich vorn.',
     "<p class=dim style='font-size:12px;margin:0'>Estimation fiable, mais pas une donnée écrite, et limitée à la mêlée%s: le journal ne dit pas d'où vient un coup. LogsWoW le déduit de la position de l'attaquant et de l'orientation du joueur, que le journal donne ligne par ligne.%s</p>":
         "<p class=dim style='font-size:12px;margin:0'>Eine verlässliche Schätzung, aber keine Angabe des Protokolls, und auf den Nahkampf beschränkt%.0s: Das Protokoll sagt nicht, woher ein Schlag kam. LogsWoW leitet es aus der Position des Angreifers und der Blickrichtung des Spielers ab, die das Protokoll Zeile für Zeile angibt.%s</p>",
+    # equipment, comparison of keys, preview (0.15.0)
+    'Tête':
+        'Kopf',
+    'Cou':
+        'Hals',
+    'Épaules':
+        'Schultern',
+    'Chemise':
+        'Hemd',
+    'Torse':
+        'Brust',
+    'Jambes':
+        'Beine',
+    'Pieds':
+        'Füße',
+    'Poignets':
+        'Handgelenke',
+    'Mains':
+        'Hände',
+    'Anneau 1':
+        'Ring 1',
+    'Anneau 2':
+        'Ring 2',
+    'Bijou 1':
+        'Schmuckstück 1',
+    'Bijou 2':
+        'Schmuckstück 2',
+    'Dos':
+        'Rücken',
+    'Main droite':
+        'Waffenhand',
+    'Main gauche':
+        'Schildhand',
+    'Tabard':
+        'Wappenrock',
+    'Aperçu':
+        'Übersicht',
+    'Clés':
+        'Schlüssel',
+    'Équipement':
+        'Ausrüstung',
+    'Cochez un ou plusieurs combats pour voir ce que le rapport en dirait.':
+        'Wählen Sie einen oder mehrere Kämpfe, um zu sehen, was der Bericht dazu sagen würde.',
+    "Équipement tel qu'il était à « %s »%s.\n\n":
+        'Ausrüstung, wie sie bei „%s“%s war.\n\n',
+    ' (le dernier combat choisi)':
+        ' (der zuletzt gewählte Kampf)',
+    ' Aperçu des combats choisis ':
+        ' Vorschau der gewählten Kämpfe ',
+    'Aucune clé terminée à comparer : il faut au moins une clé, et deux du même niveau pour les mettre côte à côte.':
+        'Kein beendeter Schlüssel zum Vergleichen: Es braucht mindestens einen Schlüssel, und zwei der gleichen Stufe, um sie nebeneinanderzustellen.',
+    "Écart : la dernière clé par rapport à la première. Soins/s compte les boucliers ; Subis/s compte ce que les boucliers ont absorbé, et n'est donné qu'aux tanks.":
+        'Abweichung: der letzte Schlüssel im Vergleich zum ersten. Heilung/s zählt Schilde mit; Erlitten/s zählt, was Schilde absorbiert haben, und wird nur für Tanks angegeben.',
+    'Aucun joueur dans ce combat.':
+        'Kein Spieler in diesem Kampf.',
+    "Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni son icône : ils viennent de la base d'objets du jeu. Le rapport les relie à Wowhead.":
+        'Das Protokoll nennt Nummer und Stufe jedes Gegenstands, nie seinen Namen oder sein Symbol: Diese stammen aus der Gegenstandsdatenbank des Spiels. Der Bericht verlinkt sie mit Wowhead.',
+    '%s — %s (%s)':
+        '%s — %s (%s)',
+    'Dégâts %s (%s/s) · Soins %s (%s/s, boucliers compris) · Subis %s · %s':
+        'Schaden %s (%s/s) · Heilung %s (%s/s, Schilde eingeschlossen) · Erlitten %s · %s',
+    'Morts :':
+        'Tode:',
+    '%s dégâts/s':
+        '%s Schaden/s',
+    '%s soins/s':
+        '%s Heilung/s',
+    'Dégâts/s':
+        'Schaden/s',
+    'Soins/s':
+        'Heilung/s',
+    'Subis/s':
+        'Erlitten/s',
+    "Niveau d'objet moyen du groupe : %s":
+        'Durchschnittliche Gegenstandsstufe der Gruppe: %s',
+    'Boss : %s':
+        'Boss: %s',
+    '%s subis/s':
+        '%s erlitten/s',
+    'ilvl %s':
+        'ilvl %s',
+    '%s : %s':
+        '%s: %s',
+    '  %s à %s : %s':
+        '  %s bei %s: %s',
+    'Écart':
+        'Abweichung',
+    '%s : ilvl %s (de %d à %d)':
+        '%s: ilvl %s (von %d bis %d)',
+    'Clé %d':
+        'Schlüssel %d',
+    'Groupe : ':
+        'Gruppe: ',
+    '%s : équipement non écrit dans le journal':
+        '%s: Ausrüstung nicht im Protokoll',
+    '  %-12s ilvl %d  objet %d%s%s':
+        '  %-12s ilvl %d  Gegenstand %d%s%s',
+    '  Emplacement vide : %s.':
+        '  Leerer Platz: %s.',
+    '  enchantement %s':
+        '  Verzauberung %s',
+    '  gemmes %d':
+        '  Edelsteine %d',
+    'sans résultat':
+        'ohne Ergebnis',
+    "<p style='margin:10px 0 0;font-size:12.5px'>Niveau d'objet moyen du groupe%s: <b>%s</b> (de %s à %s).</p>":
+        "<p style='margin:10px 0 0;font-size:12.5px'>Durchschnittliche Gegenstandsstufe der Gruppe%s: <b>%s</b> (von %s bis %s).</p>",
+    '<h2>Comparaison des clés</h2>':
+        '<h2>Vergleich der Schlüssel</h2>',
+    "<p class=dim style='font-size:12.5px'>Écart%s: la dernière clé par rapport à la première. <b>Soins/s</b> compte les boucliers (le journal ne les range pas parmi les soins, les sites en ligne si). <b>Subis/s</b> compte ce que les boucliers ont absorbé : c'est ce qui arrive au tank avant ses protections, et il n'est donné qu'aux tanks. Seules des clés terminées du même niveau sont comparées.</p>":
+        "<p class=dim style='font-size:12.5px'>Abweichung%s: der letzte Schlüssel im Vergleich zum ersten. <b>Heilung/s</b> zählt Schilde mit (das Protokoll ordnet sie nicht unter Heilung ein, die Online-Seiten schon). <b>Erlitten/s</b> zählt, was Schilde absorbiert haben: Es ist das, was den Tank vor seinen Schutzeffekten erreicht, und es wird nur für Tanks angegeben. Verglichen werden nur beendete Schlüssel der gleichen Stufe.</p>",
+    "Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni son icône : ils viennent de la base d'objets du jeu, que ce rapport n'a pas (il ne se connecte à rien). Le lien ouvre Wowhead si vous cliquez dessus. Le niveau moyen suit la formule du jeu : seize emplacements, chemise et tabard exclus, une arme à deux mains comptée deux fois, un emplacement vide pour zéro.":
+        'Das Protokoll nennt Nummer und Stufe jedes Gegenstands, nie seinen Namen oder sein Symbol: Diese stammen aus der Gegenstandsdatenbank des Spiels, die dieser Bericht nicht hat (er verbindet sich mit nichts). Der Link öffnet Wowhead, wenn Sie darauf klicken. Die durchschnittliche Stufe folgt der Formel des Spiels: sechzehn Plätze, Hemd und Wappenrock ausgenommen, eine Zweihandwaffe doppelt gezählt, ein leerer Platz als null.',
+    'Joueur':
+        'Spieler',
+    'objet %d':
+        'Gegenstand %d',
+    'Emplacement':
+        'Platz',
+    'Objet':
+        'Gegenstand',
+    'Niveau':
+        'Stufe',
+    'Enchantements':
+        'Verzauberungen',
+    'Gemmes':
+        'Edelsteine',
+    "<p class=dim style='margin:6px 0 0'>Emplacement vide%s: %s.</p>":
+        "<p class=dim style='margin:6px 0 0'>Leerer Platz%s: %s.</p>",
+    ' (non compté)':
+        ' (nicht gezählt)',
 }
 
 # The French nouns `fmt.plural` agrees, and their German forms.
@@ -730,6 +861,7 @@ PLURALS = {
     'autre': ('weiterer', 'weitere'),
     'capacité': ('Fähigkeit', 'Fähigkeiten'),
     'cible': ('Ziel', 'Ziele'),
+    'clé': ('Schlüssel', 'Schlüssel'),
     'combat': ('Kampf', 'Kämpfe'),
     'ennemi': ('Gegner', 'Gegner'),
     'joueur': ('Spieler', 'Spieler'),
