@@ -9,7 +9,11 @@ from, `LOGS-SITES-RESEARCH.md` for why it exists, and
 `README`, `INSTALL` and `CHANGELOG` also in `.en`, `.de` and `.es`),
 `PULL-DETECTION-RESEARCH.md` for what looking at Warcraft Logs' own pull
 segmentation (via WoWAnalyzer's open-source client) turned up, and what
-is still open about ours -- read before an audit of `segment.py`.
+is still open about ours -- read before an audit of `segment.py` --, and
+`LIVE-LOGGING-RESEARCH.md` for following an evening as the game writes the
+log (Archon's "live logging"): parked on 2026-10-02 at the owner's request,
+with what the code already allows, the two reservations, and the measurement
+to make on the owner's machine before building anything.
 
 ## What this is, and why it exists
 
@@ -1851,7 +1855,8 @@ few characters, so the three tabs' separate reads were left as they are; a corru
 `config.json` makes the root look foreign, so nothing is written and nothing lost
 (conservative on purpose); gear parsing and the melee estimate hold under the fuzzing.
 
-**Still to build**: nothing planned.
+**Still to build**: nothing planned. Parked, waiting for the owner: following an evening
+live (`LIVE-LOGGING-RESEARCH.md` -- measure the game's write delay first, then decide).
 
 ### Performance, measured
 
