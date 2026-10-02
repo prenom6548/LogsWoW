@@ -828,6 +828,27 @@ TEXTS = {
         "<p class=dim style='margin:6px 0 0'>Ranura vacía%s: %s.</p>",
     ' (non compté)':
         ' (no cuenta)',
+    # history (foundation)
+    "%s n'est pas un dossier d'historique LogsWoW : refus d'y écrire.":
+        '%s no es una carpeta de historial de LogsWoW: me niego a escribir en ella.',
+    'Réglage inconnu : %s':
+        'Ajuste desconocido: %s',
+    'Nom de dossier invalide : %s':
+        'Nombre de carpeta no válido: %s',
+    'Nom de dossier invalide : donnez un nom avec au moins une lettre ou un chiffre.':
+        'Nombre de carpeta no válido: escriba un nombre con al menos una letra o un número.',
+    'Un dossier de ce nom existe déjà : %s':
+        'Ya existe una carpeta con este nombre: %s',
+    "Dossier d'historique introuvable : %s":
+        'Carpeta de historial no encontrada: %s',
+    'Le dossier %s contient un fichier qui ne vient pas de LogsWoW (%s) : refus de le supprimer.':
+        'La carpeta %s contiene un archivo que no procede de LogsWoW (%s): me niego a eliminarla.',
+    "Fichier de l'historique illisible (%s) : %s":
+        'Archivo del historial ilegible (%s): %s',
+    "Ce fichier n'est pas une soirée de l'historique LogsWoW : %s":
+        'Este archivo no es una noche del historial de LogsWoW: %s',
+    'Une soirée de même nom existe déjà dans ce dossier : %s':
+        'Ya existe una noche con el mismo nombre en esta carpeta: %s',
 }
 
 # The French nouns `fmt.plural` agrees, and their Spanish forms.

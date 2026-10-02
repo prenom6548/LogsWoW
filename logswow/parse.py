@@ -22,7 +22,7 @@ from .events import (
 )
 from .i18n import N_, _
 from .timestamps import TimestampReader
-from .tokenize import looks_like_guid, split_line
+from .tokenize import as_int, looks_like_guid, split_line
 
 # Big enough that the layout vote sees thousands of damage lines, small
 # enough that holding it costs about a megabyte.
@@ -263,6 +263,10 @@ class LogFile:
         self.layout = Layout()
         self.first_ts = None
         self.last_ts = None
+        # What the file's first line says about the client: "12.1.0", and 1 for retail.
+        # "" and 0 when the file carries no such line.
+        self.build_version = ""
+        self.project_id = 0
         self.size_bytes = os.path.getsize(path) if os.path.exists(path) else 0
         self._reading = None
 
@@ -306,6 +310,8 @@ class LogFile:
         self.event_count = 0
         self.first_ts = None
         self.last_ts = None
+        self.build_version = ""
+        self.project_id = 0
         clock = TimestampReader(self.default_year)
         buffered = []
         decided = False
@@ -357,12 +363,26 @@ class LogFile:
     def _build(self, ts, fields, line_number):
         event = build_event(ts, fields, line_number, self.layout)
         self.event_count += 1
+        if event.subevent == "COMBAT_LOG_VERSION" and not self.build_version:
+            self._note_client(event.fields)
         if event.mismatch:
             if event.mismatch == UNKNOWN_SUBEVENT:
                 self.problems.note_unknown(event.subevent)
             else:
                 self.problems.note(event.mismatch, line_number=line_number, text=event.subevent)
         return event
+
+    def _note_client(self, fields):
+        """Read BUILD_VERSION and PROJECT_ID, written as name, value pairs after the version.
+
+        By name rather than by position: a line with another pair added, or the pairs in
+        another order, still gives the build. A line with no such pair gives nothing.
+        """
+        for position, name in enumerate(fields[:-1]):
+            if name == "BUILD_VERSION":
+                self.build_version = str(fields[position + 1])
+            elif name == "PROJECT_ID":
+                self.project_id = as_int(fields[position + 1])
 
     @property
     def duration_ms(self):

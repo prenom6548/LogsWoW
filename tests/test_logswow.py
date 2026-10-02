@@ -4254,6 +4254,391 @@ class TestGearAndComparison(unittest.TestCase):
             root.destroy()
 
 
+class TestHistoryFoundation(unittest.TestCase):
+    """The history (2026-10-02): one small file per night, in folders the reader names."""
+
+    def setUp(self):
+        import tempfile
+
+        self._temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temporary.cleanup)
+        self.root = os.path.join(self._temporary.name, "historique")
+        self.log, self.segments = run_fixture()
+
+    def _night(self, guids=("Player-9999-00000003",)):
+        from logswow import history
+
+        return history.build_night(self.log, self.segments, guids)
+
+    # -- the game's version ------------------------------------------------------------
+
+    def test_the_log_gives_the_game_version_and_reading_twice_changes_nothing(self):
+        for _round in range(2):
+            log = LogFile(FIXTURE)
+            list(log.events())
+            self.assertEqual((log.build_version, log.project_id), ("12.1.0", 1))
+        self.assertEqual((self.log.build_version, self.log.project_id), ("12.1.0", 1))
+
+    def test_the_version_is_read_by_name_and_a_file_without_one_gives_nothing(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "WoWCombatLog-010126_000000.txt")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("1/1/2026 00:00:00.000  COMBAT_LOG_VERSION,22,PROJECT_ID,1,"
+                             "ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.2.5\n")
+            log = LogFile(path)
+            list(log.events())
+            self.assertEqual((log.build_version, log.project_id), ("12.2.5", 1))
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("1/1/2026 00:00:00.000  ZONE_CHANGE,2000,\"Salle\",23\n")
+            log = LogFile(path)
+            list(log.events())
+            self.assertEqual((log.build_version, log.project_id), ("", 0))
+
+    def test_a_new_folder_is_suggested_only_when_the_game_version_moves(self):
+        from logswow.history import suggest_new_folder
+
+        self.assertEqual(suggest_new_folder("12.1.0", "12.2.0"), "patch")
+        self.assertEqual(suggest_new_folder("12.1.0", "13.0.0"), "extension")
+        self.assertIsNone(suggest_new_folder("12.1.0", "12.1.5"))      # a hotfix
+        self.assertIsNone(suggest_new_folder("12.1.0", "12.1.0"))
+        self.assertIsNone(suggest_new_folder("12.2.0", "12.1.0"))      # an older log
+        self.assertIsNone(suggest_new_folder("", "12.2.0"))            # nothing to compare
+        self.assertIsNone(suggest_new_folder("12.1.0", "n/a"))
+
+    # -- folders ------------------------------------------------------------------------
+
+    def test_folders_are_named_freely_and_the_first_one_becomes_the_active_one(self):
+        from logswow import history
+
+        self.assertTrue(history.needs_setup(self.root))
+        first = history.create_folder(self.root, "  Saison 1 — Midnight  ")
+        second = history.create_folder(self.root, "Avec les amis")
+        self.assertEqual(first, "saison-1-midnight")
+        self.assertEqual(history.config(self.root)["dossier_actif"], first)
+        self.assertFalse(history.needs_setup(self.root))
+        self.assertEqual([(f.slug, f.name) for f in history.list_folders(self.root)],
+                         [(first, "Saison 1 — Midnight"), (second, "Avec les amis")])
+        history.rename_folder(self.root, second, "Les amis, saison 2")
+        self.assertEqual(history.list_folders(self.root)[1].name, "Les amis, saison 2")
+        self.assertEqual(history.list_folders(self.root)[1].slug, second)    # nothing moved
+
+    def test_a_folder_name_with_nothing_usable_or_taken_is_refused(self):
+        from logswow import history
+
+        history.create_folder(self.root, "Saison 1")
+        for bad in ("", "   ", "---", "../.."):
+            with self.subTest(name=bad), self.assertRaises(history.HistoryError):
+                history.create_folder(self.root, bad)
+        with self.assertRaises(history.HistoryError):
+            history.create_folder(self.root, "saison 1")             # same name, any case
+        # Two names that fold to the same directory still get two directories.
+        self.assertEqual(history.create_folder(self.root, "Saison-1"), "saison-1-2")
+
+    def test_a_folder_that_is_not_ours_is_never_written_to(self):
+        from logswow import history
+
+        os.makedirs(self.root)
+        with open(os.path.join(self.root, "mes-notes.txt"), "w") as handle:
+            handle.write("a reader's file")
+        with self.assertRaises(history.HistoryError):
+            history.create_folder(self.root, "Saison 1")
+        self.assertEqual(os.listdir(self.root), ["mes-notes.txt"])
+
+    def test_a_folder_name_cannot_walk_out_of_the_root(self):
+        from logswow import history
+
+        history.create_folder(self.root, "Saison 1")
+        for slug in ("..", "../x", "a/b", "A", ""):
+            with self.subTest(slug=slug), self.assertRaises(history.HistoryError):
+                history.delete_folder(self.root, slug)
+        self.assertTrue(os.path.isdir(self.root))
+
+    # -- the night ----------------------------------------------------------------------
+
+    def test_a_night_keeps_keys_with_their_pulls_and_every_boss_by_its_ids(self):
+        record = self._night()
+        self.assertEqual(record["format"], 1)
+        self.assertEqual(record["game"], {"build": "12.1.0", "project": 1})
+        self.assertEqual(record["source"], "exemple-combat.txt")
+        self.assertEqual([fight["type"] for fight in record["fights"]],
+                         ["encounter", "encounter", "key"])
+        boss, wipe, key = record["fights"]
+        self.assertEqual((boss["encounter_id"], boss["difficulty_id"], boss["outcome"]),
+                         (9001, 16, "réussite"))
+        self.assertEqual((wipe["encounter_id"], wipe["outcome"]), (9002, "échec"))
+        self.assertEqual((key["instance_id"], key["level"], key["outcome"]),
+                         (2000, 7, "dans les temps"))
+        self.assertEqual(len(key["pulls"]), 2)
+        self.assertEqual(key["bosses"], [])
+        self.assertTrue(all(0 <= pull["health_average"] <= 1 for pull in key["pulls"]))
+
+    def test_a_boss_that_was_killed_or_not_says_what_health_the_file_gave(self):
+        boss, wipe, _key = self._night()["fights"]
+        self.assertEqual(boss["boss_health_end"], 0.0)             # the last reading of a kill
+        self.assertEqual(boss["boss_unit"], "Golem d'essai")
+        self.assertIsNone(wipe["boss_health_end"])                  # the file gave none
+        self.assertEqual(wipe["boss_unit"], "")
+
+    def test_the_health_of_a_pull_is_the_average_of_its_readings_and_none_without_any(self):
+        from types import SimpleNamespace
+        from logswow import history
+
+        series = [(0, 0, 0, 0, 1.0), (1, 0, 0, 0, None), (2, 0, 0, 0, 0.5), (3, 0, 0, 0, 0.0)]
+        stub = SimpleNamespace(timeline_series=lambda: (series, 1000))
+        self.assertEqual(history.health_average(stub), 0.5)
+        empty = SimpleNamespace(timeline_series=lambda: ([(0, 0, 0, 0, None)], 1000))
+        self.assertIsNone(history.health_average(empty))
+        self.assertIsNone(history.health_average(
+            SimpleNamespace(timeline_series=lambda: ([], 1000))))
+        self.assertEqual(history.boss_health_end(
+            SimpleNamespace(boss_hp=[(1, 0.9), (2, 0.4)], boss_name="Boss")), (0.4, "Boss"))
+        self.assertEqual(history.boss_health_end(SimpleNamespace(boss_hp=[], boss_name="")),
+                         (None, ""))
+
+    def test_only_the_followed_characters_are_written_and_the_others_leave_no_trace(self):
+        import json
+
+        everyone = {name for _g, name, _s, _r, _c in
+                    __import__("logswow.history", fromlist=["x"]).players_seen(self.segments)}
+        self.assertEqual(everyone, {"Braise", "Ardoise", "Tisane"})
+        text = json.dumps(self._night(("Player-9999-00000003",)), ensure_ascii=False)
+        self.assertIn("Braise", text)
+        for other in ("Ardoise", "Tisane", "Player-9999-00000001", "Player-9999-00000002"):
+            with self.subTest(other=other):
+                self.assertNotIn(other, text)
+        nobody = json.dumps(self._night(()), ensure_ascii=False)
+        self.assertNotIn("Player-", nobody)
+        # The group's totals are still there, anonymously.
+        boss = self._night(())["fights"][0]
+        self.assertEqual(boss["group"]["composition"], {"tank": 1, "healer": 1, "dps": 1,
+                                                        "unknown": 0})
+        self.assertEqual(boss["players"], [])
+
+    def test_the_figures_kept_are_the_analysis_own_and_the_rates_the_previews(self):
+        from logswow import history, preview
+
+        record = self._night(("Player-9999-00000001", "Player-9999-00000002",
+                              "Player-9999-00000003"))
+        for fight, segment in zip(record["fights"], self.segments):
+            analysis = segment.analysis
+            self.assertEqual(fight["group"]["damage"], analysis.total_damage)
+            self.assertEqual(fight["duration_ms"], analysis.duration_ms)
+            self.assertEqual(len(fight["group"]) and fight["group"]["deaths"],
+                             len(analysis.deaths))
+            group = history.rates(fight["group"], fight["duration_ms"])
+            expected = preview.group_rates(analysis)
+            for key in ("dps", "hps", "taken"):
+                self.assertAlmostEqual(group[key], expected[key])
+            for row in fight["players"]:
+                player = analysis.players[row["guid"]]
+                mine = history.rates(row, fight["duration_ms"])
+                theirs = preview.rates(analysis, player)
+                for key in ("dps", "hps", "taken"):
+                    self.assertAlmostEqual(mine[key], theirs[key])
+
+    def test_a_night_read_twice_is_one_file_wherever_it_was_first_put(self):
+        from logswow import history
+
+        first = history.create_folder(self.root, "Saison 1")
+        second = history.create_folder(self.root, "Les amis")
+        path, replaced = history.save_night(self.root, first, self._night())
+        self.assertFalse(replaced)
+        again, replaced = history.save_night(self.root, second, self._night())
+        self.assertTrue(replaced)
+        self.assertEqual(again, path)
+        self.assertEqual([night.folder for night in history.list_nights(self.root)], [first])
+        # Moving is a different, explicit act.
+        moved = history.move_night(self.root, path, second)
+        self.assertEqual(os.path.dirname(moved), os.path.join(self.root, second))
+        self.assertEqual([night.folder for night in history.list_nights(self.root)], [second])
+
+    def test_a_write_leaves_no_temporary_file_and_a_file_is_readable_text(self):
+        import json
+        from logswow import history
+
+        slug = history.create_folder(self.root, "Saison 1")
+        path, _replaced = history.save_night(self.root, slug, self._night())
+        self.assertEqual([name for name in os.listdir(os.path.join(self.root, slug))
+                          if name.startswith(".")], [])
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertIn('"outcome": "réussite"', text)               # accents stay, readable
+        self.assertEqual(json.loads(text)["marque"], history.NIGHT_MARK)
+        # A few tens of kilobytes at most for a night, never the events.
+        self.assertLess(os.path.getsize(path), 50000)
+
+    # -- versions -----------------------------------------------------------------------
+
+    def test_a_file_of_the_first_format_is_still_read_and_says_nothing_is_wrong(self):
+        from logswow import history
+
+        path = os.path.join(ROOT, "tests", "golden", "night-format1.json")
+        record, notes = history.read_night(path)
+        self.assertEqual(notes, [])
+        self.assertEqual(record["format"], 1)
+        boss, _wipe, key = record["fights"]
+        self.assertEqual((boss["encounter_id"], boss["difficulty_id"]), (9001, 16))
+        self.assertEqual({row["name"] for row in boss["players"]}, {"Ardoise", "Braise"})
+        braise = [row for row in boss["players"] if row["name"] == "Braise"][0]
+        self.assertEqual((key["instance_id"], key["level"], len(key["pulls"])), (2000, 7, 2))
+        self.assertAlmostEqual(history.rates(braise, boss["duration_ms"])["dps"], 40200 / 12.0)
+
+    def test_a_newer_file_is_read_and_flagged_and_an_older_count_is_flagged_too(self):
+        import json
+        from unittest import mock
+        from logswow import history
+
+        slug = history.create_folder(self.root, "Saison 1")
+        path, _r = history.save_night(self.root, slug, self._night())
+        with open(path, encoding="utf-8") as handle:
+            record = json.load(handle)
+        record["format"] = history.FORMAT_VERSION + 1
+        record["something_new"] = {"a": 1}
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(record, handle)
+        _read, notes = history.read_night(path)
+        self.assertEqual(notes, ["newer_format"])
+        with open(path, encoding="utf-8") as handle:
+            self.assertEqual(json.load(handle)["something_new"], {"a": 1})   # never rewritten
+        record["format"] = history.FORMAT_VERSION
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(record, handle)
+        with mock.patch.object(history, "ANALYSIS_REVISION", 2):
+            self.assertEqual(history.read_night(path)[1], ["older_analysis"])
+
+    def test_an_older_layout_is_brought_up_in_memory_and_the_file_is_left_alone(self):
+        import json
+        from unittest import mock
+        from logswow import history
+
+        slug = history.create_folder(self.root, "Saison 1")
+        path, _r = history.save_night(self.root, slug, self._night())
+        with open(path, encoding="utf-8") as handle:
+            before = handle.read()
+        old = json.loads(before)
+        old["format"] = 0
+
+        def lift(record):
+            record = dict(record, lifted=True)
+            return record
+
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(old, handle)
+        with mock.patch.dict(history.UPGRADES, {0: lift}):
+            record, notes = history.read_night(path)
+        self.assertEqual(notes, ["upgraded"])
+        self.assertTrue(record["lifted"])
+        with open(path, encoding="utf-8") as handle:
+            self.assertEqual(json.load(handle)["format"], 0)
+
+    def test_a_file_that_is_not_a_night_is_refused_with_a_message_not_a_traceback(self):
+        from logswow import history
+
+        os.makedirs(self.root)
+        cases = {"broken.json": "{not json", "other.json": '{"a": 1}', "list.json": "[1, 2]",
+                 "nomark.json": '{"marque": "autre", "format": 1}'}
+        for name, content in cases.items():
+            path = os.path.join(self.root, name)
+            with open(path, "w") as handle:
+                handle.write(content)
+            with self.subTest(name=name), self.assertRaises(history.HistoryError):
+                history.read_night(path)
+        with self.assertRaises(history.HistoryError):
+            history.read_night(os.path.join(self.root, "absent.json"))
+
+    # -- what is deleted ------------------------------------------------------------------
+
+    def test_a_night_and_a_whole_folder_can_be_deleted_and_nothing_else(self):
+        from logswow import history
+
+        first = history.create_folder(self.root, "Saison 1")
+        second = history.create_folder(self.root, "Saison 2")
+        path, _r = history.save_night(self.root, first, self._night())
+        outside = os.path.join(self._temporary.name, "ailleurs.json")
+        with open(outside, "w") as handle:
+            handle.write('{"marque": "logswow-historique", "format": 1}')
+        for refused in (outside, os.path.join(self.root, "config.json"),
+                        os.path.join(self.root, first, "dossier.json")):
+            with self.subTest(path=refused), self.assertRaises(history.HistoryError):
+                history.delete_night(self.root, refused)
+            self.assertTrue(os.path.exists(refused))
+        history.delete_night(self.root, path)
+        self.assertFalse(os.path.exists(path))
+        history.save_night(self.root, first, self._night())
+        history.set_config(self.root, dossier_actif=first)
+        self.assertEqual(history.delete_folder(self.root, first), 1)
+        self.assertFalse(os.path.exists(os.path.join(self.root, first)))
+        self.assertEqual(history.config(self.root)["dossier_actif"], second)
+
+    def test_a_folder_holding_a_reader_s_own_file_is_refused_before_anything_is_deleted(self):
+        from logswow import history
+
+        slug = history.create_folder(self.root, "Saison 1")
+        path, _r = history.save_night(self.root, slug, self._night())
+        mine = os.path.join(self.root, slug, "ma-note.txt")
+        with open(mine, "w") as handle:
+            handle.write("à moi")
+        with self.assertRaises(history.HistoryError):
+            history.delete_folder(self.root, slug)
+        self.assertTrue(os.path.exists(path) and os.path.exists(mine))
+        with open(os.path.join(self.root, slug, "bizarre.json"), "w") as handle:
+            handle.write("{}")
+        os.remove(mine)
+        with self.assertRaises(history.HistoryError):
+            history.delete_folder(self.root, slug)
+        self.assertTrue(os.path.exists(path))
+
+    # -- the characters followed ----------------------------------------------------------------
+
+    def test_followed_characters_are_kept_by_guid_and_players_are_listed_to_pick_from(self):
+        from logswow import history
+
+        seen = history.players_seen(self.segments)
+        self.assertEqual({row[0]: row[3] for row in seen},
+                         {"Player-9999-00000001": "tank", "Player-9999-00000002": "soigneur",
+                          "Player-9999-00000003": "dps"})
+        self.assertEqual({}, history.tracked(self.root))
+        history.track(self.root, "Player-9999-00000003", "Braise")
+        history.track(self.root, "Player-9999-00000001", "Ardoise")
+        history.track(self.root, "Player-9999-00000003", "Braise (renommée)")
+        followed = history.tracked(self.root)
+        self.assertEqual(followed["Player-9999-00000003"]["name"], "Braise (renommée)")
+        history.untrack(self.root, "Player-9999-00000001")
+        self.assertEqual(list(history.tracked(self.root)), ["Player-9999-00000003"])
+        history.untrack(self.root, "Player-9999-00000042")           # unknown: nothing happens
+        history.track(self.root, "", "personne")                     # no guid: nothing happens
+        self.assertEqual(list(history.tracked(self.root)), ["Player-9999-00000003"])
+
+    def test_the_default_root_is_the_users_data_folder_unless_told_otherwise(self):
+        from unittest import mock
+        from logswow import history
+
+        with mock.patch.dict(os.environ, {"LOGSWOW_HISTORIQUE": "/x/y"}):
+            self.assertEqual(history.default_root(), "/x/y")
+        environment = {key: value for key, value in os.environ.items()
+                       if key != "LOGSWOW_HISTORIQUE"}
+        environment["XDG_DATA_HOME"] = "/data"
+        with mock.patch.dict(os.environ, environment, clear=True), \
+                mock.patch.object(sys, "platform", "linux"):
+            self.assertEqual(history.default_root(), os.path.join("/data", "logswow",
+                                                                  "historique"))
+        with mock.patch.dict(os.environ, {"APPDATA": "C:/App", "LOGSWOW_HISTORIQUE": ""}), \
+                mock.patch.object(sys, "platform", "win32"):
+            self.assertEqual(history.default_root(),
+                             os.path.join("C:/App", "LogsWoW", "historique"))
+
+    def test_the_module_opens_no_connection(self):
+        import subprocess
+
+        code = ("import sys, logswow.history; print(sorted(m for m in ('socket', 'ssl', "
+                "'http.client', 'urllib.request') if m in sys.modules))")
+        result = subprocess.run([sys.executable, "-c", code], cwd=ROOT,
+                                stdout=subprocess.PIPE, universal_newlines=True)
+        self.assertEqual(result.stdout.strip(), "[]")
+
+
 class TestSeventhAuditFindings(unittest.TestCase):
     """The 2026-09-29 audit of 0.12.1: a full read of every file, the
     tools of the earlier audits again, and one real 364 MB Mythic+ night.

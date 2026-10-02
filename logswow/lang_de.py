@@ -828,6 +828,27 @@ TEXTS = {
         "<p class=dim style='margin:6px 0 0'>Leerer Platz%s: %s.</p>",
     ' (non compté)':
         ' (nicht gezählt)',
+    # history (foundation)
+    "%s n'est pas un dossier d'historique LogsWoW : refus d'y écrire.":
+        '%s ist kein LogsWoW-Verlaufsordner: Schreiben dort verweigert.',
+    'Réglage inconnu : %s':
+        'Unbekannte Einstellung: %s',
+    'Nom de dossier invalide : %s':
+        'Ungültiger Ordnername: %s',
+    'Nom de dossier invalide : donnez un nom avec au moins une lettre ou un chiffre.':
+        'Ungültiger Ordnername: Geben Sie einen Namen mit mindestens einem Buchstaben oder einer Ziffer an.',
+    'Un dossier de ce nom existe déjà : %s':
+        'Ein Ordner mit diesem Namen existiert bereits: %s',
+    "Dossier d'historique introuvable : %s":
+        'Verlaufsordner nicht gefunden: %s',
+    'Le dossier %s contient un fichier qui ne vient pas de LogsWoW (%s) : refus de le supprimer.':
+        'Der Ordner %s enthält eine Datei, die nicht von LogsWoW stammt (%s): Löschen verweigert.',
+    "Fichier de l'historique illisible (%s) : %s":
+        'Verlaufsdatei nicht lesbar (%s): %s',
+    "Ce fichier n'est pas une soirée de l'historique LogsWoW : %s":
+        'Diese Datei ist kein Abend des LogsWoW-Verlaufs: %s',
+    'Une soirée de même nom existe déjà dans ce dossier : %s':
+        'Ein Abend mit demselben Namen existiert bereits in diesem Ordner: %s',
 }
 
 # The French nouns `fmt.plural` agrees, and their German forms.

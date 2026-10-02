@@ -1581,6 +1581,84 @@ summary -- asking whether equipment needs the internet.
   The tests that cover it fail without the fix (two-hander doubling, the
   "-0 %").
 
+### The history: its foundation (2026-10-02)
+
+Asked for by the owner after comparing with a sibling project (ClaudeLogsWoW) that
+puts every event of a log in SQLite: to see over several nights how a character
+does, how a specialization compares with another, and the best key or boss kill of
+each. Brainstormed first, built as a **foundation only** -- `history.py`, no window,
+no page -- so its rules are checked on real logs before anything is drawn on it.
+The owner's decisions, in their words where it matters:
+
+- **Results, not events.** What is stored is what the analysis already computed
+  (about 30 KB a night: measured on the 2026-10-01 night, 20 KB following nobody,
+  29 KB following one character, 61 KB following all 19 players). The sibling's
+  event database weighed 40-60 MB for a 100-400 MB log. The figures kept are
+  therefore LogsWoW's own, with its invariants -- **not approximate**.
+- **Off by default, with a simple way to purge.** (The window part is not built yet.)
+- **Only the characters the reader ticks** (`suivi.json`, by GUID, the name being a
+  label). Pick-up groups ("on s'en fout de leurs données") leave no player row; the
+  *group's* totals are kept anonymously, with the composition by role. A test
+  asserts that a name and a GUID of anyone not followed appear nowhere in the file,
+  and `tools/check-history.py` asserts it on real logs.
+- **Folders the reader names**, not seasons: the log never says the season, only
+  `BUILD_VERSION` (12.1.0, the same from 09-18 to 10-02, so it gives the patch and
+  not the season; `LogFile.build_version`, read by name from `COMBAT_LOG_VERSION`).
+  `suggest_new_folder` proposes a new folder only when the game's version moves:
+  "patch" for 12.1 -> 12.2, "extension" for 12 -> 13, nothing for a hotfix. Dungeon
+  ids seen for the first time prove nothing (a player runs one for the first time).
+  A folder is a directory plus a `dossier.json` holding the name as typed; renaming
+  moves nothing. No limit on age: the owner deletes a folder when a season ends.
+- **What a night holds**: every **key whole** (outcome, level, affixes, score, time,
+  group totals, followed rows), with its **trash pulls** (offset, length, damage,
+  taken, deaths and the **average pooled health** of the enemies engaged during the
+  pull -- the curve the page draws) and the **bosses it holds**; every **raid boss**
+  by `encounter_id` and `difficulty_id` (ids, not names: names are in the client's
+  language). Raid trash is not a segment and so not stored. A boss keeps the
+  **remaining health** from the last reading of the most-hit unit when the file gave
+  one (`boss_health_end`, None otherwise) -- meaningful for a boss not killed, stored
+  for every one. I misread the owner once (trash pulls of a *dungeon* are wanted, a
+  raid's are not) and they corrected it: do not drop pulls.
+- **Raw components, never rates**: damage, healing, shields cast, damage taken,
+  absorbed, deaths, item level. `history.rates` applies the preview's formulas
+  (healing with shields, damage taken with what shields absorbed); a test pins it to
+  `preview.rates`, so a definition changed in one place cannot drift from the other.
+- **Versions, the owner's question "et les versions ultérieures ?"**: two numbers in
+  every file -- `format` (the layout) and `analysis` (`ANALYSIS_REVISION`: **raise it
+  whenever damage, healing, absorbs or deaths are counted differently**). A newer
+  LogsWoW reads every older format (`UPGRADES`, in memory, the file untouched), keeps
+  one real-shaped file per published format in `tests/golden/` (**never regenerate a
+  golden file**: its job is to prove an old file still reads), and tells an older
+  count ("older_analysis") instead of mixing unlike figures. A file from a *newer*
+  format is read as far as understood, flagged "newer_format", never rewritten.
+- **Safety, as for reports**: the root is marked (`config.json`); a folder that holds
+  anything but our files is refused for writing and for deletion, **before** anything
+  is deleted; `delete_night`/`move_night` accept only a night of this history inside
+  the root, no symbolic link; slugs are validated, so no name walks out of the root;
+  writes go beside the target and are moved into place. A night read twice is one
+  file wherever it was first put (identity = source name, size, first moment); moving
+  is explicit.
+- **Where**: `default_root()` -- `$XDG_DATA_HOME/logswow/historique` (or
+  `~/.local/share`), `%APPDATA%\LogsWoW\historique`, `~/Library/Application
+  Support/LogsWoW/historique`; `LOGSWOW_HISTORIQUE` overrides (the tests use it).
+- **Proof.** `tools/check-history.py <log>` builds the night following *everyone*,
+  writes it, reads it back and compares every figure of every fight, player and pull
+  with the analysis objects **to the unit**, then follows nobody and looks for any
+  name or GUID. All hold on seven real logs (the 2026-09-18 and 09-25 files, the
+  09-29 night, the 09-29 evening and the two 10-01/02 files: 1 to 6 top-level fights,
+  up to 38 trash pulls and 21 bosses inside keys, a 36-player heroic raid night).
+  Six mutations of `history.py` (followed filter, foreign-file refusal, night-delete
+  guard, dedup, newer-format flag, the hotfix suggestion) each make a test fail, and
+  600 rounds of fuzzing (mutated, truncated and spliced copies of the golden file, in
+  a folder that is read, listed and deleted) raise nothing but `HistoryError`.
+
+**Still to build, in the order the owner chose**: the window (a first-use explanation
+and folder creation, a "New folder" menu, tick who to follow, "Add to history" and the
+automatic setting, delete a night or a folder), then the views -- evolution of a
+character, specialization against specialization, best timed key and best kill per
+specialization, **always with the context beside** (item level, key level, dungeon,
+composition) and never a verdict that the log cannot give.
+
 ### Performance, measured
 
 261 MB / 896,610 lines (a real raid night, report included) in
@@ -1621,6 +1699,7 @@ logswow/preview.py      what the window previews and the page compares: rates, k
 logswow/report_compare.py   the comparison card and each player's gear on the page
 logswow/report_layouts.py   the three layouts: long page, CSS-only tabs, folder of pages;
                         write_streamed, which writes a page as it is drawn
+logswow/history.py      the history: one file per night, folders, followed characters (no window yet)
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
 logswow/fmt.py          formatters (compact, percent, size, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
@@ -1634,6 +1713,7 @@ logswow/lang_en.py      English: every French text of the interface, plural noun
 logswow/lang_de.py      German, the same three tables (never reviewed by a native speaker yet)
 logswow/lang_es.py      Spanish (Spain), the same three tables (idem)
 tools/check-invariants.py   cross-checks a real log's numbers against themselves
+tools/check-history.py      checks the history keeps the analysis's figures to the unit, and no pick-up player
 tools/pre-push          git hook: tests, invariants on the fixture, flake8 (no network)
 tools/build-pyz         builds dist/logswow-<version>.pyz, the one file a release ships
 tools/release-notes     prints one version's section of CHANGELOG.md
@@ -1730,7 +1810,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 272 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 295 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSeventhAuditFindings`), and each one was regression-checked the
@@ -1740,6 +1820,8 @@ it would actually require, rather than approximating it.
 2b. `python3 tools/check-invariants.py <a real log>` -- must end on
    "All invariants hold". It reports unreadable lines too, after the
    arithmetic rather than instead of it.
+2b'. If the change touches `history.py`: `python3 tools/check-history.py <a real log>`
+   must end on "All history checks hold".
 2c. If the change touches the arithmetic, **count something twice**: a
    short script that re-derives one total from the raw file, written
    without looking at `analysis.py`, is the only check that can catch a

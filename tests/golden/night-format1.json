@@ -1,0 +1,171 @@
+{
+ "marque": "logswow-historique",
+ "format": 1,
+ "logswow": "0.15.1",
+ "analysis": 1,
+ "identity": "exemple-combat.txt|18397|1789775940000",
+ "source": "exemple-combat.txt",
+ "date": "2026-09-18",
+ "game": {
+  "build": "12.1.0",
+  "project": 1
+ },
+ "fights": [
+  {
+   "type": "encounter",
+   "name": "Golem d'essai",
+   "encounter_id": 9001,
+   "difficulty_id": 16,
+   "start": "2026-09-18T23:59:01",
+   "outcome": "réussite",
+   "boss_health_end": 0.0,
+   "boss_unit": "Golem d'essai",
+   "duration_ms": 12000,
+   "group": {
+    "damage": 45600,
+    "healing": 23000,
+    "absorb_done": 0,
+    "taken": 30000,
+    "absorbed": 0,
+    "deaths": 0,
+    "composition": {
+     "tank": 1,
+     "healer": 1,
+     "dps": 1,
+     "unknown": 0
+    }
+   },
+   "players": [
+    {
+     "guid": "Player-9999-00000003",
+     "name": "Braise",
+     "spec_id": 1480,
+     "role": "dps",
+     "damage": 40200,
+     "healing": 0,
+     "absorb_done": 0,
+     "taken": 0,
+     "absorbed": 0,
+     "deaths": 0,
+     "ilvl": 550.06
+    },
+    {
+     "guid": "Player-9999-00000001",
+     "name": "Ardoise",
+     "spec_id": 73,
+     "role": "tank",
+     "damage": 5400,
+     "healing": 0,
+     "absorb_done": 0,
+     "taken": 30000,
+     "absorbed": 0,
+     "deaths": 0,
+     "ilvl": 608.31
+    }
+   ]
+  },
+  {
+   "type": "encounter",
+   "name": "Eclat d'essai",
+   "encounter_id": 9002,
+   "difficulty_id": 16,
+   "start": "2026-09-18T23:59:50",
+   "outcome": "échec",
+   "boss_health_end": null,
+   "boss_unit": "",
+   "duration_ms": 41000,
+   "group": {
+    "damage": 4000,
+    "healing": 0,
+    "absorb_done": 0,
+    "taken": 65000,
+    "absorbed": 0,
+    "deaths": 1,
+    "composition": {
+     "tank": 0,
+     "healer": 0,
+     "dps": 0,
+     "unknown": 2
+    }
+   },
+   "players": [
+    {
+     "guid": "Player-9999-00000003",
+     "name": "Braise",
+     "spec_id": 0,
+     "role": "",
+     "damage": 4000,
+     "healing": 0,
+     "absorb_done": 0,
+     "taken": 0,
+     "absorbed": 0,
+     "deaths": 0,
+     "ilvl": null
+    }
+   ]
+  },
+  {
+   "type": "key",
+   "name": "Donjon d'essai",
+   "instance_id": 2000,
+   "level": 7,
+   "affixes": [
+    165,
+    162
+   ],
+   "start": "2026-09-19T00:01:00",
+   "outcome": "dans les temps",
+   "score": 300.0,
+   "key_time_ms": 90000,
+   "duration_ms": 90000,
+   "group": {
+    "damage": 34000,
+    "healing": 0,
+    "absorb_done": 0,
+    "taken": 0,
+    "absorbed": 0,
+    "deaths": 0,
+    "composition": {
+     "tank": 0,
+     "healer": 0,
+     "dps": 0,
+     "unknown": 1
+    }
+   },
+   "players": [
+    {
+     "guid": "Player-9999-00000003",
+     "name": "Braise",
+     "spec_id": 0,
+     "role": "",
+     "damage": 34000,
+     "healing": 0,
+     "absorb_done": 0,
+     "taken": 0,
+     "absorbed": 0,
+     "deaths": 0,
+     "ilvl": null
+    }
+   ],
+   "pulls": [
+    {
+     "offset_ms": 5000,
+     "duration_ms": 4000,
+     "damage": 18000,
+     "taken": 0,
+     "deaths": 0,
+     "health_average": 0.4583
+    },
+    {
+     "offset_ms": 65000,
+     "duration_ms": 1000,
+     "damage": 16000,
+     "taken": 0,
+     "deaths": 0,
+     "health_average": 0.5
+    }
+   ],
+   "bosses": []
+  }
+ ]
+}

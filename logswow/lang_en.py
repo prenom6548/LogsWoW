@@ -828,6 +828,27 @@ TEXTS = {
         "<p class=dim style='margin:6px 0 0'>Empty slot%s: %s.</p>",
     ' (non compté)':
         ' (not counted)',
+    # history (foundation)
+    "%s n'est pas un dossier d'historique LogsWoW : refus d'y écrire.":
+        '%s is not a LogsWoW history folder: refusing to write there.',
+    'Réglage inconnu : %s':
+        'Unknown setting: %s',
+    'Nom de dossier invalide : %s':
+        'Invalid folder name: %s',
+    'Nom de dossier invalide : donnez un nom avec au moins une lettre ou un chiffre.':
+        'Invalid folder name: give a name with at least one letter or digit.',
+    'Un dossier de ce nom existe déjà : %s':
+        'A folder with this name already exists: %s',
+    "Dossier d'historique introuvable : %s":
+        'History folder not found: %s',
+    'Le dossier %s contient un fichier qui ne vient pas de LogsWoW (%s) : refus de le supprimer.':
+        'The folder %s holds a file that does not come from LogsWoW (%s): refusing to delete it.',
+    "Fichier de l'historique illisible (%s) : %s":
+        'History file unreadable (%s): %s',
+    "Ce fichier n'est pas une soirée de l'historique LogsWoW : %s":
+        'This file is not a night of the LogsWoW history: %s',
+    'Une soirée de même nom existe déjà dans ce dossier : %s':
+        'A night with the same name already exists in this folder: %s',
 }
 
 # The French nouns `fmt.plural` agrees, and their English forms.
