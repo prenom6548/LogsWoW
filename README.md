@@ -198,7 +198,9 @@ lu serait pire que pas de rapport du tout.
   spécialisation, le groupe et la version du jeu ; ce n'est jamais une note.
   L'onglet **Spécialisations** met côte à côte, dans un même contenu, les
   spécialisations jouées (médiane, plage, niveau d'objet), sans classement.
-  Meilleure clé et meilleur kill viendront ensuite.
+  L'onglet **Records** donne, pour chaque spécialisation, sa meilleure clé
+  (la plus haute dans les temps) et son meilleur kill de raid (le plus rapide,
+  boss par boss), avec le contexte à côté.
 - **Aperçu et comparaison des clés dans la fenêtre.** À droite de la liste
   des combats, deux onglets suivent ce que vous cochez : l'aperçu (durée,
   dégâts, soins, morts, une ligne par joueur avec son niveau d'objet) et

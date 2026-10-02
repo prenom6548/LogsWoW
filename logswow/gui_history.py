@@ -14,6 +14,7 @@ window is `HistoryWindow`, tested when a display exists.
 
 from . import fmt, history
 from .gui_evolution import EvolutionTab
+from .gui_records import RecordsTab
 from .gui_specs import SpecsTab
 from .i18n import N_, _
 from .preview import role_word
@@ -203,7 +204,7 @@ class HistoryWindow:
         top = self.top = tk.Toplevel(self.app.root)
         top.title(_("Historique"))
         top.minsize(1000, 720)
-        top.geometry("1180x860")
+        top.geometry("1260x880")
         top.protocol("WM_DELETE_WINDOW", self.close)
         close = ttk.Button(top, text=_("Fermer"), command=self.close)
         close.pack(side="bottom", anchor="e", padx=12, pady=(0, 12))
@@ -218,6 +219,9 @@ class HistoryWindow:
         specs = ttk.Frame(book, padding=12)
         book.add(specs, text=_("Spécialisations"))
         self.specs = SpecsTab(self, specs)
+        records = ttk.Frame(book, padding=12)
+        book.add(records, text=_("Records"))
+        self.records = RecordsTab(self, records)
         outer.columnconfigure(0, weight=1)
         outer.rowconfigure(3, weight=1)
         outer.rowconfigure(6, weight=1)
@@ -343,6 +347,7 @@ class HistoryWindow:
         self.status.set(message or self._hint())
         self.evolution.refresh()
         self.specs.refresh()
+        self.records.refresh()
 
     def _fill_players(self):
         self.players.delete(*self.players.get_children())

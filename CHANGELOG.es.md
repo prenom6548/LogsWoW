@@ -7,6 +7,29 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.19.0 — 2026-10-02
+
+**Lo mejor de cada especialización, en la ventana «Historial».** Una pestaña
+nueva, *Récords*, da para cada especialización su **mejor llave** y su **mejor
+kill**, para un personaje seguido o para todos los de la carpeta.
+
+*Mejor llave*: la llave más alta terminada **a tiempo**; a igual nivel, la mejor
+puntuación y luego el menor tiempo. Una llave terminada fuera de tiempo solo va
+por delante si la especialización no tiene ninguna a tiempo (la columna «A
+tiempo» lo dice, y «Llaves» cuenta las llaves a tiempo sobre las terminadas).
+*Mejor kill*: el más rápido de un mismo jefe de banda en la misma dificultad,
+jefe por jefe (un combate de tres minutos y uno de ocho no van en la misma
+tabla); los jefes encontrados dentro de una llave pertenecen a la llave.
+
+Cada récord conserva su contexto al lado: la mazmorra o el jefe, la fecha, el
+personaje, el nivel de objeto, el grupo (tanques / sanadores / dps) y la cifra
+del rol (daño/s, sanación/s o daño recibido/s para un tanque). Las filas se
+ordenan por rol y luego por nombre, nunca «la mejor primero»: son los récords de
+cada especialización, no una clasificación de las especializaciones, ni un parse
+(el tiempo de un kill depende del grupo tanto como de la especialización). Las
+salidas cuya especialización el registro no escribe se cuentan bajo las tablas.
+Ninguna cifra existente cambia.
+
 ## 0.18.0 — 2026-10-02
 
 **Una especialización frente a otra, en la ventana «Historial».** Una pestaña

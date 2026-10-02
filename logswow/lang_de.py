@@ -1034,6 +1034,35 @@ TEXTS = {
         '… und %d weitere in der Tabelle',
     'Rôle :':
         'Rolle:',
+    # history: the best key and the best kill
+    ' Meilleur kill par spécialisation ':
+        ' Bester Kill pro Spezialisierung ',
+    ' Meilleure clé par spécialisation ':
+        ' Bester Schlüssel pro Spezialisierung ',
+    "Aucune clé terminée ni aucun kill de raid dans ce dossier pour l'instant.":
+        'Noch kein beendeter Schlüssel und kein Raid-Kill in diesem Ordner.',
+    'Boss':
+        'Boss',
+    'Chiffre':
+        'Zahl',
+    'Difficulté':
+        'Schwierigkeit',
+    'Kills':
+        'Kills',
+    "Meilleure clé : la plus haute clé terminée dans les temps ; à niveau égal, le meilleur score, puis le temps le plus court. Une clé terminée hors des temps ne passe devant que si la spécialisation n'en a aucune dans les temps. Meilleur kill : le plus rapide d'un même boss de raid à la même difficulté. Ce sont les records de chaque spécialisation, rangés par rôle : pas un classement, et pas un parse. Ils dépendent du groupe, du niveau d'objet et des affixes, affichés à côté. Groupe : tanks / soigneurs / dps ; Clés : dans les temps / terminées.":
+        'Bester Schlüssel: der höchste rechtzeitig beendete Schlüssel; bei gleicher Stufe die beste Wertung, dann die kürzeste Zeit. Ein außerhalb der Zeit beendeter Schlüssel liegt nur vorn, wenn die Spezialisierung keinen rechtzeitigen hat. Bester Kill: der schnellste eines Raid-Bosses auf gleicher Schwierigkeit. Es sind die Rekorde jeder Spezialisierung, nach Rolle geordnet: keine Rangliste und kein Parse. Sie hängen von Gruppe, Gegenstandsstufe und Affixen ab, die daneben stehen. Gruppe: Tanks / Heiler / DPS; Schlüssel: rechtzeitig / beendet.',
+    'Personnage':
+        'Charakter',
+    'Records':
+        'Rekorde',
+    'Score':
+        'Wertung',
+    "Sorties dont la spécialisation n'est pas écrite dans le journal, non comparées : %d.":
+        'Durchgänge, deren Spezialisierung im Protokoll nicht steht, nicht verglichen: %d.',
+    'Temps':
+        'Zeit',
+    'En temps':
+        'Rechtzeitig',
 }
 
 # The French nouns `fmt.plural` agrees, and their German forms.

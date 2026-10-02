@@ -4940,7 +4940,8 @@ class _FixtureNights:
         self._count = 0
 
     def _night(self, date, scale=1.0, level=None, ilvl=None, spec=None, build="12.1.0",
-               analysis=None, outcome=None, guid=None, spec_ardoise=None, role=None):
+               analysis=None, outcome=None, guid=None, spec_ardoise=None, role=None,
+               score=None, key_time=None, boss_duration=None):
         """Save a night made from the fixture's, with the figures scaled and the context set."""
         import copy
         from logswow import history
@@ -4960,6 +4961,12 @@ class _FixtureNights:
                     fight["level"] = level
                 if outcome is not None:
                     fight["outcome"] = outcome
+                if score is not None:
+                    fight["score"] = score
+                if key_time is not None:
+                    fight["key_time_ms"] = key_time
+            elif boss_duration is not None:
+                fight["duration_ms"] = boss_duration
             for row in fight["players"]:
                 for name in ("damage", "healing", "taken"):
                     row[name] = int(row[name] * scale)
@@ -5429,6 +5436,161 @@ class TestSpecializationComparison(_FixtureNights, unittest.TestCase):
         history.untrack(self.root, self.ARDOISE)
         window.refresh()
         self.assertEqual(tab.guids, [])
+        self.assertIn("Aucun personnage suivi", tab.message.cget("text"))
+
+
+class TestRecordsOfASpecialization(_FixtureNights, unittest.TestCase):
+    """The third view of the history (2026-10-02): the best key and the best kill of each
+    specialization -- a board of records in a neutral order, with the context beside each."""
+
+    BLOOD, FROST, UNHOLY = 250, 251, 252
+
+    def _records(self):
+        from logswow import history_views as views
+
+        return views.key_records(views.runs_in_folder(self.root, self.slug))
+
+    def _kills(self):
+        from logswow import history_views as views
+
+        return views.kill_groups(views.runs_in_folder(self.root, self.slug))
+
+    @staticmethod
+    def _run(**fields):
+        from logswow import history_views as views
+
+        base = dict(kind="key", start="2026-10-01T20:00:00", date="2026-10-01", build="12.1.0",
+                    name="Donjon", content_id=1, level=7, difficulty_id=0, outcome="dans les temps",
+                    duration_ms=1000000, spec_id=251, role="dps", ilvl=300.0,
+                    row={"guid": "g", "name": "Braise", "damage": 1000, "healing": 0,
+                         "absorb_done": 0, "taken": 0, "absorbed": 0, "deaths": 0},
+                    composition=(1, 1, 3), score=300.0, key_time_ms=1500000, inside_key=False)
+        base.update(fields)
+        return views.Run(**base)
+
+    def test_a_key_in_time_beats_a_higher_key_that_missed_its_timer(self):
+        self._night("2026-10-01", level=7, spec=self.FROST, outcome="dans les temps")
+        self._night("2026-10-02", level=9, spec=self.FROST, outcome="hors des temps")
+        self._night("2026-10-03", level=8, spec=self.FROST, outcome="dans les temps")
+        self._night("2026-10-04", level=7, spec=self.UNHOLY, outcome="hors des temps")
+        records, unknown = self._records()
+        by_spec = {record.spec_id: record for record in records}
+        frost = by_spec[self.FROST]
+        self.assertEqual((frost.best.level, frost.best.outcome), (8, "dans les temps"))
+        self.assertEqual((frost.timed, frost.total), (2, 3))
+        unholy = by_spec[self.UNHOLY]                          # no key in time: the late one counts
+        self.assertEqual((unholy.best.level, unholy.best.outcome), (7, "hors des temps"))
+        self.assertEqual((unholy.timed, unholy.total), (0, 1))
+        self.assertEqual(unknown, 0)
+
+    def test_equal_levels_go_to_the_better_score_then_the_shorter_time(self):
+        from logswow import history_views as views
+
+        slow = self._run(score=310.0, key_time_ms=1600000, date="2026-10-01")
+        scored = self._run(score=330.0, key_time_ms=1700000, date="2026-10-02")
+        quick = self._run(score=330.0, key_time_ms=1400000, date="2026-10-03")
+        self.assertIs(views.Record(251, [slow, scored, quick], views.key_rank).best, quick)
+        self.assertIs(views.Record(251, [slow, scored], views.key_rank).best, scored)
+        odd = self._run(score="n/a", key_time_ms=None)              # an odd field never stops it
+        self.assertIs(views.Record(251, [odd, slow], views.key_rank).best, slow)
+        self.assertIs(views.Record(251, [slow, odd], views.key_rank).best, slow)
+
+    def test_the_board_is_in_a_neutral_order_not_best_first(self):
+        from logswow import history_views as views
+
+        runs = [self._run(spec_id=252, level=15), self._run(spec_id=250, role="tank", level=3),
+                self._run(spec_id=251, level=9), self._run(spec_id=264, role="soigneur", level=5)]
+        records, _unknown = views.key_records(runs)
+        self.assertEqual([record.spec_id for record in records], [250, 264, 251, 252])
+        self.assertEqual([record.best.level for record in records], [3, 5, 9, 15])   # by role, name
+
+    def test_only_finished_keys_count_and_unknown_specializations_are_counted(self):
+        from logswow import history_views as views
+
+        runs = [self._run(outcome="abandonnée", level=20), self._run(outcome="interrompue"),
+                self._run(spec_id=0), self._run(kind="boss", outcome="réussite")]
+        records, unknown = views.key_records(runs)
+        self.assertEqual(records, [])
+        self.assertEqual(unknown, 1)
+
+    def test_the_fastest_kill_of_each_specialization_is_kept_boss_by_boss(self):
+        self._night("2026-10-01", boss_duration=300000, spec=self.FROST, spec_ardoise=self.UNHOLY)
+        self._night("2026-10-02", boss_duration=240000, spec=self.FROST, spec_ardoise=self.UNHOLY)
+        self._night("2026-10-03", boss_duration=270000, spec=self.UNHOLY, spec_ardoise=self.UNHOLY)
+        groups, unknown = self._kills()
+        self.assertEqual(unknown, 0)
+        self.assertEqual(len(groups), 1)                           # the Golem; the wipe is no kill
+        golem = groups[0]
+        self.assertEqual(golem.kills, 6)
+        rows = {record.spec_id: record for record in golem.rows}
+        self.assertEqual(rows[self.FROST].best.duration_ms, 240000)
+        self.assertEqual(rows[self.FROST].best.date, "2026-10-02")
+        self.assertEqual(rows[self.UNHOLY].best.duration_ms, 240000)   # Ardoise, night 2
+        self.assertEqual(rows[self.UNHOLY].total, 4)
+
+    def test_a_boss_met_inside_a_key_and_a_kill_without_a_length_are_not_raid_records(self):
+        from logswow import history_views as views
+
+        inside = self._run(kind="boss", inside_key=True, outcome="réussite", content_id=5,
+                           difficulty_id=8)
+        lengthless = self._run(kind="boss", outcome="réussite", content_id=6, difficulty_id=16,
+                               duration_ms=0)
+        wipe = self._run(kind="boss", outcome="échec", content_id=7, difficulty_id=16)
+        unknown = self._run(kind="boss", outcome="réussite", content_id=8, difficulty_id=16,
+                            spec_id=0)
+        kill = self._run(kind="boss", outcome="réussite", content_id=9, difficulty_id=16)
+        groups, missing = views.kill_groups([inside, lengthless, wipe, unknown, kill])
+        self.assertEqual([group.content for group in groups], [("boss", 9, 16)])
+        self.assertEqual(missing, 1)
+
+    def test_the_rows_carry_the_context_beside_the_record(self):
+        from logswow import gui_records, history_views as views
+
+        self._night("2026-10-01", level=8, spec=self.FROST, ilvl=315.0, score=320.5,
+                    key_time=1500000, boss_duration=300000, spec_ardoise=self.BLOOD)
+        records, key_unknown = self._records()
+        groups, kill_unknown = self._kills()
+        rows = gui_records.key_rows(records)
+        self.assertEqual([len(row) for row in rows], [12])
+        row = rows[0]
+        self.assertEqual((row[1], row[2], row[3]), ("Donjon d'essai", "+8", "\u2713"))
+        self.assertEqual(row[4:8], ("25:00", "320,5", "315", "2026-10-01"))
+        self.assertEqual(row[10], "1/1")
+        self.assertTrue(row[11].endswith("Dégâts/s"))
+        kills = gui_records.kill_rows(groups[0])
+        self.assertEqual([len(item) for item in kills], [8, 8])
+        self.assertEqual({item[1] for item in kills}, {"5:00"})
+        self.assertTrue(any(item[7].endswith("Subis/s") for item in kills))   # the tank's measure
+        self.assertEqual(gui_records.boss_rows(groups)[0][2:], (2, 2))
+        self.assertEqual(gui_records.notes_for(0, 0, records, groups), [])
+        self.assertEqual(len(gui_records.notes_for(1, 2, records, groups)), 1)
+        old = self._run(old_analysis=True)
+        self.assertEqual(len(gui_records.notes_for(0, 0, [views.Record(251, [old], views.key_rank)],
+                                                   [])), 1)
+
+    def test_the_records_tab_follows_all_the_characters_or_one(self):
+        self._night("2026-10-01", level=8, spec=self.FROST, boss_duration=300000,
+                    spec_ardoise=self.UNHOLY)
+        app, root = self._window()
+        window = app.history_window
+        window.show()
+        root.update()
+        tab = window.records
+        self.assertIn("Tous", tab.who_box.get())
+        self.assertEqual(len(tab.key_table.get_children()), 1)      # the key is Braise's
+        self.assertEqual(len(tab.boss_table.get_children()), 1)
+        self.assertEqual(len(tab.kill_table.get_children()), 2)     # both played the Golem
+        tab.who_box.current(2)                                      # the second character
+        tab.redraw()
+        self.assertEqual(len(tab.kill_table.get_children()), 1)
+        self.assertEqual(len(tab.key_table.get_children()), 0)
+        from logswow import history
+
+        for night in history.list_nights(self.root):
+            history.delete_night(self.root, night.path)
+        history.untrack(self.root, self.BRAISE)
+        history.untrack(self.root, self.ARDOISE)
+        window.refresh()
         self.assertIn("Aucun personnage suivi", tab.message.cget("text"))
 
 

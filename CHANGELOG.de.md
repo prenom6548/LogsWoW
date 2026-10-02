@@ -8,6 +8,30 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.19.0 — 2026-10-02
+
+**Das Beste jeder Spezialisierung, im Fenster „Verlauf“.** Ein neuer Reiter,
+*Rekorde*, gibt für jede Spezialisierung ihren **besten Schlüssel** und ihren
+**besten Kill**, für einen gefolgten Charakter oder für alle des Ordners.
+
+*Bester Schlüssel*: der höchste **rechtzeitig** beendete Schlüssel; bei gleicher
+Stufe die beste Wertung, dann die kürzeste Zeit. Ein außerhalb der Zeit
+beendeter Schlüssel liegt nur vorn, wenn die Spezialisierung keinen
+rechtzeitigen hat (die Spalte „Rechtzeitig“ sagt es, und „Schlüssel“ zählt die
+rechtzeitigen unter den beendeten). *Bester Kill*: der schnellste eines
+Raid-Bosses auf gleicher Schwierigkeit, Boss für Boss (ein Kampf von drei und
+einer von acht Minuten gehören nicht in dieselbe Tabelle); Bosse, denen man in
+einem Schlüssel begegnet, gehören zum Schlüssel.
+
+Jeder Rekord behält seinen Kontext daneben: Dungeon oder Boss, Datum,
+Charakter, Gegenstandsstufe, Gruppe (Tanks / Heiler / DPS) und die Zahl der
+Rolle (Schaden/s, Heilung/s oder erlittener Schaden/s für einen Tank). Die
+Zeilen sind nach Rolle, dann nach Name geordnet, nie „beste zuerst“: Es sind
+die Rekorde jeder Spezialisierung, keine Rangliste der Spezialisierungen und
+kein Parse (die Zeit eines Kills hängt ebenso von der Gruppe ab wie von der
+Spezialisierung). Durchgänge, deren Spezialisierung das Protokoll nicht
+schreibt, werden unter den Tabellen gezählt. Keine bestehende Zahl ändert sich.
+
 ## 0.18.0 — 2026-10-02
 
 **Eine Spezialisierung gegen eine andere, im Fenster „Verlauf“.** Ein neuer

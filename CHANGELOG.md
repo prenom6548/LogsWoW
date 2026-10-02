@@ -3,6 +3,32 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.19.0 — 2026-10-02
+
+**Le meilleur de chaque spécialisation, dans la fenêtre « Historique ».** Un
+nouvel onglet, *Records*, donne pour chaque spécialisation sa **meilleure clé**
+et son **meilleur kill**, pour un personnage suivi ou pour tous ceux du
+dossier.
+
+*Meilleure clé* : la plus haute clé terminée **dans les temps** ; à niveau égal,
+le meilleur score, puis le temps le plus court. Une clé terminée hors des
+temps ne passe devant que si la spécialisation n'en a aucune dans les temps
+(la colonne « En temps » le dit, et « Clés » compte les clés dans les temps
+sur les clés terminées). *Meilleur kill* : le plus rapide d'un même boss de
+raid à la même difficulté, boss par boss (un combat de trois minutes et un de
+huit ne se rangent pas dans le même tableau) ; les boss rencontrés dans une
+clé appartiennent à la clé.
+
+Chaque record garde son contexte à côté : le donjon ou le boss, la date, le
+personnage, le niveau d'objet, le groupe (tanks / soigneurs / dps) et le
+chiffre du rôle (dégâts/s, soins/s, ou dégâts subis/s pour un tank). Les
+lignes sont rangées par rôle puis par nom, jamais « meilleure en premier » :
+ce sont les records de chaque spécialisation, pas un classement des
+spécialisations, et pas un parse (le temps d'un kill dépend du groupe autant
+que de la spécialisation). Les sorties dont le journal n'écrit pas la
+spécialisation sont comptées sous les tableaux. Aucun chiffre existant ne
+change.
+
 ## 0.18.0 — 2026-10-02
 
 **Une spécialisation contre une autre, dans la fenêtre « Historique ».** Un

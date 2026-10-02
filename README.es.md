@@ -200,7 +200,9 @@ que ningún informe.
   el grupo y la versión del juego al lado; nunca es una nota. La pestaña
   **Especializaciones** pone lado a lado, en un mismo contenido, las
   especializaciones jugadas (mediana, rango, nivel de objeto), sin
-  clasificación. Mejor llave y mejor kill vendrán después.
+  clasificación. La pestaña **Récords** da, para cada especialización, su
+  mejor llave (la más alta a tiempo) y su mejor kill de banda (el más
+  rápido, jefe por jefe), con el contexto al lado.
 - **Vista previa y comparación de llaves en la ventana.** A la derecha de
   la lista de combates, dos pestañas siguen lo que marque: el resumen
   (duración, daño, sanación, muertes, una línea por jugador con su nivel

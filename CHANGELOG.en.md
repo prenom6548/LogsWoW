@@ -6,6 +6,29 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.19.0 — 2026-10-02
+
+**The best of each specialization, in the "History" window.** A new tab,
+*Records*, gives for each specialization its **best key** and its **best
+kill**, for one followed character or for all those of the folder.
+
+*Best key*: the highest key finished **in time**; at equal level, the best
+score, then the shortest time. A key finished out of time only comes first if
+the specialization has none in time (the "In time" column says so, and "Keys"
+counts the keys in time out of the keys finished). *Best kill*: the fastest of
+one raid boss at the same difficulty, boss by boss (a three-minute fight and an
+eight-minute one do not belong in the same table); bosses met inside a key
+belong to the key.
+
+Each record keeps its context beside it: the dungeon or boss, the date, the
+character, the item level, the group (tanks / healers / dps) and the figure of
+the role (damage/s, healing/s, or damage taken/s for a tank). Rows are ordered
+by role, then by name, never "best first": these are each specialization's
+records, not a ranking of the specializations, and not a parse (a kill's time
+depends on the group as much as on the specialization). Runs whose
+specialization the log does not write are counted under the tables. No existing
+figure changes.
+
 ## 0.18.0 — 2026-10-02
 
 **One specialization against another, in the "History" window.** A new tab,

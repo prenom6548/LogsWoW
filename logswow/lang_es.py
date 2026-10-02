@@ -1034,6 +1034,35 @@ TEXTS = {
         '… y %d más en la tabla',
     'Rôle :':
         'Rol:',
+    # history: the best key and the best kill
+    ' Meilleur kill par spécialisation ':
+        ' Mejor kill por especialización ',
+    ' Meilleure clé par spécialisation ':
+        ' Mejor llave por especialización ',
+    "Aucune clé terminée ni aucun kill de raid dans ce dossier pour l'instant.":
+        'Todavía no hay ninguna llave terminada ni kill de banda en esta carpeta.',
+    'Boss':
+        'Jefe',
+    'Chiffre':
+        'Cifra',
+    'Difficulté':
+        'Dificultad',
+    'Kills':
+        'Kills',
+    "Meilleure clé : la plus haute clé terminée dans les temps ; à niveau égal, le meilleur score, puis le temps le plus court. Une clé terminée hors des temps ne passe devant que si la spécialisation n'en a aucune dans les temps. Meilleur kill : le plus rapide d'un même boss de raid à la même difficulté. Ce sont les records de chaque spécialisation, rangés par rôle : pas un classement, et pas un parse. Ils dépendent du groupe, du niveau d'objet et des affixes, affichés à côté. Groupe : tanks / soigneurs / dps ; Clés : dans les temps / terminées.":
+        'Mejor llave: la llave más alta terminada a tiempo; a igual nivel, la mejor puntuación y luego el menor tiempo. Una llave terminada fuera de tiempo solo va por delante si la especialización no tiene ninguna a tiempo. Mejor kill: el más rápido de un mismo jefe de banda en la misma dificultad. Son los récords de cada especialización, ordenados por rol: no es una clasificación ni un parse. Dependen del grupo, del nivel de objeto y de los afijos, mostrados al lado. Grupo: tanques / sanadores / dps; Llaves: a tiempo / terminadas.',
+    'Personnage':
+        'Personaje',
+    'Records':
+        'Récords',
+    'Score':
+        'Puntuación',
+    "Sorties dont la spécialisation n'est pas écrite dans le journal, non comparées : %d.":
+        'Salidas cuya especialización no está escrita en el registro, no comparadas: %d.',
+    'Temps':
+        'Tiempo',
+    'En temps':
+        'A tiempo',
 }
 
 # The French nouns `fmt.plural` agrees, and their Spanish forms.

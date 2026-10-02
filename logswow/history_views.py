@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """What the history shows: the views, as data, with no screen and no markup.
 
-Two views are here, both asked for by the owner on 2026-10-02: **the evolution of a
-character** (`trend_groups`) and **one specialization against another**
-(`spec_comparison`); the best key and kill per specialization will come next, from the same
-runs. The windows (`gui_evolution.py`, `gui_specs.py`) draw what these functions return, and
-a page can later draw the same.
+Three views are here, all asked for by the owner on 2026-10-02: **the evolution of a
+character** (`trend_groups`), **one specialization against another** (`spec_comparison`) and
+**the best key and the best kill of each specialization** (`key_records`, `kill_groups`).
+The windows (`gui_evolution.py`, `gui_specs.py`, `gui_records.py`) draw what these functions
+return, and a page can later draw the same.
 
 A *run* is one appearance of a followed character in a key or in a boss fight, with the
 figures the night kept and the context beside them: the dungeon and its level (or the boss
@@ -19,9 +19,9 @@ wipe, would make a figure say what it does not. Nothing here is a verdict; the c
 from statistics import median
 
 from . import history
-from .preview import COMPARABLE, change
+from .preview import COMPARABLE, ROLE_ORDER, change
 from .segment import difficulty_name
-from .specs import DPS, HEAL, TANK, role_of
+from .specs import DPS, HEAL, TANK, label_of, role_of
 
 METRICS = ("dps", "hps", "taken")
 # What each role is judged by here: a tank's damage taken per second was the owner's own
@@ -342,3 +342,106 @@ def spec_comparison(runs, role, metric, kinds=(KEY, BOSS)):
         groups.append(SpecGroup(content, rows, *names[content]))
     groups.sort(key=lambda group: (-group.total, group.name, group.level_text))
     return groups, single, unknown
+
+
+# -- the best key and the best kill of each specialization ------------------------------------
+
+TIMED = "dans les temps"
+
+
+def _number(value, default):
+    """A figure as the file gave it, or the default: records never stop on an odd field."""
+    return value if isinstance(value, (int, float)) and not isinstance(value, bool) else default
+
+
+def key_rank(run):
+    """How a key is ranked among a specialization's keys, the greatest being the best.
+
+    Timed first (a finished key that missed its timer never passes one that made it), then the
+    level, then the score, then the shortest time. The score and the time are the file's own.
+    """
+    return (run.outcome == TIMED, run.level or 0, _number(run.score, 0.0),
+            -_number(run.key_time_ms, float("inf")))
+
+
+class Record:
+    """The best run of one specialization, with how many runs it was picked among."""
+
+    __slots__ = ("spec_id", "role", "best", "total", "timed")
+
+    def __init__(self, spec_id, runs, rank):
+        self.spec_id = spec_id
+        self.best = max(runs, key=rank)             # the first of equals: runs are oldest first
+        self.role = self.best.role
+        self.total = len(runs)
+        self.timed = sum(1 for run in runs if run.outcome == TIMED)
+
+
+def _in_order(records):
+    """Records in a neutral order -- role, then name -- never best first: this is a board of
+    each specialization's own record, not a ranking of the specializations."""
+    order = {role: index for index, role in enumerate(ROLE_ORDER)}
+    records.sort(key=lambda record: (order.get(record.role, len(order)),
+                                     label_of(record.spec_id) or "", record.spec_id))
+    return records
+
+
+def key_records(runs):
+    """([Record], unknown): the best finished key of each specialization.
+
+    Only keys that count (finished, timed or not); `unknown` counts those whose specialization
+    the file did not write. A key finished late is a record only when the specialization has
+    no key in time (`key_rank`), and the row says how many were timed.
+    """
+    by_spec, unknown = {}, 0
+    for run in runs:
+        if run.kind != KEY or not run.counts:
+            continue
+        if not run.spec_id:
+            unknown += 1
+            continue
+        by_spec.setdefault(run.spec_id, []).append(run)
+    return _in_order([Record(spec, spec_runs, key_rank)
+                      for spec, spec_runs in by_spec.items()]), unknown
+
+
+def kill_rank(run):
+    """The fastest kill is the best: a shorter duration ranks higher."""
+    return -_number(run.duration_ms, float("inf"))
+
+
+class KillGroup:
+    """One raid boss at one difficulty: the best kill of each specialization that killed it."""
+
+    __slots__ = ("content", "name", "level_text", "rows", "kills")
+
+    def __init__(self, content, rows, name, level_text):
+        self.content = content
+        self.rows = rows
+        self.name = name
+        self.level_text = level_text
+        self.kills = sum(row.total for row in rows)
+
+
+def kill_groups(runs):
+    """([KillGroup], unknown): for every raid boss and difficulty, each specialization's best kill.
+
+    **Within one boss at one difficulty only**: a three-minute fight and an eight-minute one
+    are not rows of the same table. A boss met inside a key belongs to the key, not here.
+    "Best" is the fastest kill, which depends on the group as much as on the specialization:
+    the figures and the item level are beside it, and the window says it is not a parse.
+    """
+    by_content, names, unknown = {}, {}, 0
+    for run in runs:
+        if run.kind != BOSS or run.inside_key or not run.counts or not _number(run.duration_ms, 0):
+            continue
+        if not run.spec_id:
+            unknown += 1
+            continue
+        by_content.setdefault(run.content, {}).setdefault(run.spec_id, []).append(run)
+        names[run.content] = (run.name, run.level_text())
+    groups = [KillGroup(content, _in_order([Record(spec, spec_runs, kill_rank)
+                                            for spec, spec_runs in specs.items()]),
+                        *names[content]) for content, specs in by_content.items()]
+    groups.sort(key=lambda group: (-group.kills, group.name, group.level_text))
+    return groups, unknown

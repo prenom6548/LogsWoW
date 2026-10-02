@@ -213,7 +213,9 @@ wäre schlimmer als gar kein Bericht.
   Gruppe und Spielversion daneben; nie eine Note. Der Reiter
   **Spezialisierungen** stellt in einem Inhalt die gespielten
   Spezialisierungen nebeneinander (Median, Spanne, Gegenstandsstufe), ohne
-  Rangliste. Bester Schlüssel und bester Kill folgen.
+  Rangliste. Der Reiter **Rekorde** gibt für jede Spezialisierung ihren
+  besten Schlüssel (den höchsten rechtzeitigen) und ihren besten Raid-Kill
+  (den schnellsten, Boss für Boss), mit dem Kontext daneben.
 - **Vorschau und Schlüsselvergleich im Fenster.** Rechts neben der
   Kampfliste folgen zwei Reiter dem, was Sie ankreuzen: die Übersicht
   (Dauer, Schaden, Heilung, Tode, eine Zeile pro Spieler mit seiner

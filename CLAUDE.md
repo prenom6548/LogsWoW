@@ -1740,9 +1740,37 @@ HTML, so a page can draw the same later); `gui_evolution.py` is the tab, "Évolu
   Driven under Xvfb on a throw-away history of six real nights following every player
   (36 comparable contents for damage dealers).
 
-**Still to build**: best timed key and best kill per specialization, **always with the
-context beside** (item level, key level, dungeon, composition) and never a verdict that the
-log cannot give.
+**The best key and the best kill of each specialization (0.19.0, 2026-10-02)** --
+`history_views.key_records` / `kill_groups` (data) and `gui_records.py` (the "Records" tab).
+The owner's two words, "meilleure clé et meilleur kill", needed a definition each, since
+"best" is a verdict unless it is a criterion stated on the page:
+
+- **Best key** (`key_rank`): timed first, then level, then the file's score, then the
+  shortest time. A key finished late is the record only when the spec has none in time (a
+  +9 late never passes a +8 in time -- a test), and the row says `timed/finished`. The
+  score and the time are the file's own (`Run.score`, `Run.key_time_ms`); odd types never
+  stop it (`_number`).
+- **Best kill** (`kill_rank`): the **fastest** kill of one raid boss at one difficulty,
+  **boss by boss** -- durations of two bosses are not rows of one table. A boss met inside
+  a key is the key's (`inside_key`), a kill with no length or a wipe is no record. The
+  fastest kill depends on the group as much as on the spec, so the window says it is not a
+  parse; a figure-based "best" would have needed a verdict for tanks (is a low damage taken
+  better?), which the file cannot give.
+- **A board, not a ranking**: rows are in a neutral order (role, then name, `_in_order`),
+  never best first, because a spec's record says as much about its group and gear as about
+  the spec. The context sits beside each record: date, character, item level, group, the
+  role's own figure. `Record` keeps the best run, how many it was picked among and how many
+  were timed. Found by driving the window on six real nights: every player of one run
+  shares the same key, so "all followed characters" shows the same +14 for several specs --
+  correct, and it is the reason the character box exists.
+- `FolderCharacters` (in `gui_specs.py`) is the characters box and their runs, shared by the
+  two tabs that look at the whole folder.
+- Tests: `TestRecordsOfASpecialization`; eight mutations (timed first, score, time, slowest
+  kill, boss inside a key, unknown spec, best-first order, kill without a length) each fail
+  a test.
+
+**Still to build**: nothing planned. A page rendering of the three views (they are data
+first, so a page can draw the same) would be the natural next step if the owner wants one.
 
 ### Performance, measured
 
@@ -1789,6 +1817,7 @@ logswow/gui_history.py  the history's window: folders, who to follow, add / auto
 logswow/history_views.py the history's views as data: runs of a character, same-content groups, trends
 logswow/gui_evolution.py the "Évolution" tab of the history window: groups, chart, every run
 logswow/gui_specs.py     the "Spécialisations" tab: contents played with two specs, medians, bars
+logswow/gui_records.py   the "Records" tab: best key and best raid kill of each specialization
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
 logswow/fmt.py          formatters (compact, percent, size, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
@@ -1899,7 +1928,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 332 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 340 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSeventhAuditFindings`), and each one was regression-checked the

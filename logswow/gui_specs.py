@@ -79,9 +79,46 @@ def bar_lengths(values, plot_width):
     return [0.0 if value is None or value <= 0 else plot_width * value / top for value in values]
 
 
-# -- the tab ---------------------------------------------------------------------------------------
+# -- the tabs ------------------------------------------------------------------------------------
 
-class SpecsTab:
+class FolderCharacters:
+    """What the tabs that look at the whole folder share: the characters box and their runs.
+
+    A tab sets `window`, `who_box`, `who` and `guids` and calls `_load_characters`; the box
+    offers "all the followed characters" first, then each one with the runs it has.
+    """
+
+    @property
+    def root(self):
+        return self.window.root
+
+    def _slug(self):
+        return history.config(self.root)["dossier_actif"]
+
+    def _load_characters(self):
+        """Reload the characters of the active folder, keeping the choice if still valid."""
+        slug = self._slug()
+        found = history_views.followed_in_folder(self.root, slug) if slug else []
+        index = self.who_box.current()
+        keep = self.guids[index - 1] if 1 <= index <= len(self.guids) else None
+        self.guids = [guid for guid, _name, _count in found]
+        self.who_box.configure(values=([_(ALL_CHARACTERS)] if found else []) + [
+            "%s (%s)" % (name, fmt.plural(count, "sortie")) for _guid, name, count in found])
+        if found:
+            self.who_box.current(self.guids.index(keep) + 1 if keep in self.guids else 0)
+        else:
+            self.who.set("")
+
+    def _runs(self):
+        index = self.who_box.current()
+        if index < 0:
+            return []
+        if index == 0:
+            return history_views.runs_in_folder(self.root, self._slug())
+        return history_views.runs_of(self.root, self._slug(), self.guids[index - 1])
+
+
+class SpecsTab(FolderCharacters):
     """The tab, built into `parent` (a frame of the history window's notebook)."""
 
     def __init__(self, window, parent):
@@ -170,35 +207,9 @@ class SpecsTab:
 
     # -- showing -------------------------------------------------------------------------------
 
-    @property
-    def root(self):
-        return self.window.root
-
-    def _slug(self):
-        return history.config(self.root)["dossier_actif"]
-
     def refresh(self):
-        """Reload the characters of the active folder, keeping the choice if still valid."""
-        slug = self._slug()
-        found = history_views.followed_in_folder(self.root, slug) if slug else []
-        index = self.who_box.current()
-        keep = self.guids[index - 1] if 1 <= index <= len(self.guids) else None
-        self.guids = [guid for guid, _name, _count in found]
-        self.who_box.configure(values=([_(ALL_CHARACTERS)] if found else []) + [
-            "%s (%s)" % (name, fmt.plural(count, "sortie")) for _guid, name, count in found])
-        if found:
-            self.who_box.current(self.guids.index(keep) + 1 if keep in self.guids else 0)
-        else:
-            self.who.set("")
+        self._load_characters()
         self.redraw(reset=True)
-
-    def _runs(self):
-        index = self.who_box.current()
-        if index < 0:
-            return []
-        if index == 0:
-            return history_views.runs_in_folder(self.root, self._slug())
-        return history_views.runs_of(self.root, self._slug(), self.guids[index - 1])
 
     def redraw(self, reset=False, role_changed=False):
         """Recompute the comparison for the characters, the role, the measure and the kinds."""

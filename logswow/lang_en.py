@@ -1034,6 +1034,35 @@ TEXTS = {
         '… and %d more in the table',
     'Rôle :':
         'Role:',
+    # history: the best key and the best kill
+    ' Meilleur kill par spécialisation ':
+        ' Best kill per specialization ',
+    ' Meilleure clé par spécialisation ':
+        ' Best key per specialization ',
+    "Aucune clé terminée ni aucun kill de raid dans ce dossier pour l'instant.":
+        'No finished key and no raid kill in this folder yet.',
+    'Boss':
+        'Boss',
+    'Chiffre':
+        'Figure',
+    'Difficulté':
+        'Difficulty',
+    'Kills':
+        'Kills',
+    "Meilleure clé : la plus haute clé terminée dans les temps ; à niveau égal, le meilleur score, puis le temps le plus court. Une clé terminée hors des temps ne passe devant que si la spécialisation n'en a aucune dans les temps. Meilleur kill : le plus rapide d'un même boss de raid à la même difficulté. Ce sont les records de chaque spécialisation, rangés par rôle : pas un classement, et pas un parse. Ils dépendent du groupe, du niveau d'objet et des affixes, affichés à côté. Groupe : tanks / soigneurs / dps ; Clés : dans les temps / terminées.":
+        "Best key: the highest key finished in time; at equal level, the best score, then the shortest time. A key finished out of time only comes first if the specialization has none in time. Best kill: the fastest of one raid boss at the same difficulty. These are each specialization's records, ordered by role: not a ranking, and not a parse. They depend on the group, item level and affixes, shown beside them. Group: tanks / healers / dps; Keys: in time / finished.",
+    'Personnage':
+        'Character',
+    'Records':
+        'Records',
+    'Score':
+        'Score',
+    "Sorties dont la spécialisation n'est pas écrite dans le journal, non comparées : %d.":
+        'Runs whose specialization is not written in the log, not compared: %d.',
+    'Temps':
+        'Time',
+    'En temps':
+        'In time',
 }
 
 # The French nouns `fmt.plural` agrees, and their English forms.

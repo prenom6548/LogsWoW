@@ -187,7 +187,9 @@ misread file would be worse than no report at all.
   group and the game's version beside it; it is never a grade. The
   **Specializations** tab sets side by side, in one content, the
   specializations played (median, range, item level), with no ranking.
-  Best key and best kill will follow.
+  The **Records** tab gives, for each specialization, its best key (the
+  highest in time) and its best raid kill (the fastest, boss by boss), with
+  the context beside it.
 - **Preview and comparison of keys in the window.** To the right of the
   list of fights, two tabs follow what you tick: the overview (length,
   damage, healing, deaths, a line per player with their item level) and
