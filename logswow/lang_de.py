@@ -849,6 +849,111 @@ TEXTS = {
         'Diese Datei ist kein Abend des LogsWoW-Verlaufs: %s',
     'Une soirée de même nom existe déjà dans ce dossier : %s':
         'Ein Abend mit demselben Namen existiert bereits in diesem Ordner: %s',
+    # history window (0.15.2)
+    'Historique…':
+        'Verlauf…',
+    "La version du jeu a changé : ouvrez l'Historique pour créer un nouveau dossier.":
+        'Die Spielversion hat sich geändert: Öffnen Sie den Verlauf, um einen neuen Ordner zu erstellen.',
+    'Historique indisponible : %s':
+        'Verlauf nicht verfügbar: %s',
+    "Soirée déjà dans l'historique : mise à jour (dossier « %s »).":
+        'Abend bereits im Verlauf: aktualisiert (Ordner „%s“).',
+    "Soirée ajoutée à l'historique (dossier « %s »).":
+        'Abend zum Verlauf hinzugefügt (Ordner „%s“).',
+    "L'historique garde, soirée après soirée, les chiffres de vos personnages pour voir comment vous évoluez : un petit fichier par soirée (environ 30 Ko), rangé dans le dossier de votre choix, sur cet ordinateur uniquement. Rien n'est enregistré sans votre accord, et seuls les personnages que vous suivez y laissent leur nom ; les autres joueurs n'apparaissent que dans les totaux du groupe. Commencez par créer un dossier (par exemple une saison, ou « avec mes amis »).":
+        'Der Verlauf bewahrt Abend für Abend die Zahlen Ihrer Charaktere auf, damit Sie sehen, wie Sie sich entwickeln: eine kleine Datei pro Abend (etwa 30 KB), im Ordner Ihrer Wahl, nur auf diesem Computer. Ohne Ihre Zustimmung wird nichts gespeichert, und nur die Charaktere, denen Sie folgen, hinterlassen darin ihren Namen; andere Spieler erscheinen nur in den Gruppensummen. Beginnen Sie mit einem Ordner (zum Beispiel eine Saison oder „mit meinen Freunden“).',
+    "Rien n'est enregistré sans votre accord. Seuls les personnages suivis y laissent leur nom ; les autres joueurs n'apparaissent que dans les totaux du groupe.":
+        'Ohne Ihre Zustimmung wird nichts gespeichert. Nur gefolgte Charaktere hinterlassen darin ihren Namen; andere Spieler erscheinen nur in den Gruppensummen.',
+    'Tank':
+        'Tank',
+    'Soigneur':
+        'Heiler',
+    "La version du jeu est passée de %s à %s : un nouveau patch. Les chiffres des soirées suivantes ne sont pas forcément comparables à ceux d'avant. Commencer un nouveau dossier ?":
+        'Die Spielversion ist von %s auf %s gewechselt: ein neuer Patch. Die Zahlen der folgenden Abende sind nicht unbedingt mit den früheren vergleichbar. Einen neuen Ordner beginnen?',
+    "La version du jeu est passée de %s à %s : une nouvelle extension. Les chiffres des soirées suivantes ne sont pas comparables à ceux d'avant. Commencer un nouveau dossier ?":
+        'Die Spielversion ist von %s auf %s gewechselt: eine neue Erweiterung. Die Zahlen der folgenden Abende sind nicht mit den früheren vergleichbar. Einen neuen Ordner beginnen?',
+    "Choisissez d'abord un dossier.":
+        'Wählen Sie zuerst einen Ordner.',
+    'Aucun combat à enregistrer dans ce journal.':
+        'Kein Kampf zum Speichern in diesem Protokoll.',
+    'Historique':
+        'Verlauf',
+    'Créez un dossier pour commencer.':
+        'Erstellen Sie zuerst einen Ordner.',
+    'Aucun journal lu : lisez un journal dans la fenêtre principale pour pouvoir ajouter une soirée.':
+        'Kein Protokoll gelesen: Lesen Sie im Hauptfenster ein Protokoll, um einen Abend hinzufügen zu können.',
+    'Nouveau dossier':
+        'Neuer Ordner',
+    'Nom du dossier (par exemple « Saison 1 », « Avec mes amis ») :':
+        'Ordnername (zum Beispiel „Saison 1“, „Mit meinen Freunden“):',
+    'Renommer le dossier':
+        'Ordner umbenennen',
+    'Nouveau nom du dossier :':
+        'Neuer Ordnername:',
+    'Déplacer la soirée':
+        'Abend verschieben',
+    'Dossier de destination :':
+        'Zielordner:',
+    'Nouveau dossier…':
+        'Neuer Ordner…',
+    'Renommer…':
+        'Umbenennen…',
+    'Supprimer ce dossier…':
+        'Diesen Ordner löschen…',
+    ' Personnages de ce journal ':
+        ' Charaktere in diesem Protokoll ',
+    'Suivre la sélection':
+        'Auswahl folgen',
+    'Ne plus suivre':
+        'Nicht mehr folgen',
+    "Ajouter cette soirée à l'historique":
+        'Diesen Abend zum Verlauf hinzufügen',
+    'Enregistrer automatiquement chaque journal lu (seulement si un personnage suivi y a joué)':
+        'Jedes gelesene Protokoll automatisch speichern (nur wenn ein gefolgter Charakter mitgespielt hat)',
+    ' Soirées de ce dossier ':
+        ' Abende in diesem Ordner ',
+    'Supprimer la soirée':
+        'Abend löschen',
+    'Déplacer vers un autre dossier…':
+        'In einen anderen Ordner verschieben…',
+    'Fermer':
+        'Schließen',
+    'Dossier créé : %s':
+        'Ordner erstellt: %s',
+    'Supprimer le dossier':
+        'Ordner löschen',
+    'Dossier supprimé : %s (%s).':
+        'Ordner gelöscht: %s (%s).',
+    'Suivi':
+        'Gefolgt',
+    'Spécialisation':
+        'Spezialisierung',
+    'Rôle':
+        'Rolle',
+    'Combats':
+        'Kämpfe',
+    'Journal':
+        'Protokoll',
+    'Jeu':
+        'Spiel',
+    'Aucun personnage suivi.':
+        'Kein Charakter gefolgt.',
+    'Supprimer le dossier « %s » et ses %s ? Cela ne touche pas à vos journaux de combat.':
+        'Den Ordner „%s“ und seine %s löschen? Ihre Kampfprotokolle bleiben unberührt.',
+    "Ajouter à l'historique":
+        'Zum Verlauf hinzufügen',
+    "Aucun personnage suivi dans ce journal : la soirée ne gardera que les totaux du groupe. L'enregistrer quand même ?":
+        'Kein gefolgter Charakter in diesem Protokoll: Der Abend behält nur die Gruppensummen. Trotzdem speichern?',
+    "Supprimer %s de l'historique ? Vos journaux de combat ne sont pas touchés.":
+        '%s aus dem Verlauf löschen? Ihre Kampfprotokolle bleiben unberührt.',
+    'Créer un nouveau dossier…':
+        'Neuen Ordner erstellen…',
+    'Ignorer':
+        'Ignorieren',
+    'Dossier :':
+        'Ordner:',
+    'Personnages suivis au total : %d':
+        'Gefolgte Charaktere insgesamt: %d',
 }
 
 # The French nouns `fmt.plural` agrees, and their German forms.
@@ -862,6 +967,7 @@ PLURALS = {
     'joueur': ('Spieler', 'Spieler'),
     'mort': ('Tod', 'Tode'),
     'pull': ('Pull', 'Pulls'),
+    'soirée': ('Abend', 'Abende'),
     'sort': ('Zauber', 'Zauber'),
     'unité': ('Einheit', 'Einheiten'),
 }

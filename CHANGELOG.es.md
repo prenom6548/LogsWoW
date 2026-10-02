@@ -7,6 +7,33 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.16.0 — 2026-10-02
+
+**El historial: guardar sus noches para compararse.** Un botón «Historial…» abre
+una ventana para constituir, noche tras noche, el historial de sus personajes. En el
+primer uso explica el principio y le hace crear una primera carpeta, que usted nombra
+como quiera (una temporada, «con mis amigos»…); un menú permite crear, renombrar o
+eliminar otras en cualquier momento, y mover una noche de una a otra.
+
+**No se guarda nada sin su consentimiento.** Usted marca los personajes que sigue:
+solo ellos dejan su nombre en el historial; los demás jugadores (un grupo al azar, por
+ejemplo) solo aparecen en los totales del grupo. «Añadir esta noche al historial» la
+guarda a petición; una casilla, desactivada por defecto, guarda cada registro leído,
+pero solo si un personaje seguido participó. Cada noche es un archivo pequeño y legible
+(unos 30 KB: las cifras que LogsWoW calculó, nunca los eventos del registro), guardado
+solo en este ordenador. Eliminar una noche o una carpeta entera se hace con un clic, y
+nunca toca sus registros de combate.
+
+Una llave se guarda entera, con cada uno de sus pulls (duración, daño, muertes y la
+salud media de los enemigos implicados) y sus jefes; un jefe de banda, con su dificultad
+y, si no cayó, su salud restante. La basura de banda no se guarda.
+
+Cuando la versión del juego cambia entre dos registros (un parche nuevo, una expansión
+nueva), la ventana propone empezar una carpeta nueva: el registro no dice la temporada,
+solo la versión del cliente, y usted decide. **Las comparaciones en sí (evolución de un
+personaje, una especialización frente a otra, mejor llave y mejor kill) llegarán en una
+versión posterior**: esta empieza a guardar los datos. Ninguna cifra existente cambia.
+
 ## 0.15.1 — 2026-10-02
 
 **La ventana se lee en paralelo, y el equipo se simplifica.** Los combates

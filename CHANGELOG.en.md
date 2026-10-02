@@ -6,6 +6,34 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.16.0 — 2026-10-02
+
+**The history: keeping your nights to compare yourself.** A "History…" button
+opens a window to build, night after night, the history of your characters. On
+first use it explains the idea and has you create a first folder, named however
+you like (a season, "with my friends"…); a menu lets you create, rename or
+delete others at any time, and move a night from one to another.
+
+**Nothing is saved without your consent.** You tick the characters to follow:
+only they leave their name in the history; other players (a pick-up group, for
+example) appear only in the group totals. "Add this night to the history" saves
+it on request; a checkbox, off by default, saves every log read, but only if a
+followed character played in it. Each night is a small readable file (about 30 KB:
+the figures LogsWoW computed, never the log's events), kept on this computer only.
+Deleting a night or a whole folder is one click, and never touches your combat logs.
+
+A key is kept whole, with each of its pulls (length, damage, deaths and the
+average health of the enemies engaged) and its bosses; a raid boss is kept with
+its difficulty and, if it did not fall, its remaining health. Raid trash is not
+kept.
+
+When the game version changes between two logs (a new patch, a new expansion),
+the window offers to start a new folder: the log does not say the season, only
+the client's version, and you decide. **The comparisons themselves (a
+character's progress, one specialization against another, best key and best
+kill) will come in a later version**: this one starts keeping the data. No
+existing figure changes.
+
 ## 0.15.1 — 2026-10-02
 
 **The window reads side by side, and the gear is simpler.** The fights are

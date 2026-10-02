@@ -186,6 +186,13 @@ lu serait pire que pas de rapport du tout.
   seule en retard 60 points en dessous, et les chronomètres de la saison
   donnés par Raider.IO confirment chacun de ces verdicts. Sans score
   (ancien format), la clé est seulement « terminée ».
+- **L'historique** (bouton « Historique… » de la fenêtre) : on garde, soirée
+  après soirée, les chiffres de ses personnages, dans des dossiers que l'on
+  nomme (une saison, « avec mes amis »). Désactivé par défaut : rien n'est
+  enregistré sans votre accord, seuls les personnages cochés laissent leur
+  nom, une soirée pèse de l'ordre de 30 Ko, et l'on supprime une soirée ou un
+  dossier d'un clic. Clés entières (avec leurs pulls et leurs boss) et boss de
+  raid ; pas de trash de raid. Les comparaisons viendront ensuite.
 - **Aperçu et comparaison des clés dans la fenêtre.** À droite de la liste
   des combats, deux onglets suivent ce que vous cochez : l'aperçu (durée,
   dégâts, soins, morts, une ligne par joueur avec son niveau d'objet) et

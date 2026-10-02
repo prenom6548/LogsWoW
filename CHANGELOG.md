@@ -3,6 +3,39 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.16.0 — 2026-10-02
+
+**L'historique : garder ses soirées pour se comparer.** Un bouton
+« Historique… » ouvre une fenêtre pour constituer, soirée après soirée,
+l'historique de vos personnages. Au premier usage, elle explique le principe
+et vous fait créer un premier dossier, que vous nommez comme vous voulez (une
+saison, « avec mes amis »…) ; un menu permet d'en créer, renommer ou supprimer
+d'autres à tout moment, et de déplacer une soirée de l'un à l'autre.
+
+**Rien n'est enregistré sans votre accord.** Vous cochez les personnages à
+suivre : seuls eux laissent leur nom dans l'historique ; les autres joueurs
+(un groupe de hasard, par exemple) n'apparaissent que dans les totaux du
+groupe. « Ajouter cette soirée à l'historique » l'enregistre à la demande ; une
+case, désactivée par défaut, l'enregistre à chaque journal lu, mais seulement
+si un personnage suivi y a joué. Chaque soirée est un petit fichier lisible
+(de l'ordre de 30 Ko : les chiffres que LogsWoW a calculés, jamais les
+événements du journal), rangé sur cet ordinateur uniquement. Supprimer une
+soirée ou un dossier entier se fait d'un clic, et ne touche jamais à vos
+journaux de combat.
+
+Une clé est gardée entière, avec chacun de ses pulls (durée, dégâts, morts et
+la vie moyenne des ennemis engagés) et ses boss ; un boss de raid l'est avec sa
+difficulté et, s'il n'est pas tombé, sa vie restante. Les trash de raid ne sont
+pas gardés.
+
+Quand la version du jeu change entre deux journaux (un nouveau patch, une
+nouvelle extension), la fenêtre propose de commencer un nouveau dossier : le
+journal ne dit pas la saison, seulement la version du client, et vous
+décidez. **Les comparaisons elles-mêmes (évolution d'un personnage, une
+spécialisation contre une autre, meilleure clé et meilleur kill) viendront
+dans une prochaine version** : celle-ci commence à garder les données. Aucun
+chiffre existant ne change.
+
 ## 0.15.1 — 2026-10-02
 
 **La fenêtre se lit côte à côte, et l'équipement se simplifie.** Les

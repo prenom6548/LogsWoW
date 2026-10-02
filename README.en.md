@@ -176,6 +176,12 @@ misread file would be worse than no report at all.
   late one 60 points below, and the season's timers as Raider.IO gives
   them confirm every one of these verdicts. With no score (older format),
   the key is only "completed".
+- **The history** ("History…" button of the window): keep, night after night,
+  the figures of your characters, in folders you name (a season, "with my
+  friends"). Off by default: nothing is saved without your consent, only the
+  characters you tick leave their name, a night weighs about 30 KB, and you
+  delete a night or a folder in one click. Whole keys (with their pulls and
+  bosses) and raid bosses; no raid trash. The comparisons will follow.
 - **Preview and comparison of keys in the window.** To the right of the
   list of fights, two tabs follow what you tick: the overview (length,
   damage, healing, deaths, a line per player with their item level) and

@@ -42,7 +42,8 @@ from .analysis import PULL_GAP_MS
 from .i18n import N_, _
 from .cli import (Cancelled, _build, _refuse_folder, _refuse_to_overwrite,
                   default_log_locations)
-from . import preview
+from . import history, preview
+from .gui_history import HistoryWindow, autosave, pending_suggestion
 from .report import ReportWriter
 from .timestamps import format_duration
 
@@ -250,12 +251,15 @@ def run():
 class App:
     """The three steps, top to bottom, and a line at the bottom saying what happens."""
 
-    def __init__(self, root, locations=None):
+    def __init__(self, root, locations=None, history_root=None):
         import tkinter as tk
         from tkinter import ttk
 
         self.tk, self.ttk, self.root = tk, ttk, root
         self.locations = locations
+        self.history_root = history_root or history.default_root()
+        self.history_window = HistoryWindow(self)
+        self.history_suggestion = None
         self.messages = queue.Queue()
         self.cancel = threading.Event()
         self.busy = False
@@ -423,6 +427,8 @@ class App:
         self.folder_button = ttk.Button(line, text=_("Ouvrir le dossier du rapport"),
                                         command=lambda: open_folder(self.last_report))
         self.folder_button.pack(side="left", padx=(6, 0))
+        self.history_button = ttk.Button(line, text=_("Historique…"), command=self.open_history)
+        self.history_button.pack(side="right")
         return box
 
     def _table(self, parent, columns, height, select):
@@ -517,6 +523,32 @@ class App:
                                    + traceback.format_exc()))
 
         threading.Thread(target=work, daemon=True).start()
+
+    def open_history(self):
+        self.history_window.show()
+
+    def _history_after_read(self):
+        """After a read: is a new folder worth suggesting, and did the reader ask for an
+        automatic save? Nothing is written unless they switched that on."""
+        self.history_suggestion = None
+        if self.segments and self.log is not None:
+            try:
+                self.history_suggestion = pending_suggestion(self.history_root, self.log)
+                saved = autosave(self.history_root, self.log, self.segments)
+            except (history.HistoryError, OSError) as error:
+                self.status.set(self.status.get() + " " + _("Historique indisponible : %s")
+                                % (getattr(error, "strerror", None) or error))
+                saved = None
+            if saved is not None:
+                _path, replaced, name = saved
+                self.status.set(self.status.get() + " " + (
+                    _("Soirée déjà dans l'historique : mise à jour (dossier « %s »).")
+                    if replaced else _("Soirée ajoutée à l'historique (dossier « %s »).")) % name)
+            elif self.history_suggestion is not None:
+                self.status.set(self.status.get() + " " + _(
+                    "La version du jeu a changé : ouvrez l'Historique pour créer un nouveau "
+                    "dossier."))
+        self.history_window.refresh()
 
     def select_all(self):
         self.fights.selection_set(self.fights.get_children())
@@ -613,6 +645,7 @@ class App:
                 self.status.set(_("%s, %s lignes lues en %.0f s%s.") % (
                     fmt.plural(len(segments), "combat"), fmt.number(log.line_count), elapsed,
                     _(", %d non comprises") % problems if problems else ""))
+            self._history_after_read()
         elif kind == "cancelled":
             self._stop()
             self.status.set(_("Lecture annulée."))
@@ -660,6 +693,8 @@ class App:
         state(self.cancel_button, self.busy)
         state(self.write_button, not self.busy and bool(self.fights.selection()))
         state(self.folder_button, not self.busy and self.last_report is not None)
+        if self.history_window.top is not None:
+            self.history_window._buttons()
         count = len(self.fights.selection())
         total = len(self.fights.get_children())
         self.chosen_label.configure(

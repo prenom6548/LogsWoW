@@ -849,6 +849,111 @@ TEXTS = {
         'This file is not a night of the LogsWoW history: %s',
     'Une soirée de même nom existe déjà dans ce dossier : %s':
         'A night with the same name already exists in this folder: %s',
+    # history window (0.15.2)
+    'Historique…':
+        'History…',
+    "La version du jeu a changé : ouvrez l'Historique pour créer un nouveau dossier.":
+        'The game version has changed: open the History to create a new folder.',
+    'Historique indisponible : %s':
+        'History unavailable: %s',
+    "Soirée déjà dans l'historique : mise à jour (dossier « %s »).":
+        'Night already in the history: updated (folder "%s").',
+    "Soirée ajoutée à l'historique (dossier « %s »).":
+        'Night added to the history (folder "%s").',
+    "L'historique garde, soirée après soirée, les chiffres de vos personnages pour voir comment vous évoluez : un petit fichier par soirée (environ 30 Ko), rangé dans le dossier de votre choix, sur cet ordinateur uniquement. Rien n'est enregistré sans votre accord, et seuls les personnages que vous suivez y laissent leur nom ; les autres joueurs n'apparaissent que dans les totaux du groupe. Commencez par créer un dossier (par exemple une saison, ou « avec mes amis »).":
+        'The history keeps, night after night, the figures of your characters so you can see how you are progressing: one small file per night (about 30 KB), stored in the folder of your choice, on this computer only. Nothing is saved without your consent, and only the characters you follow leave their name in it; other players appear only in the group totals. Start by creating a folder (a season, for example, or "with my friends").',
+    "Rien n'est enregistré sans votre accord. Seuls les personnages suivis y laissent leur nom ; les autres joueurs n'apparaissent que dans les totaux du groupe.":
+        'Nothing is saved without your consent. Only followed characters leave their name in it; other players appear only in the group totals.',
+    'Tank':
+        'Tank',
+    'Soigneur':
+        'Healer',
+    "La version du jeu est passée de %s à %s : un nouveau patch. Les chiffres des soirées suivantes ne sont pas forcément comparables à ceux d'avant. Commencer un nouveau dossier ?":
+        'The game version went from %s to %s: a new patch. The figures of the following nights are not necessarily comparable with the earlier ones. Start a new folder?',
+    "La version du jeu est passée de %s à %s : une nouvelle extension. Les chiffres des soirées suivantes ne sont pas comparables à ceux d'avant. Commencer un nouveau dossier ?":
+        'The game version went from %s to %s: a new expansion. The figures of the following nights are not comparable with the earlier ones. Start a new folder?',
+    "Choisissez d'abord un dossier.":
+        'Choose a folder first.',
+    'Aucun combat à enregistrer dans ce journal.':
+        'No fight to save in this log.',
+    'Historique':
+        'History',
+    'Créez un dossier pour commencer.':
+        'Create a folder to begin.',
+    'Aucun journal lu : lisez un journal dans la fenêtre principale pour pouvoir ajouter une soirée.':
+        'No log read: read a log in the main window to be able to add a night.',
+    'Nouveau dossier':
+        'New folder',
+    'Nom du dossier (par exemple « Saison 1 », « Avec mes amis ») :':
+        'Folder name (for example "Season 1", "With my friends"):',
+    'Renommer le dossier':
+        'Rename the folder',
+    'Nouveau nom du dossier :':
+        'New folder name:',
+    'Déplacer la soirée':
+        'Move the night',
+    'Dossier de destination :':
+        'Destination folder:',
+    'Nouveau dossier…':
+        'New folder…',
+    'Renommer…':
+        'Rename…',
+    'Supprimer ce dossier…':
+        'Delete this folder…',
+    ' Personnages de ce journal ':
+        ' Characters in this log ',
+    'Suivre la sélection':
+        'Follow the selection',
+    'Ne plus suivre':
+        'Stop following',
+    "Ajouter cette soirée à l'historique":
+        'Add this night to the history',
+    'Enregistrer automatiquement chaque journal lu (seulement si un personnage suivi y a joué)':
+        'Save every log read automatically (only if a followed character played in it)',
+    ' Soirées de ce dossier ':
+        ' Nights in this folder ',
+    'Supprimer la soirée':
+        'Delete the night',
+    'Déplacer vers un autre dossier…':
+        'Move to another folder…',
+    'Fermer':
+        'Close',
+    'Dossier créé : %s':
+        'Folder created: %s',
+    'Supprimer le dossier':
+        'Delete the folder',
+    'Dossier supprimé : %s (%s).':
+        'Folder deleted: %s (%s).',
+    'Suivi':
+        'Followed',
+    'Spécialisation':
+        'Specialization',
+    'Rôle':
+        'Role',
+    'Combats':
+        'Fights',
+    'Journal':
+        'Log',
+    'Jeu':
+        'Game',
+    'Aucun personnage suivi.':
+        'No character followed.',
+    'Supprimer le dossier « %s » et ses %s ? Cela ne touche pas à vos journaux de combat.':
+        'Delete the folder "%s" and its %s? Your combat logs are not touched.',
+    "Ajouter à l'historique":
+        'Add to the history',
+    "Aucun personnage suivi dans ce journal : la soirée ne gardera que les totaux du groupe. L'enregistrer quand même ?":
+        'No followed character in this log: the night will keep only the group totals. Save it anyway?',
+    "Supprimer %s de l'historique ? Vos journaux de combat ne sont pas touchés.":
+        'Delete %s from the history? Your combat logs are not touched.',
+    'Créer un nouveau dossier…':
+        'Create a new folder…',
+    'Ignorer':
+        'Ignore',
+    'Dossier :':
+        'Folder:',
+    'Personnages suivis au total : %d':
+        'Characters followed in total: %d',
 }
 
 # The French nouns `fmt.plural` agrees, and their English forms.
@@ -862,6 +967,7 @@ PLURALS = {
     'joueur': ('player', 'players'),
     'mort': ('death', 'deaths'),
     'pull': ('pull', 'pulls'),
+    'soirée': ('night', 'nights'),
     'sort': ('spell', 'spells'),
     'unité': ('unit', 'units'),
 }

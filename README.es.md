@@ -188,6 +188,13 @@ que ningún informe.
   debajo, y los temporizadores de la temporada que da Raider.IO confirman
   cada uno de estos veredictos. Sin puntuación (formato antiguo), la
   llave solo está «completada».
+- **El historial** (botón «Historial…» de la ventana): guardar, noche tras
+  noche, las cifras de sus personajes, en carpetas que usted nombra (una
+  temporada, «con mis amigos»). Desactivado por defecto: no se guarda nada sin
+  su consentimiento, solo los personajes marcados dejan su nombre, una noche
+  pesa unos 30 KB, y se elimina una noche o una carpeta con un clic. Llaves
+  enteras (con sus pulls y jefes) y jefes de banda; sin basura de banda. Las
+  comparaciones vendrán después.
 - **Vista previa y comparación de llaves en la ventana.** A la derecha de
   la lista de combates, dos pestañas siguen lo que marque: el resumen
   (duración, daño, sanación, muertes, una línea por jugador con su nivel

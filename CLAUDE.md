@@ -1652,12 +1652,41 @@ The owner's decisions, in their words where it matters:
   600 rounds of fuzzing (mutated, truncated and spliced copies of the golden file, in
   a folder that is read, listed and deleted) raise nothing but `HistoryError`.
 
-**Still to build, in the order the owner chose**: the window (a first-use explanation
-and folder creation, a "New folder" menu, tick who to follow, "Add to history" and the
-automatic setting, delete a night or a folder), then the views -- evolution of a
-character, specialization against specialization, best timed key and best kill per
-specialization, **always with the context beside** (item level, key level, dungeon,
-composition) and never a verdict that the log cannot give.
+**The window (0.16.0, 2026-10-02)** -- `gui_history.py`, a `Toplevel` opened by the
+"Historique..." button (a window of its own: the main window's right pane had no room
+for it). The logic that needs no screen is at the top and is tested without one
+(`player_rows`, `night_rows`, `pending_suggestion`, `save_current`, `autosave`); the
+widgets are `HistoryWindow`, whose dialogs (`_ask_name`, `_confirm`, `_error`,
+`_pick_folder`) are methods so a test answers them without clicking.
+
+- **First use**: with no folder, the window shows the long explanation (what is kept,
+  where, that nothing is saved without consent, that only followed characters leave a
+  name) and the folder list is empty until the reader creates one; afterwards a short
+  reminder. "Nouveau dossier..." is always there, with rename, delete, and "move a
+  night to another folder", so nobody is stuck with a first choice.
+- **Off by default.** "Ajouter cette soirée" writes the whole log's night (every
+  followed character present is kept) and asks first when nobody followed took part;
+  the *automatic* setting is a checkbox, off, and saves after a read **only when a
+  followed character took part and no new folder is being suggested** (a pick-up night
+  is not worth a file; and the night would land in the folder the game's version has
+  just left).
+- **Suggestion**: after a read, `pending_suggestion` compares the log's `build_version`
+  with the newest night of the active folder; the window offers a new folder ("nouveau
+  patch" / "nouvelle extension"), "Ignorer" dismisses it, creating a folder clears it.
+- **Deleting** a night or a folder asks first, says the combat logs are untouched, and
+  goes through `history.delete_night` / `delete_folder` (the safety rules above).
+- **A trap met while testing**: Tk variables of a finished test were freed by the next
+  test's *reading thread* (the cyclic garbage collector runs in whichever thread
+  allocates) and Tcl aborts ("async handler deleted by the wrong thread"). The widget
+  tests collect in the main thread, cancel the pending `after` jobs, then destroy.
+- Driven under Xvfb on a real 96 MB log: first-use explanation, folder created, two
+  characters followed, night added (6.6 KB, one key with its pulls and bosses),
+  automatic setting switched on, status line at each step.
+
+**Still to build**: the views -- evolution of a character, specialization against
+specialization, best timed key and best kill per specialization, **always with the
+context beside** (item level, key level, dungeon, composition) and never a verdict
+that the log cannot give.
 
 ### Performance, measured
 
@@ -1699,7 +1728,8 @@ logswow/preview.py      what the window previews and the page compares: rates, k
 logswow/report_compare.py   the comparison card and each player's gear on the page
 logswow/report_layouts.py   the three layouts: long page, CSS-only tabs, folder of pages;
                         write_streamed, which writes a page as it is drawn
-logswow/history.py      the history: one file per night, folders, followed characters (no window yet)
+logswow/history.py      the history: one file per night, folders, followed characters
+logswow/gui_history.py  the history's window: folders, who to follow, add / automatic, nights kept
 logswow/castorder.py    cast order: which pull a cast belongs to, which spells were triggered
 logswow/fmt.py          formatters (compact, percent, size, esc...); patch fmt.compact to render exact
 logswow/diagnose.py     what was and was not understood
@@ -1810,7 +1840,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 295 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 306 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSeventhAuditFindings`), and each one was regression-checked the

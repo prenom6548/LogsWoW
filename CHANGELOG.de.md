@@ -8,6 +8,37 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.16.0 — 2026-10-02
+
+**Der Verlauf: Ihre Abende aufbewahren, um sich zu vergleichen.** Eine
+Schaltfläche „Verlauf…“ öffnet ein Fenster, um Abend für Abend den Verlauf Ihrer
+Charaktere aufzubauen. Bei der ersten Benutzung erklärt es das Prinzip und lässt
+Sie einen ersten Ordner anlegen, den Sie beliebig nennen (eine Saison, „mit meinen
+Freunden“…); ein Menü erlaubt es, jederzeit weitere Ordner zu erstellen, umzubenennen
+oder zu löschen und einen Abend von einem in einen anderen zu verschieben.
+
+**Ohne Ihre Zustimmung wird nichts gespeichert.** Sie haken die Charaktere an, denen
+Sie folgen: Nur sie hinterlassen ihren Namen im Verlauf; andere Spieler (zum Beispiel
+eine Zufallsgruppe) erscheinen nur in den Gruppensummen. „Diesen Abend zum Verlauf
+hinzufügen“ speichert ihn auf Anfrage; ein Kontrollkästchen, standardmäßig aus,
+speichert jedes gelesene Protokoll, aber nur wenn ein gefolgter Charakter mitgespielt
+hat. Jeder Abend ist eine kleine lesbare Datei (etwa 30 KB: die von LogsWoW berechneten
+Zahlen, nie die Ereignisse des Protokolls), nur auf diesem Computer gespeichert. Einen
+Abend oder einen ganzen Ordner zu löschen ist ein Klick und berührt nie Ihre
+Kampfprotokolle.
+
+Ein Schlüssel wird ganz aufbewahrt, mit jedem seiner Pulls (Dauer, Schaden, Tode und
+die durchschnittliche Gesundheit der beteiligten Gegner) und seinen Bossen; ein
+Raid-Boss mit seiner Schwierigkeit und, falls er nicht gefallen ist, seiner verbleibenden
+Gesundheit. Raid-Trash wird nicht aufbewahrt.
+
+Ändert sich die Spielversion zwischen zwei Protokollen (ein neuer Patch, eine neue
+Erweiterung), schlägt das Fenster einen neuen Ordner vor: Das Protokoll nennt nicht die
+Saison, nur die Version des Clients, und Sie entscheiden. **Die Vergleiche selbst
+(Entwicklung eines Charakters, eine Spezialisierung gegen eine andere, bester Schlüssel
+und bester Kill) kommen in einer späteren Version**: Diese beginnt, die Daten
+aufzubewahren. Keine bestehende Zahl ändert sich.
+
 ## 0.15.1 — 2026-10-02
 
 **Das Fenster liest sich nebeneinander, und die Ausrüstung wird

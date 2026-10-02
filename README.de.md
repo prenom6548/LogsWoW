@@ -201,6 +201,13 @@ wäre schlimmer als gar kein Bericht.
   darunter, und die Timer der Saison, wie Raider.IO sie angibt,
   bestätigen jedes dieser Urteile. Ohne Wertung (älteres Format) ist der
   Schlüssel nur „abgeschlossen“.
+- **Der Verlauf** (Schaltfläche „Verlauf…“ des Fensters): Abend für Abend die
+  Zahlen Ihrer Charaktere aufbewahren, in Ordnern, die Sie benennen (eine
+  Saison, „mit meinen Freunden“). Standardmäßig aus: Ohne Ihre Zustimmung wird
+  nichts gespeichert, nur die angehakten Charaktere hinterlassen ihren Namen,
+  ein Abend wiegt etwa 30 KB, und einen Abend oder Ordner löschen Sie mit einem
+  Klick. Ganze Schlüssel (mit Pulls und Bossen) und Raid-Bosse; kein Raid-Trash.
+  Die Vergleiche folgen.
 - **Vorschau und Schlüsselvergleich im Fenster.** Rechts neben der
   Kampfliste folgen zwei Reiter dem, was Sie ankreuzen: die Übersicht
   (Dauer, Schaden, Heilung, Tode, eine Zeile pro Spieler mit seiner

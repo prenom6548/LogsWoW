@@ -4639,6 +4639,288 @@ class TestHistoryFoundation(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), "[]")
 
 
+class TestHistoryWindow(unittest.TestCase):
+    """The history's window (2026-10-02): its logic without a screen, the widgets with one."""
+
+    def setUp(self):
+        import tempfile
+
+        self._temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temporary.cleanup)
+        self.root = os.path.join(self._temporary.name, "historique")
+        self.log, self.segments = run_fixture()
+
+    BRAISE, ARDOISE = "Player-9999-00000003", "Player-9999-00000001"
+
+    def test_the_players_of_a_log_are_listed_with_the_followed_ones_first(self):
+        from logswow import gui_history
+
+        rows = gui_history.player_rows(self.segments, {self.BRAISE})
+        self.assertEqual([(row[0], row[1], row[2]) for row in rows],
+                         [(self.BRAISE, "\u2713", "Braise"), (self.ARDOISE, "", "Ardoise"),
+                          ("Player-9999-00000002", "", "Tisane")])
+        self.assertEqual([row[4] for row in rows], ["DPS", "Tank", "Soigneur"])
+        self.assertEqual(gui_history.player_rows([], set()), [])
+
+    def test_a_folder_and_a_night_are_listed_the_way_the_window_shows_them(self):
+        from logswow import gui_history, history
+
+        slug = history.create_folder(self.root, "Saison 1")
+        self.assertEqual(gui_history.folder_label(history.list_folders(self.root)[0]),
+                         "Saison 1 (0 soirée)")
+        gui_history.save_current(self.root, self.log, self.segments)
+        folder = history.list_folders(self.root)[0]
+        self.assertEqual(gui_history.folder_label(folder), "Saison 1 (1 soirée)")
+        rows = gui_history.night_rows(history.list_nights(self.root, slug))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][1:5], ("2026-09-18", "exemple-combat.txt", "12.1.0", 3))
+
+    def test_a_new_folder_is_suggested_when_the_game_version_has_moved(self):
+        import json
+        from types import SimpleNamespace
+        from logswow import gui_history, history
+
+        self.assertIsNone(gui_history.pending_suggestion(self.root, self.log))   # no folder yet
+        slug = history.create_folder(self.root, "Saison 1")
+        self.assertIsNone(gui_history.pending_suggestion(self.root, self.log))   # no night yet
+        path, _r = history.save_night(self.root, slug, history.build_night(
+            self.log, self.segments, []))
+        for kept, now, expected in (("12.1.0", "12.2.0", "patch"),
+                                    ("12.1.0", "13.0.0", "extension"),
+                                    ("12.1.0", "12.1.4", None), ("12.1.0", "12.0.9", None),
+                                    ("12.1.0", "", None)):
+            with self.subTest(kept=kept, now=now):
+                with open(path, encoding="utf-8") as handle:
+                    record = json.load(handle)
+                record["game"]["build"] = kept
+                with open(path, "w", encoding="utf-8") as handle:
+                    json.dump(record, handle)
+                found = gui_history.pending_suggestion(
+                    self.root, SimpleNamespace(build_version=now))
+                self.assertEqual(found[0] if found else None, expected)
+        text = gui_history.suggestion_text(("extension", "12.1.0", "13.0.0"))
+        self.assertIn("nouvelle extension", text)
+        self.assertIn("12.1.0", text)
+        self.assertIn("nouveau patch", gui_history.suggestion_text(("patch", "12.1.0", "12.2.0")))
+
+    def test_a_night_is_saved_with_the_followed_characters_only_and_refused_without_a_folder(self):
+        import json
+        from logswow import gui_history, history
+
+        with self.assertRaises(history.HistoryError):
+            gui_history.save_current(self.root, self.log, self.segments)       # no folder
+        history.create_folder(self.root, "Saison 1")
+        history.track(self.root, self.BRAISE, "Braise")
+        path, replaced, name = gui_history.save_current(self.root, self.log, self.segments)
+        self.assertEqual((replaced, name), (False, "Saison 1"))
+        text = open(path, encoding="utf-8").read()
+        self.assertIn("Braise", text)
+        self.assertNotIn("Ardoise", text)
+        self.assertEqual(json.loads(text)["fights"][0]["players"][0]["guid"], self.BRAISE)
+        self.assertTrue(gui_history.save_current(self.root, self.log, self.segments)[1])
+
+    def test_nothing_is_saved_by_itself_unless_asked_and_a_followed_character_played(self):
+        from types import SimpleNamespace
+        from logswow import gui_history, history
+
+        history.create_folder(self.root, "Saison 1")
+        history.track(self.root, self.BRAISE, "Braise")
+        self.assertIsNone(gui_history.autosave(self.root, self.log, self.segments))   # off
+        self.assertEqual(history.list_nights(self.root), [])
+        history.set_config(self.root, automatique=True)
+        saved = gui_history.autosave(self.root, self.log, self.segments)
+        self.assertEqual((saved[1], saved[2]), (False, "Saison 1"))
+        self.assertEqual(len(history.list_nights(self.root)), 1)
+        # A pick-up night: nobody followed took part.
+        history.untrack(self.root, self.BRAISE)
+        history.track(self.root, "Player-9999-00000099", "Absente")
+        self.assertEqual(gui_history.followed_present(self.root, self.segments), [])
+        for night in history.list_nights(self.root):
+            history.delete_night(self.root, night.path)
+        self.assertIsNone(gui_history.autosave(self.root, self.log, self.segments))
+        self.assertEqual(history.list_nights(self.root), [])
+        # A new game version is pending: the night would land in the folder it has just left.
+        history.track(self.root, self.BRAISE, "Braise")
+        gui_history.save_current(self.root, self.log, self.segments)
+        newer = SimpleNamespace(build_version="12.2.0", path=self.log.path, size_bytes=1,
+                                first_ts=self.log.first_ts + 86400000, project_id=1)
+        self.assertIsNotNone(gui_history.pending_suggestion(self.root, newer))
+        self.assertIsNone(gui_history.autosave(self.root, newer, self.segments))
+
+    def _app(self):
+        """A window on the fixture, read, with a history of its own; skipped with no screen."""
+        from logswow import gui
+
+        try:
+            import tkinter
+            root = tkinter.Tk()
+        except (ImportError, Exception) as error:        # noqa: BLE001 -- no screen here
+            self.skipTest("pas de fenetre possible ici : %s" % str(error).splitlines()[0])
+        # Cleanups run last in, first out: collect first (in this thread, with the interpreter
+        # alive), then destroy. Left to chance, Tk variables of a finished test were freed by
+        # the next test's reading thread, and Tcl aborts when another thread deletes them.
+        self.addCleanup(root.destroy)
+        self.addCleanup(__import__("gc").collect)
+        self.addCleanup(lambda: root.eval("foreach job [after info] {after cancel $job}"))
+        folder = os.path.join(self._temporary.name, "journaux")
+        os.makedirs(folder)
+        log_path = os.path.join(folder, "WoWCombatLog-091826_235900.txt")
+        with open(FIXTURE, "rb") as source, open(log_path, "wb") as copy:
+            copy.write(source.read())
+        app = gui.App(root, locations=[folder], history_root=self.root)
+        app.read_selected()
+        deadline = time.time() + 30
+        while app.segments is None and time.time() < deadline:
+            root.update()
+            time.sleep(0.02)
+        self.assertTrue(app.segments)
+        return app, root
+
+    def test_the_window_explains_then_creates_a_folder_follows_a_character_and_adds_a_night(self):
+        from unittest import mock
+        from logswow import history
+
+        app, root = self._app()
+        window = app.history_window
+        window.show()
+        root.update()
+        self.assertIn("Commencez par créer un dossier", window.intro.cget("text"))
+        self.assertIn("disabled", window.add_button.state())
+        self.assertIn("disabled", window.rename_button.state())
+        self.assertIn("Créez un dossier", window.status.get())
+        with mock.patch.object(window, "_ask_name", return_value="Saison 1"):
+            window.new_folder()
+        self.assertEqual([folder.name for folder in history.list_folders(self.root)], ["Saison 1"])
+        self.assertEqual(window.folder_box.get(), "Saison 1 (0 soirée)")
+        self.assertNotIn("Commencez par créer", window.intro.cget("text"))
+        self.assertIn("Dossier créé", window.status.get())
+        self.assertEqual(len(window.players.get_children()), 3)
+        window.players.selection_set((self.BRAISE,))
+        window.follow()
+        self.assertEqual(list(history.tracked(self.root)), [self.BRAISE])
+        self.assertEqual(window.players.item(self.BRAISE, "values")[0], "\u2713")
+        window.add_night()
+        self.assertIn("ajoutée", window.status.get())
+        self.assertEqual(len(window.nights.get_children()), 1)
+        self.assertEqual(window.folder_box.get(), "Saison 1 (1 soirée)")
+        window.add_night()
+        self.assertIn("mise à jour", window.status.get())
+        self.assertEqual(len(window.nights.get_children()), 1)             # not a second one
+        window.players.selection_set((self.BRAISE,))
+        window.unfollow()
+        self.assertEqual(history.tracked(self.root), {})
+
+    def test_adding_a_night_with_nobody_followed_asks_first_and_can_be_refused(self):
+        from unittest import mock
+        from logswow import history
+
+        app, root = self._app()
+        window = app.history_window
+        history.create_folder(self.root, "Saison 1")
+        window.show()
+        with mock.patch.object(window, "_confirm", return_value=False) as ask:
+            window.add_night()
+        self.assertTrue(ask.called)
+        self.assertEqual(history.list_nights(self.root), [])
+        with mock.patch.object(window, "_confirm", return_value=True):
+            window.add_night()
+        self.assertEqual(len(history.list_nights(self.root)), 1)
+
+    def test_a_night_and_a_folder_can_be_moved_and_deleted_from_the_window(self):
+        from unittest import mock
+        from logswow import history
+
+        app, root = self._app()
+        window = app.history_window
+        first = history.create_folder(self.root, "Saison 1")
+        second = history.create_folder(self.root, "Les amis")
+        history.track(self.root, self.BRAISE, "Braise")
+        window.show()
+        window.add_night()
+        self.assertEqual(len(history.list_nights(self.root, first)), 1)
+        window.nights.selection_set(window.nights.get_children())
+        with mock.patch.object(window, "_pick_folder", return_value=second):
+            window.move_nights()
+        self.assertEqual((len(history.list_nights(self.root, first)),
+                          len(history.list_nights(self.root, second))), (0, 1))
+        window.folder_box.current(1)
+        window.choose_folder()
+        window.nights.selection_set(window.nights.get_children())
+        with mock.patch.object(window, "_confirm", return_value=False):
+            window.delete_nights()
+        self.assertEqual(len(history.list_nights(self.root)), 1)           # refused: still there
+        with mock.patch.object(window, "_confirm", return_value=True):
+            window.delete_nights()
+            self.assertEqual(history.list_nights(self.root), [])
+            window.delete_folder()
+        self.assertEqual([folder.slug for folder in history.list_folders(self.root)], [first])
+
+    def test_the_setting_is_off_until_the_reader_switches_it_on_and_a_read_then_saves(self):
+        from logswow import history
+
+        app, root = self._app()
+        window = app.history_window
+        history.create_folder(self.root, "Saison 1")
+        history.track(self.root, self.BRAISE, "Braise")
+        window.show()
+        self.assertFalse(window.automatic.get())
+        app._history_after_read()
+        self.assertEqual(history.list_nights(self.root), [])               # off: nothing written
+        window.automatic.set(True)
+        window.toggle_automatic()
+        self.assertTrue(history.config(self.root)["automatique"])
+        app._history_after_read()
+        self.assertEqual(len(history.list_nights(self.root)), 1)
+        self.assertIn("ajoutée", app.status.get())
+
+    def test_a_new_game_version_shows_a_suggestion_that_can_be_ignored_or_followed(self):
+        import json
+        from unittest import mock
+        from logswow import history
+
+        app, root = self._app()
+        window = app.history_window
+        slug = history.create_folder(self.root, "Saison 1")
+        path, _r = history.save_night(self.root, slug,
+                                      history.build_night(app.log, app.segments, []))
+        with open(path, encoding="utf-8") as handle:
+            record = json.load(handle)
+        record["game"]["build"] = "11.2.0"                                  # the folder is older
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(record, handle)
+        history.set_config(self.root, automatique=True)
+        history.track(self.root, self.BRAISE, "Braise")
+        window.show()
+        app._history_after_read()
+        self.assertIsNotNone(app.history_suggestion)
+        self.assertEqual(app.history_suggestion[0], "extension")            # 11 -> 12
+        self.assertIn("nouvelle extension", window.suggestion_label.cget("text"))
+        self.assertTrue(window.suggestion_box.winfo_manager())
+        self.assertIn("a changé", app.status.get())
+        self.assertEqual(len(history.list_nights(self.root)), 1)            # auto did not save
+        window.dismiss_suggestion()
+        self.assertIsNone(app.history_suggestion)
+        self.assertFalse(window.suggestion_box.winfo_manager())
+        app._history_after_read()
+        with mock.patch.object(window, "_ask_name", return_value="Midnight"):
+            window.new_folder()
+        self.assertIsNone(app.history_suggestion)
+        self.assertEqual(history.config(self.root)["dossier_actif"], "midnight")
+
+    def test_the_main_window_has_the_button_and_a_bad_name_is_shown_not_raised(self):
+        from unittest import mock
+
+        app, root = self._app()
+        self.assertEqual(str(app.history_button.cget("text")), "Historique…")
+        window = app.history_window
+        window.show()
+        with mock.patch.object(window, "_ask_name", return_value="---"), \
+                mock.patch.object(window, "_error") as shown:
+            window.new_folder()
+        self.assertTrue(shown.called)
+        self.assertIn("Nom de dossier invalide", shown.call_args[0][0])
+
+
 class TestSeventhAuditFindings(unittest.TestCase):
     """The 2026-09-29 audit of 0.12.1: a full read of every file, the
     tools of the earlier audits again, and one real 364 MB Mythic+ night.

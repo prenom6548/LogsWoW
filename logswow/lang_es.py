@@ -849,6 +849,111 @@ TEXTS = {
         'Este archivo no es una noche del historial de LogsWoW: %s',
     'Une soirée de même nom existe déjà dans ce dossier : %s':
         'Ya existe una noche con el mismo nombre en esta carpeta: %s',
+    # history window (0.15.2)
+    'Historique…':
+        'Historial…',
+    "La version du jeu a changé : ouvrez l'Historique pour créer un nouveau dossier.":
+        'La versión del juego ha cambiado: abra el Historial para crear una carpeta nueva.',
+    'Historique indisponible : %s':
+        'Historial no disponible: %s',
+    "Soirée déjà dans l'historique : mise à jour (dossier « %s »).":
+        'Noche ya en el historial: actualizada (carpeta «%s»).',
+    "Soirée ajoutée à l'historique (dossier « %s »).":
+        'Noche añadida al historial (carpeta «%s»).',
+    "L'historique garde, soirée après soirée, les chiffres de vos personnages pour voir comment vous évoluez : un petit fichier par soirée (environ 30 Ko), rangé dans le dossier de votre choix, sur cet ordinateur uniquement. Rien n'est enregistré sans votre accord, et seuls les personnages que vous suivez y laissent leur nom ; les autres joueurs n'apparaissent que dans les totaux du groupe. Commencez par créer un dossier (par exemple une saison, ou « avec mes amis »).":
+        'El historial guarda, noche tras noche, las cifras de sus personajes para ver cómo evoluciona: un archivo pequeño por noche (unos 30 KB), en la carpeta que elija, solo en este ordenador. No se guarda nada sin su consentimiento, y solo los personajes que sigue dejan en él su nombre; los demás jugadores solo aparecen en los totales del grupo. Empiece creando una carpeta (por ejemplo una temporada, o «con mis amigos»).',
+    "Rien n'est enregistré sans votre accord. Seuls les personnages suivis y laissent leur nom ; les autres joueurs n'apparaissent que dans les totaux du groupe.":
+        'No se guarda nada sin su consentimiento. Solo los personajes seguidos dejan en él su nombre; los demás jugadores solo aparecen en los totales del grupo.',
+    'Tank':
+        'Tanque',
+    'Soigneur':
+        'Sanador',
+    "La version du jeu est passée de %s à %s : un nouveau patch. Les chiffres des soirées suivantes ne sont pas forcément comparables à ceux d'avant. Commencer un nouveau dossier ?":
+        'La versión del juego ha pasado de %s a %s: un parche nuevo. Las cifras de las noches siguientes no son necesariamente comparables con las anteriores. ¿Empezar una carpeta nueva?',
+    "La version du jeu est passée de %s à %s : une nouvelle extension. Les chiffres des soirées suivantes ne sont pas comparables à ceux d'avant. Commencer un nouveau dossier ?":
+        'La versión del juego ha pasado de %s a %s: una expansión nueva. Las cifras de las noches siguientes no son comparables con las anteriores. ¿Empezar una carpeta nueva?',
+    "Choisissez d'abord un dossier.":
+        'Elija primero una carpeta.',
+    'Aucun combat à enregistrer dans ce journal.':
+        'Ningún combate que guardar en este registro.',
+    'Historique':
+        'Historial',
+    'Créez un dossier pour commencer.':
+        'Cree una carpeta para empezar.',
+    'Aucun journal lu : lisez un journal dans la fenêtre principale pour pouvoir ajouter une soirée.':
+        'Ningún registro leído: lea un registro en la ventana principal para poder añadir una noche.',
+    'Nouveau dossier':
+        'Carpeta nueva',
+    'Nom du dossier (par exemple « Saison 1 », « Avec mes amis ») :':
+        'Nombre de la carpeta (por ejemplo «Temporada 1», «Con mis amigos»):',
+    'Renommer le dossier':
+        'Renombrar la carpeta',
+    'Nouveau nom du dossier :':
+        'Nuevo nombre de la carpeta:',
+    'Déplacer la soirée':
+        'Mover la noche',
+    'Dossier de destination :':
+        'Carpeta de destino:',
+    'Nouveau dossier…':
+        'Carpeta nueva…',
+    'Renommer…':
+        'Renombrar…',
+    'Supprimer ce dossier…':
+        'Eliminar esta carpeta…',
+    ' Personnages de ce journal ':
+        ' Personajes de este registro ',
+    'Suivre la sélection':
+        'Seguir la selección',
+    'Ne plus suivre':
+        'Dejar de seguir',
+    "Ajouter cette soirée à l'historique":
+        'Añadir esta noche al historial',
+    'Enregistrer automatiquement chaque journal lu (seulement si un personnage suivi y a joué)':
+        'Guardar automáticamente cada registro leído (solo si un personaje seguido participó)',
+    ' Soirées de ce dossier ':
+        ' Noches de esta carpeta ',
+    'Supprimer la soirée':
+        'Eliminar la noche',
+    'Déplacer vers un autre dossier…':
+        'Mover a otra carpeta…',
+    'Fermer':
+        'Cerrar',
+    'Dossier créé : %s':
+        'Carpeta creada: %s',
+    'Supprimer le dossier':
+        'Eliminar la carpeta',
+    'Dossier supprimé : %s (%s).':
+        'Carpeta eliminada: %s (%s).',
+    'Suivi':
+        'Seguido',
+    'Spécialisation':
+        'Especialización',
+    'Rôle':
+        'Rol',
+    'Combats':
+        'Combates',
+    'Journal':
+        'Registro',
+    'Jeu':
+        'Juego',
+    'Aucun personnage suivi.':
+        'Ningún personaje seguido.',
+    'Supprimer le dossier « %s » et ses %s ? Cela ne touche pas à vos journaux de combat.':
+        '¿Eliminar la carpeta «%s» y sus %s? No afecta a sus registros de combate.',
+    "Ajouter à l'historique":
+        'Añadir al historial',
+    "Aucun personnage suivi dans ce journal : la soirée ne gardera que les totaux du groupe. L'enregistrer quand même ?":
+        'Ningún personaje seguido en este registro: la noche solo conservará los totales del grupo. ¿Guardarla de todos modos?',
+    "Supprimer %s de l'historique ? Vos journaux de combat ne sont pas touchés.":
+        '¿Eliminar %s del historial? No afecta a sus registros de combate.',
+    'Créer un nouveau dossier…':
+        'Crear una carpeta nueva…',
+    'Ignorer':
+        'Ignorar',
+    'Dossier :':
+        'Carpeta:',
+    'Personnages suivis au total : %d':
+        'Personajes seguidos en total: %d',
 }
 
 # The French nouns `fmt.plural` agrees, and their Spanish forms.
@@ -862,6 +967,7 @@ PLURALS = {
     'joueur': ('jugador', 'jugadores'),
     'mort': ('muerte', 'muertes'),
     'pull': ('pull', 'pulls'),
+    'soirée': ('noche', 'noches'),
     'sort': ('hechizo', 'hechizos'),
     'unité': ('unidad', 'unidades'),
 }
