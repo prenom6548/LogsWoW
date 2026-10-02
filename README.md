@@ -186,18 +186,20 @@ lu serait pire que pas de rapport du tout.
   seule en retard 60 points en dessous, et les chronomètres de la saison
   donnés par Raider.IO confirment chacun de ces verdicts. Sans score
   (ancien format), la clé est seulement « terminée ».
-- **Aperçu et comparaison des clés dans la fenêtre.** Sous la liste des
-  combats, trois onglets suivent ce que vous cochez : aperçu, clés,
-  équipement. Deux clés terminées du même donjon et du même niveau se
+- **Aperçu et comparaison des clés dans la fenêtre.** À droite de la liste
+  des combats, deux onglets suivent ce que vous cochez : l'aperçu (durée,
+  dégâts, soins, morts, une ligne par joueur avec son niveau d'objet) et
+  les clés. Deux clés terminées du même donjon et du même niveau se
   comparent : dégâts/s, soins/s (boucliers compris) et, pour le tank,
   dégâts subis/s, pour le groupe et pour chaque joueur. La page porte la
   même comparaison.
-- **L'équipement des joueurs**, dans le résumé de chaque combat : niveau
-  d'objet moyen du groupe, puis, replié, chaque pièce avec son niveau,
-  ses enchantements et ses gemmes. Le journal ne donne que le numéro et
-  le niveau d'un objet : le nom et l'icône viennent de la base d'objets du
-  jeu, que LogsWoW n'a pas ; chaque objet est un numéro avec un lien
-  Wowhead, suivi seulement si vous cliquez.
+- **Le niveau d'objet des joueurs**, dans l'aperçu et sur la page : à côté
+  de chaque nom dans la composition du groupe, avec la moyenne du groupe.
+  Sur la page, un détail replié donne chaque pièce (emplacement, objet,
+  niveau). Le journal ne donne que le numéro et le niveau d'un objet : le
+  nom et l'icône viennent de la base d'objets du jeu, que LogsWoW n'a pas ;
+  chaque objet est donc un numéro avec un lien Wowhead, suivi seulement si
+  vous cliquez.
 - **Les coups de mêlée reçus**, dans le panneau de chaque joueur que
   l'ennemi a frappé au moins dix fois (le tank surtout) : touchés,
   critiques, absorbés entièrement, parés, esquivés, ratés, bloqués, tels

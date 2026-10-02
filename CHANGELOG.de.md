@@ -8,6 +8,19 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.15.1 — 2026-10-02
+
+**Das Fenster liest sich nebeneinander, und die Ausrüstung wird
+einfacher.** Die Kämpfe stehen links, rechts die Vorschau und der
+Schlüsselvergleich (zwei Reiter): Sie sehen, was der Bericht sagt, ohne
+die Liste zu verlassen. Der Reiter *Ausrüstung* entfällt im Fenster: Eine
+Gegenstandsnummer sagt einem Spieler nichts. Die Gegenstandsstufe bleibt,
+pro Spieler in der Vorschau und auf der Seite neben jedem Namen in der
+Zusammensetzung der Gruppe, mit dem Durchschnitt der Gruppe. Auf der
+Seite behält die Ausrüstungsansicht Platz, Gegenstand (ein Wowhead-Link)
+und Stufe; die Spalten Verzauberungen und Edelsteine, die nur Nummern
+zeigten, entfallen. Keine Zahl ändert sich.
+
 ## 0.15.0 — 2026-10-02
 
 **Eine Vorschau im Fenster, bevor die Seite geschrieben wird.** Unter

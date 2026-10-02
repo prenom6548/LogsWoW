@@ -6,6 +6,18 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.15.1 — 2026-10-02
+
+**The window reads side by side, and the gear is simpler.** The fights are
+on the left, and on the right the preview and the comparison of keys
+(two tabs): you see what the report says without leaving the list. The
+*Gear* tab is gone from the window: an item number tells a player
+nothing. The item level stays, per player in the preview, and on the
+page next to each name in the group's composition, with the group's
+average. On the page, the gear detail keeps the slot, the item (a
+Wowhead link) and the level; the enchantments and gems columns, which
+only showed numbers, are removed. No figure changes.
+
 ## 0.15.0 — 2026-10-02
 
 **A preview in the window, before the page is written.** Under the list

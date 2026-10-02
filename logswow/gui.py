@@ -60,7 +60,7 @@ BAR_COLOURS = {"background": "#4a6984", "lightcolor": "#5a7fa0",
                "darkcolor": "#3d5870", "bordercolor": "#3d5870"}
 
 # The preview's tabs: (key, French title). The keys are internal.
-PREVIEW_TABS = (("overview", N_("Aperçu")), ("keys", N_("Clés")), ("gear", N_("Équipement")))
+PREVIEW_TABS = (("overview", N_("Aperçu")), ("keys", N_("Clés")))
 
 # What to type when the toolkit itself is missing, by system. The
 # message names the command rather than a web page to read.
@@ -165,14 +165,8 @@ def preview_texts(chosen):
     if not chosen:
         empty = _("Cochez un ou plusieurs combats pour voir ce que le rapport en dirait.")
         return {key: empty for key, _title in PREVIEW_TABS}
-    keys = preview.comparison_text(preview.comparison(chosen))
-    # One fight's gear, not one per fight: a night of twenty fights would repeat the same
-    # eighteen lines per player twenty times. The last is the gear worn at the end.
-    last = chosen[-1]
-    gear = _("Équipement tel qu'il était à « %s »%s.\n\n") % (
-        last.label, _(" (le dernier combat choisi)") if len(chosen) > 1 else "")
-    gear += preview.gear_text(last)
-    return {"overview": preview.overview_text(chosen), "keys": keys, "gear": gear}
+    return {"overview": preview.overview_text(chosen),
+            "keys": preview.comparison_text(preview.comparison(chosen))}
 
 
 def default_report_path(log_path, chosen, segments, layout="onglets"):
@@ -270,7 +264,7 @@ class App:
         self._preview_job = None
 
         root.title("LogsWoW %s" % __version__)
-        root.minsize(760, 820)
+        root.minsize(1000, 700)
         style = ttk.Style(root)
         if sys.platform.startswith("linux") and "clam" in style.theme_names():
             style.theme_use("clam")
@@ -285,18 +279,15 @@ class App:
         outer = ttk.Frame(root, padding=12)
         outer.pack(fill="both", expand=True)
         outer.columnconfigure(0, weight=1)
-        outer.rowconfigure(0, weight=1)
         outer.rowconfigure(1, weight=1)
-        outer.rowconfigure(2, weight=2)
         self._journal_box(outer).grid(row=0, column=0, sticky="nsew")
         self._fights_box(outer).grid(row=1, column=0, sticky="nsew", pady=(10, 0))
-        self._preview_box(outer).grid(row=2, column=0, sticky="nsew", pady=(10, 0))
-        self._report_box(outer).grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        self._report_box(outer).grid(row=2, column=0, sticky="ew", pady=(10, 0))
         self.status = tk.StringVar(value=_("Choisissez un journal, puis « Lire ce journal »."))
         ttk.Label(outer, textvariable=self.status, anchor="w").grid(
-            row=4, column=0, sticky="ew", pady=(10, 0))
+            row=3, column=0, sticky="ew", pady=(10, 0))
         ttk.Label(outer, text=_("Tout se passe sur cet ordinateur : aucune donnée n'est envoyée."),
-                  foreground="#666").grid(row=5, column=0, sticky="w")
+                  foreground="#666").grid(row=4, column=0, sticky="w")
 
         self.refresh_logs()
         self._update_buttons()
@@ -311,7 +302,7 @@ class App:
         box.rowconfigure(0, weight=1)
         self.logs = self._table(box, (("file", _("Fichier"), 250), ("date", _("Date"), 130),
                                       ("size", _("Taille"), 80), ("folder", _("Dossier"), 260)),
-                                height=4, select="browse")
+                                height=3, select="browse")
         self.logs.master.grid(row=0, column=0, columnspan=2, sticky="nsew")
         self.logs.bind("<Double-1>", lambda _event: self.read_selected())
         self.logs.bind("<<TreeviewSelect>>", lambda _event: self._update_buttons())
@@ -341,53 +332,66 @@ class App:
         return box
 
     def _fights_box(self, parent):
+        """The fights on the left, what the page would say about the ticked ones on the right."""
         ttk = self.ttk
         box = ttk.LabelFrame(parent, text=_(" 2. Les combats "), padding=8)
         box.columnconfigure(0, weight=1)
         box.rowconfigure(0, weight=1)
-        self.fights = self._table(box, (("n", "#", 40), ("fight", _("Combat"), 330),
-                                        ("time", _("Durée"), 70), ("damage", _("Dégâts"), 120),
-                                        ("deaths", _("Morts"), 60), ("outcome", _("Issue"), 110)),
-                                  height=6, select="extended")
+        split = ttk.PanedWindow(box, orient="horizontal")
+        split.grid(row=0, column=0, sticky="nsew")
+
+        left = ttk.Frame(split)
+        left.columnconfigure(0, weight=1)
+        left.rowconfigure(0, weight=1)
+        self.fights = self._table(left, (("n", "#", 34), ("fight", _("Combat"), 220),
+                                         ("time", _("Durée"), 58), ("damage", _("Dégâts"), 100),
+                                         ("deaths", _("Morts"), 50), ("outcome", _("Issue"), 112)),
+                                  height=12, select="extended")
+        # Damage and deaths stay in the rows (the preview and the tests read them) but the
+        # narrow list shows what tells one fight from another.
+        self.fights.configure(displaycolumns=("n", "fight", "time", "outcome"))
         self.fights.master.grid(row=0, column=0, sticky="nsew")
         self.fights.bind("<<TreeviewSelect>>", lambda _event: self._selection_changed())
-        line = ttk.Frame(box)
+        line = ttk.Frame(left)
         line.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         ttk.Button(line, text=_("Tout sélectionner"), command=self.select_all).pack(side="left")
         self.chosen_label = ttk.Label(line, text="")
         self.chosen_label.pack(side="left", padx=(12, 0))
+        split.add(left, weight=2)
+        split.add(self._preview_book(split), weight=3)
         return box
 
-    def _preview_box(self, parent):
-        """Three read-only texts under the fights: what the page would say, before writing it."""
+    def _preview_book(self, parent):
+        """Two read-only texts: the preview, and the keys side by side."""
         from tkinter import font
 
         ttk = self.ttk
-        box = ttk.LabelFrame(parent, text=_(" Aperçu des combats choisis "), padding=8)
-        box.columnconfigure(0, weight=1)
-        box.rowconfigure(0, weight=1)
-        book = ttk.Notebook(box)
-        book.grid(row=0, column=0, sticky="nsew")
+        book = ttk.Notebook(parent)
         mono = font.nametofont("TkFixedFont")
         self.previews = {}
         for key, title in PREVIEW_TABS:
             frame = ttk.Frame(book)
             frame.columnconfigure(0, weight=1)
             frame.rowconfigure(0, weight=1)
-            text = self.tk.Text(frame, height=14, wrap="none", font=mono, state="disabled",
+            # The keys' columns are lined up with spaces: they must not wrap. The preview's
+            # long lines (one player each) read better wrapped than scrolled sideways.
+            text = self.tk.Text(frame, height=12, width=64, font=mono, state="disabled",
+                                wrap="none" if key == "keys" else "word",
                                 borderwidth=0, padx=6, pady=4)
             down = ttk.Scrollbar(frame, orient="vertical", command=text.yview)
-            across = ttk.Scrollbar(frame, orient="horizontal", command=text.xview)
-            text.configure(yscrollcommand=down.set, xscrollcommand=across.set)
+            text.configure(yscrollcommand=down.set)
             text.grid(row=0, column=0, sticky="nsew")
             down.grid(row=0, column=1, sticky="ns")
-            across.grid(row=1, column=0, sticky="ew")
+            if key == "keys":
+                across = ttk.Scrollbar(frame, orient="horizontal", command=text.xview)
+                text.configure(xscrollcommand=across.set)
+                across.grid(row=1, column=0, sticky="ew")
             book.add(frame, text=_(title))
             self.previews[key] = text
-        return box
+        return book
 
     def _show_preview(self):
-        """Fill the three tabs for the fights ticked now (cheap: the analysis is already done)."""
+        """Fill the tabs for the fights ticked now (cheap: the analysis is already done)."""
         wanted = {int(item) for item in self.fights.selection()}
         chosen = [segment for segment in (self.segments or []) if segment.index in wanted]
         texts = preview_texts(chosen)

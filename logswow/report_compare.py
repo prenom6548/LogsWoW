@@ -95,7 +95,7 @@ class CompareMixin:
                 % (NBSP, ilvl_text(value), ilvl_text(min(known)), ilvl_text(max(known))))
 
     def _equipment(self, analysis):
-        """One folded table per player: each slot's item (a Wowhead link), level, enchants, gems."""
+        """One folded table per player: each slot's item (a Wowhead link) and its level."""
         blocks = []
         for _role, players in role_groups(analysis):
             for player in players:
@@ -108,21 +108,17 @@ class CompareMixin:
                     if self.wowhead_prefix is not None:
                         link = "<a href='%s'>%s</a>" % (
                             fmt.esc(item_url(item.item_id, self.wowhead_prefix)), fmt.esc(link))
-                    rows.append(
-                        "<tr><td class=dim>%s</td><td>%s</td><td class=n>%d</td><td>%s</td>"
-                        "<td class=n>%s</td></tr>" % (
-                            fmt.esc(slot_label(index)), link, item.ilvl,
-                            fmt.esc(", ".join(str(e) for e in item.enchants)) or "-",
-                            len(item.gems) or "-"))
+                    rows.append("<tr><td class=dim>%s</td><td>%s</td><td class=n>%d</td></tr>"
+                                % (fmt.esc(slot_label(index)), link, item.ilvl))
                 empty = [_(SLOT_NAMES[i]) for i in gear.empty_slots()]
                 blocks.append(
                     "<details><summary><span class=name>%s</span> <span class=dim>%s</span> "
                     "&middot; ilvl <b>%s</b></summary><div class=body><table>"
-                    "<tr><th>%s</th><th>%s</th><th class=n>%s</th><th>%s</th><th class=n>%s</th>"
-                    "</tr>%s</table>%s</div></details>" % (
+                    "<tr><th>%s</th><th>%s</th><th class=n>%s</th></tr>%s</table>%s</div></details>"
+                    % (
                         fmt.esc(player.short_name), fmt.esc(label_of(player.spec_id) or "?"),
                         ilvl_text(gear.average), fmt.esc(_("Emplacement")), fmt.esc(_("Objet")),
-                        fmt.esc(_("Niveau")), fmt.esc(_("Enchantements")), fmt.esc(_("Gemmes")),
+                        fmt.esc(_("Niveau")),
                         "".join(rows),
                         (_("<p class=dim style='margin:6px 0 0'>Emplacement vide%s: %s.</p>")
                          % (NBSP, fmt.esc(", ".join(empty)))) if empty else ""))

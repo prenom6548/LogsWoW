@@ -7,6 +7,19 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.15.1 — 2026-10-02
+
+**La ventana se lee en paralelo, y el equipo se simplifica.** Los combates
+están a la izquierda y, a la derecha, la vista previa y la comparación de
+llaves (dos pestañas): ve lo que dice el informe sin salir de la lista. La
+pestaña *Equipo* desaparece de la ventana: un número de objeto no le dice
+nada a un jugador. El nivel de objeto se mantiene, por jugador en la vista
+previa y en la página junto a cada nombre en la composición del grupo, con
+la media del grupo. En la página, el detalle del equipo conserva la
+ranura, el objeto (un enlace a Wowhead) y el nivel; las columnas de
+encantamientos y gemas, que solo mostraban números, se eliminan. Ninguna
+cifra cambia.
+
 ## 0.15.0 — 2026-10-02
 
 **Una vista previa en la ventana, antes de escribir la página.** Bajo la

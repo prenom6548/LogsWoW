@@ -766,20 +766,10 @@ TEXTS = {
         'Equipo',
     'Cochez un ou plusieurs combats pour voir ce que le rapport en dirait.':
         'Marque uno o varios combates para ver lo que diría el informe.',
-    "Équipement tel qu'il était à « %s »%s.\n\n":
-        'Equipo tal como estaba en «%s»%s.\n\n',
-    ' (le dernier combat choisi)':
-        ' (el último combate elegido)',
-    ' Aperçu des combats choisis ':
-        ' Vista previa de los combates elegidos ',
     'Aucune clé terminée à comparer : il faut au moins une clé, et deux du même niveau pour les mettre côte à côte.':
         'No hay ninguna llave terminada que comparar: hace falta al menos una, y dos del mismo nivel para ponerlas una junto a otra.',
     "Écart : la dernière clé par rapport à la première. Soins/s compte les boucliers ; Subis/s compte ce que les boucliers ont absorbé, et n'est donné qu'aux tanks.":
         'Diferencia: la última llave respecto a la primera. Sanación/s cuenta los escudos; Recibido/s cuenta lo que absorbieron los escudos, y solo se da a los tanques.',
-    'Aucun joueur dans ce combat.':
-        'Ningún jugador en este combate.',
-    "Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni son icône : ils viennent de la base d'objets du jeu. Le rapport les relie à Wowhead.":
-        'El registro da el número y el nivel de cada objeto, nunca su nombre ni su icono: vienen de la base de objetos del juego. El informe los enlaza con Wowhead.',
     '%s — %s (%s)':
         '%s — %s (%s)',
     'Dégâts %s (%s/s) · Soins %s (%s/s, boucliers compris) · Subis %s · %s':
@@ -810,22 +800,10 @@ TEXTS = {
         '  %s a los %s: %s',
     'Écart':
         'Diferencia',
-    '%s : ilvl %s (de %d à %d)':
-        '%s: ilvl %s (de %d a %d)',
     'Clé %d':
         'Llave %d',
     'Groupe : ':
         'Grupo: ',
-    '%s : équipement non écrit dans le journal':
-        '%s: equipo no escrito en el registro',
-    '  %-12s ilvl %d  objet %d%s%s':
-        '  %-12s ilvl %d  objeto %d%s%s',
-    '  Emplacement vide : %s.':
-        '  Ranura vacía: %s.',
-    '  enchantement %s':
-        '  encantamiento %s',
-    '  gemmes %d':
-        '  gemas %d',
     'sans résultat':
         'sin resultado',
     "<p style='margin:10px 0 0;font-size:12.5px'>Niveau d'objet moyen du groupe%s: <b>%s</b> (de %s à %s).</p>":
@@ -846,10 +824,6 @@ TEXTS = {
         'Objeto',
     'Niveau':
         'Nivel',
-    'Enchantements':
-        'Encantamientos',
-    'Gemmes':
-        'Gemas',
     "<p class=dim style='margin:6px 0 0'>Emplacement vide%s: %s.</p>":
         "<p class=dim style='margin:6px 0 0'>Ranura vacía%s: %s.</p>",
     ' (non compté)':

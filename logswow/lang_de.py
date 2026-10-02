@@ -766,20 +766,10 @@ TEXTS = {
         'Ausrüstung',
     'Cochez un ou plusieurs combats pour voir ce que le rapport en dirait.':
         'Wählen Sie einen oder mehrere Kämpfe, um zu sehen, was der Bericht dazu sagen würde.',
-    "Équipement tel qu'il était à « %s »%s.\n\n":
-        'Ausrüstung, wie sie bei „%s“%s war.\n\n',
-    ' (le dernier combat choisi)':
-        ' (der zuletzt gewählte Kampf)',
-    ' Aperçu des combats choisis ':
-        ' Vorschau der gewählten Kämpfe ',
     'Aucune clé terminée à comparer : il faut au moins une clé, et deux du même niveau pour les mettre côte à côte.':
         'Kein beendeter Schlüssel zum Vergleichen: Es braucht mindestens einen Schlüssel, und zwei der gleichen Stufe, um sie nebeneinanderzustellen.',
     "Écart : la dernière clé par rapport à la première. Soins/s compte les boucliers ; Subis/s compte ce que les boucliers ont absorbé, et n'est donné qu'aux tanks.":
         'Abweichung: der letzte Schlüssel im Vergleich zum ersten. Heilung/s zählt Schilde mit; Erlitten/s zählt, was Schilde absorbiert haben, und wird nur für Tanks angegeben.',
-    'Aucun joueur dans ce combat.':
-        'Kein Spieler in diesem Kampf.',
-    "Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni son icône : ils viennent de la base d'objets du jeu. Le rapport les relie à Wowhead.":
-        'Das Protokoll nennt Nummer und Stufe jedes Gegenstands, nie seinen Namen oder sein Symbol: Diese stammen aus der Gegenstandsdatenbank des Spiels. Der Bericht verlinkt sie mit Wowhead.',
     '%s — %s (%s)':
         '%s — %s (%s)',
     'Dégâts %s (%s/s) · Soins %s (%s/s, boucliers compris) · Subis %s · %s':
@@ -810,22 +800,10 @@ TEXTS = {
         '  %s bei %s: %s',
     'Écart':
         'Abweichung',
-    '%s : ilvl %s (de %d à %d)':
-        '%s: ilvl %s (von %d bis %d)',
     'Clé %d':
         'Schlüssel %d',
     'Groupe : ':
         'Gruppe: ',
-    '%s : équipement non écrit dans le journal':
-        '%s: Ausrüstung nicht im Protokoll',
-    '  %-12s ilvl %d  objet %d%s%s':
-        '  %-12s ilvl %d  Gegenstand %d%s%s',
-    '  Emplacement vide : %s.':
-        '  Leerer Platz: %s.',
-    '  enchantement %s':
-        '  Verzauberung %s',
-    '  gemmes %d':
-        '  Edelsteine %d',
     'sans résultat':
         'ohne Ergebnis',
     "<p style='margin:10px 0 0;font-size:12.5px'>Niveau d'objet moyen du groupe%s: <b>%s</b> (de %s à %s).</p>":
@@ -846,10 +824,6 @@ TEXTS = {
         'Gegenstand',
     'Niveau':
         'Stufe',
-    'Enchantements':
-        'Verzauberungen',
-    'Gemmes':
-        'Edelsteine',
     "<p class=dim style='margin:6px 0 0'>Emplacement vide%s: %s.</p>":
         "<p class=dim style='margin:6px 0 0'>Leerer Platz%s: %s.</p>",
     ' (non compté)':

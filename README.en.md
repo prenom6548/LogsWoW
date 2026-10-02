@@ -176,16 +176,19 @@ misread file would be worse than no report at all.
   late one 60 points below, and the season's timers as Raider.IO gives
   them confirm every one of these verdicts. With no score (older format),
   the key is only "completed".
-- **Preview and comparison of keys in the window.** Under the list of
-  fights, three tabs follow what you tick: overview, keys, gear. Two
-  finished keys of the same dungeon and level are compared: damage/s,
-  healing/s (shields included) and, for the tank, damage taken/s, for the
-  group and for each player. The page carries the same comparison.
-- **The players' gear**, in each fight's summary: the group's average
-  item level, then, folded, every piece with its level, enchantments and
-  gems. The log gives only an item's number and level: the name and icon
-  come from the game's item database, which LogsWoW does not have; each
-  item is a number with a Wowhead link, followed only if you click.
+- **Preview and comparison of keys in the window.** To the right of the
+  list of fights, two tabs follow what you tick: the overview (length,
+  damage, healing, deaths, a line per player with their item level) and
+  the keys. Two finished keys of the same dungeon and level are compared:
+  damage/s, healing/s (shields included) and, for the tank, damage
+  taken/s, for the group and for each player. The page carries the same
+  comparison.
+- **The players' item level**, in the overview and on the page: next to
+  each name in the group's composition, with the group's average. On the
+  page, a folded detail gives every piece (slot, item, level). The log
+  gives only an item's number and level: the name and icon come from the
+  game's item database, which LogsWoW does not have; each item is
+  therefore a number with a Wowhead link, followed only if you click.
 - **Melee swings taken**, in the panel of every player the enemy
   swung at ten times or more (the tank above all): hit, critical, fully
   absorbed, parried, dodged, missed, blocked, as the log writes them.

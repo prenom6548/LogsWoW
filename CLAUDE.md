@@ -1551,11 +1551,18 @@ summary -- asking whether equipment needs the internet.
   direction prints "0 %", never "-0 %". The fights are numbered the way
   the window numbers them: the overview's first cell now carries the index,
   and the comparison's columns say "Clé 3".
-- **The window**: a `ttk.Notebook` of three read-only `Text` widgets
-  (fixed font, columns sized to their content -- a fixed width ran
-  "dans les temps" into the next cell), refreshed 150 ms after the
-  selection settles. The equipment tab shows the **last fight chosen**:
-  twenty fights would repeat eighteen lines per player twenty times.
+- **The window** (0.15.1 layout, after the owner compared it with the
+  other project's): the fights on the left, and to their right, in a
+  resizable `ttk.PanedWindow`, a `ttk.Notebook` of two read-only `Text`
+  widgets -- the overview and the keys (fixed font, columns sized to their
+  content -- a fixed width ran "dans les temps" into the next cell),
+  refreshed 150 ms after the selection settles. **There is no gear tab**:
+  the owner judged that an item id says nothing to a player (0.15.0 had
+  one). The item level stays, per player in the overview and next to each
+  name in the page's composition. On the page the folded gear detail has
+  three columns, slot, item (a Wowhead link) and level: the enchant ids
+  and the gem counts were struck out by the owner too. `gear.py` still
+  reads enchants and gems; nothing shows them.
 - **Proof.** The snapshot on five inputs (fixture, synthetic key, raid
   night, 951,575-line dungeon night, five-key night) before and after: with
   the new `gear` fields and the page bytes set aside, every number of every
@@ -1714,7 +1721,7 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 271 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 272 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
    `TestSeventhAuditFindings`), and each one was regression-checked the

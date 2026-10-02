@@ -284,42 +284,6 @@ def _aligned(table, columns):
     return lines
 
 
-# -- gear ------------------------------------------------------------------------------
-
-def gear_text(segment):
-    """Every player's item level and what they wore, for the window's equipment tab."""
-    from .gear import SLOT_NAMES, slot_label
-
-    analysis = segment.analysis
-    lines = []
-    for role, players in role_groups(analysis):
-        for player in players:
-            gear = player.gear
-            head = "%s (%s)" % (player.short_name, label_of(player.spec_id) or "?")
-            if gear is None:
-                lines.append(_("%s : équipement non écrit dans le journal") % head)
-                continue
-            worn = [item.ilvl for _index, item in gear.counted() if item.item_id]
-            lines.append(_("%s : ilvl %s (de %d à %d)") % (
-                head, ilvl_text(gear.average), min(worn) if worn else 0, max(worn) if worn else 0))
-            for index, item in gear.worn():
-                lines.append(_("  %-12s ilvl %d  objet %d%s%s") % (
-                    slot_label(index), item.ilvl, item.item_id,
-                    _("  enchantement %s") % ", ".join(str(e) for e in item.enchants)
-                    if item.enchants else "",
-                    _("  gemmes %d") % len(item.gems) if item.gems else ""))
-            empty = [_(SLOT_NAMES[index]) for index in gear.empty_slots()]
-            if empty:
-                lines.append(_("  Emplacement vide : %s.") % ", ".join(empty))
-            lines.append("")
-    if not lines:
-        return _("Aucun joueur dans ce combat.")
-    lines.append(_("Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni "
-                   "son icône : ils viennent de la base d'objets du jeu. Le rapport les relie à "
-                   "Wowhead."))
-    return "\n".join(lines)
-
-
 def overview_text(segments):
     """What the window's preview says for the chosen fights: one preview each, in order."""
     if not segments:

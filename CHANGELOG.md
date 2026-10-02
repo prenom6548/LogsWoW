@@ -3,6 +3,19 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.15.1 — 2026-10-02
+
+**La fenêtre se lit côte à côte, et l'équipement se simplifie.** Les
+combats sont à gauche, et à droite l'aperçu et la comparaison des clés
+(deux onglets) : on voit ce que dit le rapport sans quitter la liste.
+L'onglet *Équipement* disparaît de la fenêtre : un numéro d'objet ne dit
+rien à un joueur. Le niveau d'objet reste, par joueur dans l'aperçu, et
+sur la page à côté de chaque nom dans la composition du groupe, avec la
+moyenne du groupe. Sur la page, le détail de l'équipement garde
+l'emplacement, l'objet (un lien Wowhead) et le niveau ; les colonnes
+enchantements et gemmes, qui n'affichaient que des numéros, sont
+retirées. Aucun chiffre ne change.
+
 ## 0.15.0 — 2026-10-02
 
 **Un aperçu dans la fenêtre, avant d'écrire la page.** Sous la liste des

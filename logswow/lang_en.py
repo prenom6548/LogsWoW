@@ -766,20 +766,10 @@ TEXTS = {
         'Gear',
     'Cochez un ou plusieurs combats pour voir ce que le rapport en dirait.':
         'Tick one or more fights to see what the report would say about them.',
-    "Équipement tel qu'il était à « %s »%s.\n\n":
-        'Gear as it was at "%s"%s.\n\n',
-    ' (le dernier combat choisi)':
-        ' (the last fight chosen)',
-    ' Aperçu des combats choisis ':
-        ' Preview of the fights chosen ',
     'Aucune clé terminée à comparer : il faut au moins une clé, et deux du même niveau pour les mettre côte à côte.':
         'No finished key to compare: it takes at least one key, and two of the same level to set them side by side.',
     "Écart : la dernière clé par rapport à la première. Soins/s compte les boucliers ; Subis/s compte ce que les boucliers ont absorbé, et n'est donné qu'aux tanks.":
         'Change: the last key against the first. Healing/s counts shields; Taken/s counts what shields absorbed, and is given to tanks only.',
-    'Aucun joueur dans ce combat.':
-        'No player in this fight.',
-    "Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni son icône : ils viennent de la base d'objets du jeu. Le rapport les relie à Wowhead.":
-        "The log gives each item's number and level, never its name or icon: those come from the game's item database. The report links them to Wowhead.",
     '%s — %s (%s)':
         '%s — %s (%s)',
     'Dégâts %s (%s/s) · Soins %s (%s/s, boucliers compris) · Subis %s · %s':
@@ -810,22 +800,10 @@ TEXTS = {
         '  %s at %s: %s',
     'Écart':
         'Change',
-    '%s : ilvl %s (de %d à %d)':
-        '%s: ilvl %s (from %d to %d)',
     'Clé %d':
         'Key %d',
     'Groupe : ':
         'Group: ',
-    '%s : équipement non écrit dans le journal':
-        '%s: gear not written in the log',
-    '  %-12s ilvl %d  objet %d%s%s':
-        '  %-12s ilvl %d  item %d%s%s',
-    '  Emplacement vide : %s.':
-        '  Empty slot: %s.',
-    '  enchantement %s':
-        '  enchant %s',
-    '  gemmes %d':
-        '  gems %d',
     'sans résultat':
         'no result',
     "<p style='margin:10px 0 0;font-size:12.5px'>Niveau d'objet moyen du groupe%s: <b>%s</b> (de %s à %s).</p>":
@@ -846,10 +824,6 @@ TEXTS = {
         'Item',
     'Niveau':
         'Level',
-    'Enchantements':
-        'Enchantments',
-    'Gemmes':
-        'Gems',
     "<p class=dim style='margin:6px 0 0'>Emplacement vide%s: %s.</p>":
         "<p class=dim style='margin:6px 0 0'>Empty slot%s: %s.</p>",
     ' (non compté)':

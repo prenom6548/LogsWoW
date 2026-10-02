@@ -22,6 +22,7 @@ from .i18n import N_, _, language, spell_label
 from .specs import DPS, HEAL, TANK, label_of, role_of
 from .timestamps import format_duration
 from .report_casts import CastOrderMixin, chip_rules
+from .preview import ilvl_text
 from .report_compare import CompareMixin
 from .report_panels import PanelsMixin
 from .report_layouts import LayoutsMixin, write_streamed
@@ -706,8 +707,10 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
         rows = []
         for label, players in groups:
             names = ", ".join(
-                "<span class=name>%s</span> <span class=dim>%s</span>"
-                % (fmt.esc(player.short_name), fmt.esc(label_of(player.spec_id) or "?"))
+                "<span class=name>%s</span> <span class=dim>%s%s</span>"
+                % (fmt.esc(player.short_name), fmt.esc(label_of(player.spec_id) or "?"),
+                   fmt.esc(" \u00b7 " + _("ilvl %s") % ilvl_text(player.gear.average))
+                   if player.gear is not None else "")
                 for player in players
             )
             rows.append(

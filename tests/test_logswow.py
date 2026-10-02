@@ -4179,6 +4179,9 @@ class TestGearAndComparison(unittest.TestCase):
                 self.assertIn("objet 900000", page)
                 self.assertIn("(non compté)", page)
                 self.assertIn("Emplacement vide", page)       # the DPS has no neck and no ring
+                # Slot, item and level only: an enchant id or a gem count means nothing to a player.
+                self.assertNotIn("Enchantements", page)
+                self.assertNotIn("Gemmes", page)
                 # Item links are anchors Wowhead opens on a click, never something fetched.
                 self.assertIn("<a href='https://www.wowhead.com/", page)
                 self.assertNotRegex(page, r"(?i)<(img|script|link|iframe)\b")
@@ -4188,24 +4191,28 @@ class TestGearAndComparison(unittest.TestCase):
         # The first cell of the overview carries the number the comparison calls a fight by.
         self.assertRegex(self._page(log, segments), r"<span class=dim>3</span> <a href='#s3'")
 
-    def test_the_window_preview_has_the_three_tabs_and_an_empty_message(self):
+    def test_the_window_preview_has_two_tabs_and_an_empty_message(self):
         from logswow import gui
 
         keys = [key for key, _title in gui.PREVIEW_TABS]
-        self.assertEqual(keys, ["overview", "keys", "gear"])
+        self.assertEqual(keys, ["overview", "keys"])     # no gear tab: ids mean nothing to a player
         empty = gui.preview_texts([])
         self.assertEqual(set(empty), set(keys))
         self.assertIn("Cochez", empty["overview"])
         _log, segments = self._two_keys()
         texts = gui.preview_texts(segments[:1])
         self.assertIn("Golem d'essai", texts["overview"])
-        self.assertIn("ilvl", texts["gear"])
-        self.assertIn("(non compté)", texts["gear"])
+        # The item level stays, per player and for the group; the items themselves do not.
+        self.assertIn("ilvl 6", texts["overview"])
+        self.assertIn("Niveau d'objet moyen du groupe", texts["overview"])
+        self.assertNotRegex(texts["overview"], r"objet \d+")
         self.assertIn("Aucune clé", texts["keys"])
-        both = gui.preview_texts(segments)
-        self.assertIn("2 clés", both["keys"])
-        self.assertIn("le dernier combat choisi", both["gear"])
-        self.assertNotIn("le dernier combat choisi", texts["gear"])
+        self.assertIn("2 clés", gui.preview_texts(segments)["keys"])
+
+    def test_each_player_s_item_level_is_in_the_composition_of_the_page(self):
+        log, segments = self._two_keys()
+        page = self._page(log, segments)
+        self.assertRegex(page, r"<span class=dim>[^<]*\u00b7 ilvl 6\d\d,\d</span>")
 
     def test_the_preview_follows_the_selection_in_the_window(self):
         """Needs Tkinter and a display; skipped wherever either is missing."""

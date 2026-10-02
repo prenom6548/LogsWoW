@@ -201,19 +201,22 @@ wäre schlimmer als gar kein Bericht.
   darunter, und die Timer der Saison, wie Raider.IO sie angibt,
   bestätigen jedes dieser Urteile. Ohne Wertung (älteres Format) ist der
   Schlüssel nur „abgeschlossen“.
-- **Vorschau und Schlüsselvergleich im Fenster.** Unter der Kampfliste
-  folgen drei Reiter dem, was Sie ankreuzen: Übersicht, Schlüssel,
-  Ausrüstung. Zwei beendete Schlüssel desselben Dungeons und derselben
-  Stufe werden verglichen: Schaden/s, Heilung/s (Schilde eingeschlossen)
-  und, für den Tank, erlittener Schaden/s, für die Gruppe und für jeden
-  Spieler. Die Seite enthält denselben Vergleich.
-- **Die Ausrüstung der Spieler**, in der Zusammenfassung jedes Kampfes:
-  durchschnittliche Gegenstandsstufe der Gruppe, dann, eingeklappt, jedes
-  Teil mit Stufe, Verzauberungen und Edelsteinen. Das Protokoll nennt nur
-  Nummer und Stufe eines Gegenstands: Name und Symbol stammen aus der
-  Gegenstandsdatenbank des Spiels, die LogsWoW nicht hat; jeder Gegenstand
-  ist eine Nummer mit einem Wowhead-Link, dem nur bei einem Klick gefolgt
-  wird.
+- **Vorschau und Schlüsselvergleich im Fenster.** Rechts neben der
+  Kampfliste folgen zwei Reiter dem, was Sie ankreuzen: die Übersicht
+  (Dauer, Schaden, Heilung, Tode, eine Zeile pro Spieler mit seiner
+  Gegenstandsstufe) und die Schlüssel. Zwei beendete Schlüssel desselben
+  Dungeons und derselben Stufe werden verglichen: Schaden/s, Heilung/s
+  (Schilde eingeschlossen) und, für den Tank, erlittener Schaden/s, für
+  die Gruppe und für jeden Spieler. Die Seite enthält denselben
+  Vergleich.
+- **Die Gegenstandsstufe der Spieler**, in der Übersicht und auf der
+  Seite: neben jedem Namen in der Zusammensetzung der Gruppe, mit dem
+  Durchschnitt der Gruppe. Auf der Seite zeigt ein eingeklapptes Detail
+  jedes Teil (Platz, Gegenstand, Stufe). Das Protokoll nennt nur Nummer
+  und Stufe eines Gegenstands: Name und Symbol stammen aus der
+  Gegenstandsdatenbank des Spiels, die LogsWoW nicht hat; jeder
+  Gegenstand ist daher eine Nummer mit einem Wowhead-Link, dem nur bei
+  einem Klick gefolgt wird.
 - **Erhaltene Nahkampfschläge**, im Panel jedes Spielers, den der
   Gegner mindestens zehnmal angegriffen hat (vor allem der Tank):
   getroffen, kritisch, vollständig absorbiert, pariert, ausgewichen,

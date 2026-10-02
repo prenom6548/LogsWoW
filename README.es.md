@@ -188,18 +188,20 @@ que ningún informe.
   debajo, y los temporizadores de la temporada que da Raider.IO confirman
   cada uno de estos veredictos. Sin puntuación (formato antiguo), la
   llave solo está «completada».
-- **Vista previa y comparación de llaves en la ventana.** Bajo la lista de
-  combates, tres pestañas siguen lo que marque: resumen, llaves, equipo.
-  Dos llaves terminadas de la misma mazmorra y del mismo nivel se
-  comparan: daño/s, sanación/s (escudos incluidos) y, para el tanque,
-  daño recibido/s, para el grupo y para cada jugador. La página lleva la
-  misma comparación.
-- **El equipo de los jugadores**, en el resumen de cada combate: nivel de
-  objeto medio del grupo y, plegada, cada pieza con su nivel, sus
-  encantamientos y sus gemas. El registro solo da el número y el nivel de
-  un objeto: el nombre y el icono vienen de la base de objetos del juego,
-  que LogsWoW no tiene; cada objeto es un número con un enlace a Wowhead,
-  que solo se sigue si hace clic.
+- **Vista previa y comparación de llaves en la ventana.** A la derecha de
+  la lista de combates, dos pestañas siguen lo que marque: el resumen
+  (duración, daño, sanación, muertes, una línea por jugador con su nivel
+  de objeto) y las llaves. Dos llaves terminadas de la misma mazmorra y
+  del mismo nivel se comparan: daño/s, sanación/s (escudos incluidos) y,
+  para el tanque, daño recibido/s, para el grupo y para cada jugador. La
+  página lleva la misma comparación.
+- **El nivel de objeto de los jugadores**, en el resumen y en la página:
+  junto a cada nombre en la composición del grupo, con la media del
+  grupo. En la página, un detalle plegado da cada pieza (ranura, objeto,
+  nivel). El registro solo da el número y el nivel de un objeto: el nombre
+  y el icono vienen de la base de objetos del juego, que LogsWoW no tiene;
+  cada objeto es, por tanto, un número con un enlace a Wowhead, que solo
+  se sigue si hace clic.
 - **Golpes cuerpo a cuerpo recibidos**, en el panel de cada jugador al
   que el enemigo golpeó al menos diez veces (sobre todo el tanque):
   impactos, críticos, absorbidos por completo, parados, esquivados,
