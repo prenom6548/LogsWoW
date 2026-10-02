@@ -1563,6 +1563,15 @@ summary -- asking whether equipment needs the internet.
   three columns, slot, item (a Wowhead link) and level: the enchant ids
   and the gem counts were struck out by the owner too. `gear.py` still
   reads enchants and gems; nothing shows them.
+- **The comparison is a tab of the overview, not a block under it** (the
+  owner's sketch, 0.15.1): `_tab_overview` turns the fights card and the
+  comparison into two panes behind radio buttons (`.otab`, `.otabs`,
+  `.opane`, in the base `CSS` so the long page, the tabs and `index.html`
+  all have them). It reads the fights heading back out of the translated
+  overview text rather than repeat it (no new key). With nothing to
+  compare there is one pane and none of the markup: the page is what it
+  was. Checked in Chromium on the 364 MB night, tabbed and long layouts:
+  the second tab shows, the first hides, no request leaves the file.
 - **Proof.** The snapshot on five inputs (fixture, synthetic key, raid
   night, 951,575-line dungeon night, five-key night) before and after: with
   the new `gear` fields and the page bytes set aside, every number of every

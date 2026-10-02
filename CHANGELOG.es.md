@@ -17,7 +17,11 @@ nada a un jugador. El nivel de objeto se mantiene, por jugador en la vista
 previa y en la página junto a cada nombre en la composición del grupo, con
 la media del grupo. En la página, el detalle del equipo conserva la
 ranura, el objeto (un enlace a Wowhead) y el nivel; las columnas de
-encantamientos y gemas, que solo mostraban números, se eliminan. Ninguna
+encantamientos y gemas, que solo mostraban números, se eliminan.
+
+**En la página, la comparación de llaves pasa a ser una pestaña** junto a
+«Combates», en lugar de añadirse debajo: la vista general ya no se
+alarga. Sin llaves que comparar, la página queda como estaba. Ninguna
 cifra cambia.
 
 ## 0.15.0 — 2026-10-02

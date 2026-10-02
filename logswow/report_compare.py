@@ -20,7 +20,7 @@ class CompareMixin:
     """Methods of `ReportWriter`: the comparison card and the equipment of a group."""
 
     def _comparison(self):
-        """The 'Comparaison des clés' card of the overview, or '' when no key finished."""
+        """The body of the overview's 'Comparaison des clés' tab, or '' when no key finished."""
         groups = comparison(self.segments)
         if not groups:
             return ""
@@ -45,7 +45,7 @@ class CompareMixin:
             blocks.append("<h3>%s <span class=dim>&middot; %s</span></h3><div class=card>%s%s</div>"
                           % (fmt.esc(group["title"]), fmt.plural(len(runs), "clé"), table,
                              self._cmp_players(group)))
-        return (_("<h2>Comparaison des clés</h2>") + "".join(blocks)
+        return ("".join(blocks)
                 + _("<p class=dim style='font-size:12.5px'>Écart%s: la dernière clé par rapport "
                     "à la première. <b>Soins/s</b> compte les boucliers (le journal ne les range "
                     "pas parmi les soins, les sites en ligne si). <b>Subis/s</b> compte ce que les "

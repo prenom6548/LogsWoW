@@ -808,8 +808,8 @@ TEXTS = {
         'sin resultado',
     "<p style='margin:10px 0 0;font-size:12.5px'>Niveau d'objet moyen du groupe%s: <b>%s</b> (de %s à %s).</p>":
         "<p style='margin:10px 0 0;font-size:12.5px'>Nivel de objeto medio del grupo%s: <b>%s</b> (de %s a %s).</p>",
-    '<h2>Comparaison des clés</h2>':
-        '<h2>Comparación de llaves</h2>',
+    'Comparaison des clés':
+        'Comparación de llaves',
     "<p class=dim style='font-size:12.5px'>Écart%s: la dernière clé par rapport à la première. <b>Soins/s</b> compte les boucliers (le journal ne les range pas parmi les soins, les sites en ligne si). <b>Subis/s</b> compte ce que les boucliers ont absorbé : c'est ce qui arrive au tank avant ses protections, et il n'est donné qu'aux tanks. Seules des clés terminées du même niveau sont comparées.</p>":
         "<p class=dim style='font-size:12.5px'>Diferencia%s: la última llave respecto a la primera. <b>Sanación/s</b> cuenta los escudos (el registro no los clasifica como sanación, los sitios en línea sí). <b>Recibido/s</b> cuenta lo que absorbieron los escudos: es lo que llega al tanque antes de sus protecciones, y solo se da a los tanques. Solo se comparan llaves terminadas del mismo nivel.</p>",
     "Le journal donne le numéro et le niveau de chaque objet, jamais son nom ni son icône : ils viennent de la base d'objets du jeu, que ce rapport n'a pas (il ne se connecte à rien). Le lien ouvre Wowhead si vous cliquez dessus. Le niveau moyen suit la formule du jeu : seize emplacements, chemise et tabard exclus, une arme à deux mains comptée deux fois, un emplacement vide pour zéro.":

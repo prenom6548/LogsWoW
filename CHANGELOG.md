@@ -14,7 +14,12 @@ sur la page à côté de chaque nom dans la composition du groupe, avec la
 moyenne du groupe. Sur la page, le détail de l'équipement garde
 l'emplacement, l'objet (un lien Wowhead) et le niveau ; les colonnes
 enchantements et gemmes, qui n'affichaient que des numéros, sont
-retirées. Aucun chiffre ne change.
+retirées.
+
+**Sur la page, la comparaison des clés devient un onglet** à côté de
+« Combats », au lieu de s'ajouter en dessous : la vue d'ensemble ne
+s'allonge plus. Sans clé à comparer, la page reste telle qu'elle était.
+Aucun chiffre ne change.
 
 ## 0.15.0 — 2026-10-02
 

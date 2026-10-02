@@ -16,7 +16,11 @@ nothing. The item level stays, per player in the preview, and on the
 page next to each name in the group's composition, with the group's
 average. On the page, the gear detail keeps the slot, the item (a
 Wowhead link) and the level; the enchantments and gems columns, which
-only showed numbers, are removed. No figure changes.
+only showed numbers, are removed.
+
+**On the page, the comparison of keys becomes a tab** next to "Fights",
+instead of being added below: the overview no longer grows. With no key
+to compare, the page stays as it was. No figure changes.
 
 ## 0.15.0 — 2026-10-02
 

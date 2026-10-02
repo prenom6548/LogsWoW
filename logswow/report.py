@@ -12,6 +12,7 @@ out in the reader's (i18n.py); the code and its comments stay in English.
 """
 
 import os
+import re
 from datetime import datetime
 
 from . import __version__
@@ -90,6 +91,17 @@ svg{display:block;width:100%;height:auto}
 @media(max-width:720px){.cols{grid-template-columns:1fr}.wrap{padding:18px 12px 60px}}
 footer{margin-top:44px;padding-top:14px;border-top:1px solid var(--line);
 color:var(--muted);font-size:12.5px}
+.otab{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.otabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin:26px 0 14px}
+.olb{padding:7px 14px;cursor:pointer;border:1px solid transparent;border-bottom:none;
+border-radius:6px 6px 0 0;font-size:17px;font-weight:600;color:var(--muted);margin-bottom:-1px}
+.olb:hover{color:var(--ink)}
+.opane{display:none}
+#ov-fights:checked~.opanes .op-fights,#ov-keys:checked~.opanes .op-keys{display:block}
+#ov-fights:checked~.otabs .ol-fights,#ov-keys:checked~.otabs .ol-keys{background:var(--panel);
+border-color:var(--line);color:var(--ink)}
+#ov-fights:focus-visible~.otabs .ol-fights,#ov-keys:focus-visible~.otabs .ol-keys{
+outline:2px solid var(--accent)}
 """
 
 
@@ -337,7 +349,7 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
             )
 
         generated = datetime.now().strftime(_("%d/%m/%Y %H:%M"))
-        return (
+        text = (
             _("<h1>Rapport de combat</h1>"
               "<p class=sub>%s &middot; %s lignes, %s événements &middot; généré le %s "
               "par LogsWoW %s</p>"
@@ -359,8 +371,31 @@ class ReportWriter(TimelineMixin, PanelsMixin, CastOrderMixin, SchoolsMixin, Lay
                 self._stats(),
                 "".join(rows),
             )
-            + self._comparison()
         )
+        return self._tab_overview(text, self._comparison())
+
+    @staticmethod
+    def _tab_overview(text, keys):
+        """The fights table and the comparison of keys as two tabs, so the page stays short.
+
+        `text` ends on its own '<h2>Combats</h2><div class=card>...</div>'; the heading becomes
+        the first tab's label (it is translated, so it is read back rather than repeated). With
+        no key to compare there is one pane, and the page is as it always was.
+        """
+        if not keys:
+            return text
+        start = text.rindex("<h2>")
+        title = re.match(r"<h2>(.*?)</h2>", text[start:]).group(1)
+        fights = text[start + len("<h2>" + title + "</h2>"):]
+        return (text[:start]
+                + "<input type=radio name=ov id=ov-fights class=otab checked aria-label='%s'>"
+                  "<input type=radio name=ov id=ov-keys class=otab aria-label='%s'>"
+                  "<div class=otabs><label for=ov-fights class='olb ol-fights'>%s</label>"
+                  "<label for=ov-keys class='olb ol-keys'>%s</label></div>"
+                  "<div class=opanes><div class='opane op-fights'>%s</div>"
+                  "<div class='opane op-keys'>%s</div></div>"
+                % (title, fmt.esc(_("Comparaison des clés")), title,
+                   fmt.esc(_("Comparaison des clés")), fights, keys))
 
     def _boss_pulls(self):
         """{start: (success, fought)} of every boss encounter the chosen fights hold.

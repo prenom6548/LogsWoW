@@ -4172,7 +4172,11 @@ class TestGearAndComparison(unittest.TestCase):
         for layout in ("longue", "onglets"):
             with self.subTest(layout=layout):
                 page = self._page(log, segments, layout)
-                self.assertIn("<h2>Comparaison des clés</h2>", page)
+                # Two tabs of the overview (fights, comparison): the page does not grow.
+                self.assertIn("<label for=ov-keys class='olb ol-keys'>Comparaison des clés</label>",
+                              page)
+                self.assertIn("<label for=ov-fights class='olb ol-fights'>Combats</label>", page)
+                self.assertNotIn("<h2>Comparaison des clés</h2>", page)
                 self.assertIn("Clé 3", page)
                 self.assertIn("Clé 4", page)
                 self.assertIn("Niveau d'objet moyen du groupe", page)
@@ -4187,7 +4191,9 @@ class TestGearAndComparison(unittest.TestCase):
                 self.assertNotRegex(page, r"(?i)<(img|script|link|iframe)\b")
                 self.assertNotRegex(page, r"(?i)\bsrc\s*=|@import|url\(")
         # One key, nothing to line up: no card.
-        self.assertNotIn("Comparaison des clés", self._page(log, segments[:1]))
+        one = self._page(log, segments[:1])
+        self.assertNotIn("Comparaison des clés", one)
+        self.assertNotIn("class=otab", one)           # one pane only: no tabs to draw
         # The first cell of the overview carries the number the comparison calls a fight by.
         self.assertRegex(self._page(log, segments), r"<span class=dim>3</span> <a href='#s3'")
 

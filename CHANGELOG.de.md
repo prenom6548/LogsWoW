@@ -19,7 +19,12 @@ pro Spieler in der Vorschau und auf der Seite neben jedem Namen in der
 Zusammensetzung der Gruppe, mit dem Durchschnitt der Gruppe. Auf der
 Seite behält die Ausrüstungsansicht Platz, Gegenstand (ein Wowhead-Link)
 und Stufe; die Spalten Verzauberungen und Edelsteine, die nur Nummern
-zeigten, entfallen. Keine Zahl ändert sich.
+zeigten, entfallen.
+
+**Auf der Seite wird der Schlüsselvergleich zu einem Reiter** neben
+„Kämpfe“, statt unten angehängt zu werden: Die Übersicht wird nicht mehr
+länger. Gibt es keinen Schlüssel zu vergleichen, bleibt die Seite wie
+sie war. Keine Zahl ändert sich.
 
 ## 0.15.0 — 2026-10-02
 
