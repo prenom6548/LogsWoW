@@ -219,6 +219,43 @@ def records_view(runs):
 
 # -- the page ------------------------------------------------------------------------------------
 
+def controls(labels):
+    """The buttons, before everything they show: one per tab, one per choice of characters
+    (`labels[0]` is "all"), then the two rows of labels that point at them."""
+    radios = "".join(
+        "<input type=radio name=hx id=hx-%s class=hx%s aria-label='%s'>"
+        % (key, " checked" if position == 0 else "", fmt.esc(_(title)))
+        for position, (key, title) in enumerate(TABS))
+    radios += "".join(
+        "<input type=radio name=hw id=hw-%d class=hw%s aria-label='%s'>"
+        % (index, " checked" if index == 0 else "", fmt.esc(label))
+        for index, label in enumerate(labels))
+    tabs = "<div class='hbar tabs'>%s</div>" % "".join(
+        "<label for=hx-%s class='hl hlt-%s'>%s</label>" % (key, key, fmt.esc(_(title)))
+        for key, title in TABS)
+    who = "<div class='hbar who'>%s</div>" % "".join(
+        "<label for=hw-%d class='hl hlw-%d'>%s</label>" % (index, index, fmt.esc(label))
+        for index, label in enumerate(labels))
+    return radios + tabs + who
+
+
+def views(choices):
+    """Each tab's pane, holding one section per choice of characters [(index, runs)]."""
+    for key, _title in TABS:
+        sections = []
+        for index, runs in choices:
+            if key == "evo":
+                body = (notes([_("Choisissez un personnage ci-dessus pour voir son "
+                                 "évolution.")], "hnote") if index == 0
+                        else evolution_view(runs))
+            elif key == "spec":
+                body = specs_view(runs)
+            else:
+                body = records_view(runs)
+            sections.append("<div class='hs hs-%d'>%s</div>" % (index, body))
+        yield "<div class='hv hv-%s'>%s</div>" % (key, "".join(sections))
+
+
 class HistoryPage:
     """The page of one history folder, written to `out_path`."""
 
@@ -231,7 +268,23 @@ class HistoryPage:
         name = folder.name if folder else self.slug
         nights = history.list_nights(self.root, self.slug)
         everyone, characters = history_views.characters_and_runs(self.root, self.slug)
-        count = len(characters)
+        labels = [_(ALL_CHARACTERS)] + [item[1] for item in characters]
+        choices = [(0, everyone)] + [(index + 1, item[2]) for index, item in enumerate(characters)]
+        return (self._head(name, len(characters)) + self._top(name, nights, len(characters))
+                + controls(labels) + "".join(views(choices)) + self._foot())
+
+    @staticmethod
+    def _head(name, count):
+        return ("<!doctype html><html lang=%s><head><meta charset=utf-8>"
+                '<meta name=viewport content="width=device-width,initial-scale=1">'
+                "<title>LogsWoW — %s — %s</title><style>%s%s%s</style></head><body>"
+                "<div class=wrap>"
+                % (language(), fmt.esc(_("Historique")), fmt.esc(name), CSS, HISTORY_CSS,
+                   rules(count)))
+
+    @staticmethod
+    def _top(name, nights, count):
+        """The title, what the folder holds, and what the figures are."""
         builds = sorted({night.build for night in nights if night.build})
         sub = [_("%s du %s au %s") % (fmt.plural(len(nights), "soirée"), nights[0].date,
                                       nights[-1].date)
@@ -239,52 +292,19 @@ class HistoryPage:
                _("Personnages suivis : %d") % count]
         if builds:
             sub.append(_("jeu %s") % ", ".join(builds))
-        radios = "".join(
-            "<input type=radio name=hx id=hx-%s class=hx%s aria-label='%s'>"
-            % (key, " checked" if position == 0 else "", fmt.esc(_(title)))
-            for position, (key, title) in enumerate(TABS))
-        radios += "".join(
-            "<input type=radio name=hw id=hw-%d class=hw%s aria-label='%s'>"
-            % (index, " checked" if index == 0 else "", fmt.esc(label))
-            for index, label in enumerate([_(ALL_CHARACTERS)] + [item[1] for item in characters]))
-        tabs = "<div class='hbar tabs'>%s</div>" % "".join(
-            "<label for=hx-%s class='hl hlt-%s'>%s</label>" % (key, key, fmt.esc(_(title)))
-            for key, title in TABS)
-        who = "<div class='hbar who'>%s</div>" % "".join(
-            "<label for=hw-%d class='hl hlw-%d'>%s</label>" % (index, index, fmt.esc(label))
-            for index, label in enumerate([_(ALL_CHARACTERS)] + [item[1] for item in characters]))
-        choices = [(0, everyone)] + [(index + 1, item[2]) for index, item in enumerate(characters)]
-        views = []
-        for key, _title in TABS:
-            sections = []
-            for index, runs in choices:
-                if key == "evo":
-                    body = (notes([_("Choisissez un personnage ci-dessus pour voir son "
-                                     "évolution.")], "hnote") if index == 0
-                            else evolution_view(runs))
-                elif key == "spec":
-                    body = specs_view(runs)
-                else:
-                    body = records_view(runs)
-                sections.append("<div class='hs hs-%d'>%s</div>" % (index, body))
-            views.append("<div class='hv hv-%s'>%s</div>" % (key, "".join(sections)))
-        head = ("<!doctype html><html lang=%s><head><meta charset=utf-8>"
-                '<meta name=viewport content="width=device-width,initial-scale=1">'
-                "<title>LogsWoW — %s — %s</title><style>%s%s%s</style></head><body>"
-                "<div class=wrap>"
-                % (language(), fmt.esc(_("Historique")), fmt.esc(name), CSS, HISTORY_CSS,
-                   rules(count)))
-        top = ("<h1>%s — %s</h1><p class=sub>%s</p>"
-               "<div class=note>%s</div>" % (
-                   fmt.esc(_("Historique")), fmt.esc(name), fmt.esc(" · ".join(sub)),
-                   fmt.esc(_("Les chiffres viennent des soirées gardées dans ce dossier de "
-                             "l'historique ; seuls les personnages suivis y portent un nom. "
-                             "Rien ici n'est un classement des joueurs ni un parse."))))
-        foot = ("<footer>%s</footer></div></body></html>" % fmt.esc(
+        return ("<h1>%s — %s</h1><p class=sub>%s</p>"
+                "<div class=note>%s</div>" % (
+                    fmt.esc(_("Historique")), fmt.esc(name), fmt.esc(" · ".join(sub)),
+                    fmt.esc(_("Les chiffres viennent des soirées gardées dans ce dossier de "
+                              "l'historique ; seuls les personnages suivis y portent un nom. "
+                              "Rien ici n'est un classement des joueurs ni un parse."))))
+
+    @staticmethod
+    def _foot():
+        return ("<footer>%s</footer></div></body></html>" % fmt.esc(
             _("LogsWoW %s · page écrite à partir de l'historique local. Licence AGPL-3.0 ou "
               "ultérieure ; code source : github.com/prenom6548/LogsWoW. Aucune donnée ne "
               "quitte cette machine.") % __version__))
-        return head + top + radios + tabs + who + "".join(views) + foot
 
     def write(self):
         write_atomic(self.out_path, self.html())

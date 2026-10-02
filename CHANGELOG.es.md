@@ -7,6 +7,42 @@ español; las versiones anteriores se describen en francés en
 [`CHANGELOG.en.md`](CHANGELOG.en.md)), y el detalle técnico, fechado y
 medido, está en las secciones fechadas de `CLAUDE.md`.
 
+## 0.20.1 — 2026-10-02
+
+Una versión que sale de una auditoría completa de todo lo añadido desde la
+0.12.1 (barra de progreso, golpes cuerpo a cuerpo, equipo, vista previa, el
+historial y sus vistas, la página del historial).
+
+**Un registro leído dos veces contaba dos veces.** Durante una noche, el juego
+escribe en el mismo archivo: leído a las 21 h y otra vez a las 23 h, el
+registro ha crecido, y el historial guardaba dos noches en lugar de una (de
+forma automática con el guardado automático activado). En un registro del
+propietario leído así, 15 salidas de 25 se contaban dos veces en la evolución,
+las medianas de las especializaciones y los récords. Volver a leer un registro
+ahora **actualiza** su noche. Los duplicados ya guardados por las versiones
+0.16.0 a 0.20.0 cuentan una sola vez en las vistas, y gana la lectura más
+completa (una llave cortada por la primera lectura cede su lugar a la misma
+llave terminada). Lo mismo vale para un archivo dividido («Split») de una
+noche ya guardada entera. Puede eliminar las noches duplicadas de la lista si
+lo desea; ya no falsean nada.
+
+**Otras correcciones:**
+
+- Un archivo del sistema dejado en una carpeta del historial (`.DS_Store` del
+  Finder en Mac, `Thumbs.db` o `desktop.ini` en Windows) impedía eliminar esa
+  carpeta. Ahora se elimina con ella; un archivo suyo sigue bloqueando la
+  eliminación.
+- Una lista de personajes seguidos dañada (`suivi.json`) hacía fallar la
+  ventana del historial. Ahora se lee como vacía y se vuelve a escribir.
+- Actualizar una noche guardada en otra carpeta distinta de la activa
+  anunciaba la carpeta equivocada.
+- Dos personajes seguidos con el mismo nombre (en dos reinos) tenían la misma
+  etiqueta en las listas y en la página: el segundo se llama ahora
+  «Nombre (2)».
+- Un rol guardado con un tipo inesperado ya no detiene una vista.
+
+Ninguna cifra de un informe cambia.
+
 ## 0.20.0 — 2026-10-02
 
 **El historial como página web.** Las tres vistas de la ventana «Historial»

@@ -1808,6 +1808,49 @@ aussi ces trois vues dans la page html". Decisions, with the reason:
   escaping, a missing rule, the history guard, the foreign-file refusal, no default tab) each
   fail a test.
 
+### The 2026-10-02 audit: what the history did with a log read twice
+
+Asked for by the owner once 0.20.0 was published: everything added since the 0.12.1 audit
+(the progress bar, melee swings, gear, the preview, the history, its views and its page).
+The tools again (flake8, pyflakes, vulture, radon, bandit, pylint, detect-secrets, coverage
+94% with a display, `strace` on `historique` and `report`: no socket), every new module
+read, then real logs, damaged history files, a 150-night history and 1,900 rounds of
+fuzzing (1,500 through log -> report -> preview -> night -> history page, 400 over
+stored nights). Each fix has a test in `TestEighthAuditFindings` that fails without it
+(ten mutations, ten failures).
+
+- **A log read twice was two nights, and its fights counted twice.** The game writes the
+  same file all evening; the night's identity carried the file's size, so a log read at
+  21:00 and again at 23:00 made a second file (the automatic save did it on its own). On
+  the 09-29 evening cut at 60 MB and read whole, 15 runs of 25 counted twice in every
+  view. `save_night` now matches a night by `log_of(identity)` -- source name and first
+  moment, never the size -- and replaces it; the identity's format is unchanged.
+  `_runs_of_folder` counts a fight once (same character, content and start), keeping the
+  copy from the bigger read (`log_size`): the duplicates 0.16.0-0.20.0 already wrote, and a
+  split file of a night kept whole, no longer weigh twice, and a key the first read cut
+  short ("interrompu") gives way to the same key finished. The test writes the two files in
+  both orders: "first wins" and "last wins" each fail it, only "bigger wins" passes.
+- **A `.DS_Store` made a folder undeletable for good** (the Finder writes one in every
+  folder the reader opens; Windows writes `Thumbs.db`, `desktop.ini`). Those, a Mac's
+  `._` twins and a `.tmp-` that an interrupted `_write_json` left are deleted with the
+  folder (`_left_behind`); any other file still refuses the deletion, before anything goes.
+- **A damaged `suivi.json` crashed every refresh of the history window** (`tracked()`
+  called `.items()` on a list). It reads as empty and is written again.
+- Smaller: an update of a night kept in another folder named the active one; two followed
+  characters with one name (two realms; the realm is not kept) had one label --
+  `_distinct_labels` gives "Tisane (2)"; a stored role of another type stopped a view
+  (`ROLE_METRIC.get(list)`); a night on another Windows drive raised `ValueError` instead
+  of a refusal (`_inside`).
+- `HistoryPage.html` (radon D, 22) split into `controls`, `views`, `_head`, `_top`,
+  `_foot`: the page is byte-identical on three histories in two languages.
+
+Checked and found right, so the next pass need not: no French text outside `_()` (the
+AST scan of the 09-29 audit, again); 150 nights following 78 players read in 0.2 s, the
+page in 0.7 s (5.1 MB), a window refresh 1.1 s -- 0.2 s for a realistic history of a
+few characters, so the three tabs' separate reads were left as they are; a corrupted
+`config.json` makes the root look foreign, so nothing is written and nothing lost
+(conservative on purpose); gear parsing and the melee estimate hold under the fuzzing.
+
 **Still to build**: nothing planned.
 
 ### Performance, measured
@@ -1968,10 +2011,10 @@ it would actually require, rather than approximating it.
 
 0. Once per clone: `ln -s ../../tools/pre-push .git/hooks/pre-push`. It
    runs step 1, the invariants on the fixture and flake8 before a push.
-1. `python3 tests/run-tests.py` -- 350 tests, no network, fast. `flake8`
+1. `python3 tests/run-tests.py` -- 358 tests, no network, fast. `flake8`
    must be silent (`.flake8` sets 100 columns).
    Every bug an audit found keeps a test there (`TestAuditFindings` to
-   `TestSeventhAuditFindings`), and each one was regression-checked the
+   `TestSeventhAuditFindings`, and `TestEighthAuditFindings`), and each one was regression-checked the
    same way: stash the fix, watch the test fail, restore it.
 2. `python3 -m logswow diagnose <a real log>` -- the number that matters
    is `PROBLÈMES DE LECTURE : 0`.

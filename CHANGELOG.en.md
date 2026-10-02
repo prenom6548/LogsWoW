@@ -6,6 +6,39 @@ versions are described in French in [`CHANGELOG.md`](CHANGELOG.md), and
 the technical detail, dated and measured, is in the dated sections of
 `CLAUDE.md`.
 
+## 0.20.1 — 2026-10-02
+
+A version that comes from a full audit of everything added since 0.12.1
+(progress bar, melee swings, gear, preview, the history and its views, the
+history page).
+
+**A log read twice counted twice.** During an evening, the game writes into
+the same file: read at 9 pm and again at 11 pm, the log has grown, and the
+history kept two nights instead of one (automatically, with the automatic
+saving switched on). On one of the owner's logs read that way, 15 runs out of
+25 were counted twice in the progress view, the specializations' medians and
+the records. Reading a log again now **updates** its night. Duplicates
+already saved by versions 0.16.0 to 0.20.0 count once in the views, and the
+most complete read wins (a key cut short by the first read gives way to the
+same key finished). The same goes for a split file ("Split") of a night
+already kept whole. You can delete the duplicate nights from the list if you
+wish; they no longer skew anything.
+
+**Other fixes:**
+
+- A system file left in a history folder (the Mac Finder's `.DS_Store`,
+  Windows' `Thumbs.db` or `desktop.ini`) prevented deleting that folder. It
+  is now deleted with it; a file of yours still blocks the deletion.
+- A damaged list of followed characters (`suivi.json`) crashed the history
+  window. It is now read as empty, and written again.
+- Updating a night kept in a folder other than the active one named the
+  wrong folder.
+- Two followed characters with the same name (on two realms) had the same
+  label in the lists and on the page: the second is now "Name (2)".
+- A role saved with an unexpected type no longer stops a view.
+
+No figure of a report changes.
+
 ## 0.20.0 — 2026-10-02
 
 **The history as a web page.** The three views of the "History" window

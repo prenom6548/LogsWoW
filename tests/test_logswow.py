@@ -5864,6 +5864,166 @@ class TestHistoryPage(_FixtureNights, unittest.TestCase):
         self.assertEqual(opened, [out])                          # giving up writes nothing more
 
 
+class TestEighthAuditFindings(_FixtureNights, unittest.TestCase):
+    """The 2026-10-02 audit of 0.20.0, after the history and its views: each test fails
+    without the change it names."""
+
+    def _record(self, size=None, outcome=None, first_ts=None):
+        import copy
+
+        from logswow import history
+
+        record = copy.deepcopy(history.build_night(self.log, self.segments,
+                                                   [self.BRAISE, self.ARDOISE]))
+        name, old_size, first = record["identity"].rsplit("|", 2)
+        record["identity"] = "%s|%s|%s" % (name, old_size if size is None else size,
+                                           first if first_ts is None else first_ts)
+        if outcome is not None:
+            for fight in record["fights"]:
+                if fight["type"] == "key":
+                    fight["outcome"] = outcome
+        return record
+
+    def test_a_log_read_again_later_is_the_same_night_not_a_second_one(self):
+        """The game keeps writing the same file all evening: read at 21:00 and at 23:00, the
+        log is bigger, and its identity's size with it. On a real log read twice, 15 runs of
+        25 counted twice in every view."""
+        from logswow import history
+
+        _path, replaced = history.save_night(self.root, self.slug, self._record(size=1000))
+        self.assertFalse(replaced)
+        path, replaced = history.save_night(self.root, self.slug, self._record(size=5000))
+        self.assertTrue(replaced)
+        self.assertEqual(len(history.list_nights(self.root)), 1)
+        self.assertIn("|5000|", history.read_night(path)[0]["identity"])
+        _path, replaced = history.save_night(self.root, self.slug,
+                                             self._record(size=5000, first_ts=12345))
+        self.assertFalse(replaced)                              # another log: another night
+        self.assertEqual(history.log_of("a|b|10|20"), ("a|b", "20"))
+        self.assertEqual((history.log_size("x|77|1"), history.log_size("odd")), (77, 0))
+
+    def test_two_nights_of_the_same_log_already_kept_count_each_fight_once(self):
+        """What 0.16.0 to 0.20.0 left on disk: two files of one log. The bigger read wins, so
+        a key the first read cut short gives way to the same key finished -- in whichever
+        order the two files sort, so neither "first" nor "last" passes for "bigger"."""
+        import collections
+
+        from logswow import history, history_views as views
+
+        folder = os.path.join(self.root, self.slug)
+        for first, second in (((5000, None), (1000, "interrompu")),
+                              ((1000, "interrompu"), (5000, None))):
+            for night in history.list_nights(self.root):
+                os.remove(night.path)
+            history._write_json(os.path.join(folder, "a.json"), self._record(*first))
+            history._write_json(os.path.join(folder, "b.json"), self._record(*second))
+            self.assertEqual(len(history.list_nights(self.root)), 2)
+            runs = views.runs_in_folder(self.root, self.slug)
+            count = collections.Counter((run.row["guid"], run.kind, run.content, run.start)
+                                        for run in runs)
+            self.assertEqual(set(count.values()), {1})
+            self.assertEqual([run.outcome for run in runs if run.kind == "key"],
+                             ["dans les temps"])
+            self.assertEqual(views.followed_in_folder(self.root, self.slug)[0][2], len(
+                [run for run in runs if run.row["guid"] == self.BRAISE]))
+
+    def test_a_damaged_list_of_followed_characters_never_stops_the_window(self):
+        import json
+
+        from logswow import gui_history, history
+
+        history.track(self.root, self.BRAISE, "Braise")
+        for damaged in ({"format": 1, "personnages": [1, 2]}, {"personnages": "x"}, [1],
+                        {"personnages": {"": {"name": "x"}, "G": "not a dict"}}):
+            with open(os.path.join(self.root, history.TRACKED_FILE), "w") as handle:
+                json.dump(damaged, handle)
+            self.assertEqual(history.tracked(self.root), {})
+            gui_history.player_rows(self.segments, history.tracked(self.root))
+            history.track(self.root, self.BRAISE, "Braise")     # and it can be written again
+            self.assertIn(self.BRAISE, history.tracked(self.root))
+
+    def test_what_a_system_leaves_in_a_folder_never_stops_its_deletion(self):
+        from logswow import history
+
+        self._night("2026-10-01")
+        folder = os.path.join(self.root, self.slug)
+        for name in (".DS_Store", "Thumbs.db", "desktop.ini", "._x.json", ".tmp-12-x.json"):
+            with open(os.path.join(folder, name), "w") as handle:
+                handle.write("system")
+        self.assertEqual(history.delete_folder(self.root, self.slug), 1)
+        self.assertFalse(os.path.exists(folder))
+        other = history.create_folder(self.root, "Autre")
+        with open(os.path.join(self.root, other, "mes-notes.txt"), "w") as handle:
+            handle.write("the reader's")
+        with self.assertRaises(history.HistoryError):             # anything else is still theirs
+            history.delete_folder(self.root, other)
+        self.assertTrue(os.path.exists(os.path.join(self.root, other, "mes-notes.txt")))
+
+    def test_an_update_names_the_folder_the_night_is_in(self):
+        from logswow import gui_history, history
+
+        history.track(self.root, self.BRAISE, "Braise")
+        _path, replaced, name = gui_history.save_current(self.root, self.log, self.segments)
+        self.assertEqual((replaced, name), (False, "Saison 1"))
+        other = history.create_folder(self.root, "Saison 2")
+        history.set_config(self.root, dossier_actif=other)
+        path, replaced, name = gui_history.save_current(self.root, self.log, self.segments)
+        self.assertEqual((replaced, name), (True, "Saison 1"))    # updated where it was kept
+        self.assertEqual(os.path.basename(os.path.dirname(path)), self.slug)
+
+    def test_a_stored_role_of_another_type_never_stops_a_view(self):
+        import json
+
+        from logswow import history, history_views as views
+
+        self._night("2026-10-01", spec=0)
+        night = history.list_nights(self.root)[0]
+        with open(night.path, encoding="utf-8") as handle:
+            record = json.load(handle)
+        for fight in record["fights"]:
+            for row in fight["players"]:
+                row["role"] = ["tank"]
+        with open(night.path, "w", encoding="utf-8") as handle:
+            json.dump(record, handle)
+        runs = views.runs_in_folder(self.root, self.slug)
+        views.majority_role(runs)
+        views.default_metric(runs)
+        self.assertTrue(all(isinstance(run.role, str) for run in runs))
+
+    def test_two_followed_characters_sharing_a_name_are_two_entries(self):
+        import json
+
+        from logswow import history, history_views as views
+
+        self._night("2026-10-01")
+        night = history.list_nights(self.root)[0]
+        with open(night.path, encoding="utf-8") as handle:
+            record = json.load(handle)
+        for fight in record["fights"]:
+            for row in fight["players"]:
+                row["name"] = "Tisane"
+        with open(night.path, "w", encoding="utf-8") as handle:
+            json.dump(record, handle)
+        labels = sorted(name for _guid, name, _count in
+                        views.followed_in_folder(self.root, self.slug))
+        self.assertEqual(labels, ["Tisane", "Tisane (2)"])
+        _everyone, characters = views.characters_and_runs(self.root, self.slug)
+        self.assertEqual(sorted(name for _guid, name, _runs in characters),
+                         ["Tisane", "Tisane (2)"])
+
+    def test_a_night_on_another_drive_is_refused_not_a_crash(self):
+        from unittest import mock
+
+        from logswow import history
+
+        self._night("2026-10-01")
+        path = history.list_nights(self.root)[0].path
+        with mock.patch("os.path.commonpath", side_effect=ValueError("different drives")):
+            with self.assertRaises(history.HistoryError):
+                history.delete_night(self.root, path)
+        self.assertTrue(os.path.exists(path))
+
+
 class TestSeventhAuditFindings(unittest.TestCase):
     """The 2026-09-29 audit of 0.12.1: a full read of every file, the
     tools of the earlier audits again, and one real 364 MB Mythic+ night.

@@ -88,7 +88,18 @@ def followed_in_folder(root, slug):
         entry[0] += 1
         entry[1] = run.row.get("name", "") or entry[1]
     ordered = sorted(seen.items(), key=lambda item: (-item[1][0], item[1][1].lower()))
-    return [(guid, entry[1], entry[0]) for guid, entry in ordered]
+    labels = _distinct_labels([entry[1] for _guid, entry in ordered])
+    return [(guid, label, entry[0]) for (guid, entry), label in zip(ordered, labels)]
+
+
+def _distinct_labels(names):
+    """The names, with "(2)", "(3)"... after a name already given: two characters called
+    "Tisane" on two realms are two entries in a list, and the realm is not kept."""
+    seen, out = {}, []
+    for name in names:
+        seen[name] = seen.get(name, 0) + 1
+        out.append(name if seen[name] == 1 else "%s (%d)" % (name, seen[name]))
+    return out
 
 
 def runs_in_folder(root, slug):
@@ -114,7 +125,9 @@ def characters_and_runs(root, slug):
         runs.sort(key=key)
         characters.append((guid, names[guid], runs))
     characters.sort(key=lambda item: (-len(item[2]), item[1].lower()))
-    return everyone, characters
+    labels = _distinct_labels([name for _guid, name, _runs in characters])
+    return everyone, [(guid, label, runs) for (guid, _name, runs), label in
+                      zip(characters, labels)]
 
 
 def runs_of(root, slug, guid):
@@ -125,13 +138,30 @@ def runs_of(root, slug, guid):
 
 
 def _runs_of_folder(root, slug):
+    """(guid, run) of every followed character's runs in a folder, each fight once.
+
+    A fight kept in two nights -- a log read at 21:00 and again at 23:00 before 0.20.1 kept
+    both reads, and a split file of a night kept whole holds the same keys -- is one run, not
+    two: same character, same content, same start. The copy from the bigger read wins, so a
+    key the first read cut short ("interrompu") gives way to the same key finished. Found by
+    the 2026-10-02 audit on a real log read twice: 15 runs of 25 counted twice.
+    """
+    kept, order = {}, 0
     for night in history.list_nights(root, slug):
         try:
             record, notes = history.read_night(night.path)
         except history.HistoryError:
             continue
+        size = history.log_size(record.get("identity", ""))
         for fight in _list(record.get("fights")):
-            yield from _runs_of_fight(record, fight, notes, inside_key=False)
+            for guid, run in _runs_of_fight(record, fight, notes, inside_key=False):
+                order += 1
+                key = (guid, run.kind, run.content, run.start) if run.start else (guid, order)
+                held = kept.get(key)
+                if held is None or size > held[0]:
+                    kept[key] = (size, order, guid, run)
+    for _size, _order, guid, run in sorted(kept.values(), key=lambda item: item[1]):
+        yield guid, run
 
 
 def _runs_of_fight(record, fight, notes, inside_key):
@@ -156,7 +186,7 @@ def _runs_of_fight(record, fight, notes, inside_key):
                 level=_whole(fight.get("level")), difficulty_id=_whole(fight.get("difficulty_id")),
                 outcome=str(fight.get("outcome", "")), duration_ms=_whole(fight.get("duration_ms")),
                 spec_id=_whole(row.get("spec_id")),
-                role=role_of(_whole(row.get("spec_id"))) or row.get("role") or "",
+                role=role_of(_whole(row.get("spec_id"))) or str(row.get("role") or ""),
                 ilvl=_real(row.get("ilvl")),
                 row=row, composition=(_whole(composition.get("tank")),
                                       _whole(composition.get("healer")),

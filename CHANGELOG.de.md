@@ -8,6 +8,44 @@ in [`CHANGELOG.en.md`](CHANGELOG.en.md)), und das technische Detail,
 datiert und gemessen, steht in den datierten Abschnitten von
 `CLAUDE.md`.
 
+## 0.20.1 — 2026-10-02
+
+Eine Version aus einer vollständigen Prüfung von allem, was seit 0.12.1
+hinzugekommen ist (Fortschrittsbalken, Nahkampfschläge, Ausrüstung, Vorschau,
+der Verlauf und seine Ansichten, die Verlaufsseite).
+
+**Ein zweimal gelesenes Protokoll zählte doppelt.** Während eines Abends
+schreibt das Spiel in dieselbe Datei: Um 21 Uhr und um 23 Uhr gelesen, ist
+das Protokoll gewachsen, und der Verlauf behielt zwei Abende statt einem
+(automatisch, wenn das automatische Speichern eingeschaltet war). Bei einem
+so zweimal gelesenen Protokoll des Besitzers wurden 15 von 25 Durchgängen in
+der Entwicklung, den Medianen der Spezialisierungen und den Rekorden doppelt
+gezählt. Ein erneut gelesenes Protokoll **aktualisiert** jetzt seinen Abend.
+Doppelte Abende, die die Versionen 0.16.0 bis 0.20.0 bereits gespeichert
+haben, zählen in den Ansichten nur noch einmal, und das vollständigste Lesen
+gewinnt (ein beim ersten Lesen abgeschnittener Schlüssel weicht demselben
+beendeten Schlüssel). Dasselbe gilt für eine geteilte Datei („Split“) eines
+bereits vollständig gespeicherten Abends. Sie können die doppelten Abende aus
+der Liste löschen, wenn Sie möchten; sie verfälschen nichts mehr.
+
+**Weitere Korrekturen:**
+
+- Eine Systemdatei in einem Verlaufsordner (`.DS_Store` des Mac-Finders,
+  `Thumbs.db` oder `desktop.ini` unter Windows) verhinderte das Löschen dieses
+  Ordners. Sie wird jetzt mit ihm gelöscht; eine Datei von Ihnen verhindert
+  das Löschen weiterhin.
+- Eine beschädigte Liste der gefolgten Charaktere (`suivi.json`) ließ das
+  Verlaufsfenster abstürzen. Sie wird jetzt als leer gelesen und neu
+  geschrieben.
+- Das Aktualisieren eines Abends, der in einem anderen als dem aktiven Ordner
+  liegt, nannte den falschen Ordner.
+- Zwei gefolgte Charaktere mit demselben Namen (auf zwei Realms) hatten in den
+  Listen und auf der Seite dieselbe Bezeichnung: Der zweite heißt jetzt
+  „Name (2)“.
+- Eine mit unerwartetem Typ gespeicherte Rolle hält keine Ansicht mehr an.
+
+Keine Zahl eines Berichts ändert sich.
+
 ## 0.20.0 — 2026-10-02
 
 **Der Verlauf als Webseite.** Die drei Ansichten des Fensters „Verlauf“

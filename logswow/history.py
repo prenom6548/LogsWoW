@@ -65,6 +65,20 @@ CONFIG_FILE = "config.json"
 TRACKED_FILE = "suivi.json"
 FOLDER_FILE = "dossier.json"
 
+# Files an operating system leaves in a folder the reader opened (the Finder's .DS_Store,
+# Windows' Thumbs.db and desktop.ini, a Mac's "._" twins), and what a write of ours cut
+# short leaves (`_write_json`'s ".tmp-"): none of them is the reader's, and none may stop a
+# folder from being deleted. Found by the 2026-10-02 audit: one .DS_Store, and "Supprimer
+# ce dossier" refused for good.
+SYSTEM_FILES = (".ds_store", "thumbs.db", "desktop.ini")
+
+
+def _left_behind(name):
+    """True for a file the system or an interrupted write of ours left in a folder."""
+    folded = name.lower()
+    return folded in SYSTEM_FILES or name.startswith("._") or name.startswith(".tmp-")
+
+
 # A folder's directory name: what `slugify` makes of the name the reader typed.
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
@@ -270,9 +284,13 @@ def delete_folder(root, slug):
     if not is_root(root) or not os.path.isdir(path) or os.path.islink(path):
         raise HistoryError(_("Dossier d'historique introuvable : %s") % slug)
     nights = _night_files(path)
+    leftovers = []
     for item in os.listdir(path):
         full = os.path.join(path, item)
         if full in nights or item == FOLDER_FILE:
+            continue
+        if _left_behind(item) and os.path.isfile(full) and not os.path.islink(full):
+            leftovers.append(full)
             continue
         raise HistoryError(_("Le dossier %s contient un fichier qui ne vient pas de LogsWoW "
                              "(%s) : refus de le supprimer.") % (slug, item))
@@ -280,7 +298,7 @@ def delete_folder(root, slug):
         if not _is_night_file(item):
             raise HistoryError(_("Le dossier %s contient un fichier qui ne vient pas de LogsWoW "
                                  "(%s) : refus de le supprimer.") % (slug, os.path.basename(item)))
-    for item in nights:
+    for item in nights + leftovers:
         os.remove(item)
     descriptor = os.path.join(path, FOLDER_FILE)
     if os.path.exists(descriptor):
@@ -303,7 +321,10 @@ def tracked(root):
         stored = _read_json(path).get("personnages", {})
     except (OSError, ValueError, AttributeError):
         return {}
-    return {guid: info for guid, info in stored.items() if isinstance(info, dict)}
+    if not isinstance(stored, dict):
+        return {}
+    return {guid: info for guid, info in stored.items()
+            if isinstance(guid, str) and guid and isinstance(info, dict)}
 
 
 def _save_tracked(root, characters):
@@ -604,21 +625,43 @@ def _night_name(record):
     return "%s_%s.json" % (stamp, stem[:40].strip("-"))
 
 
+def log_of(identity):
+    """(source name, first moment) of a night's identity: which log it was read from.
+
+    The identity also carries the file's size, and the size is not the log: the game keeps
+    writing the same file all evening, so a log read at 21:00 and again at 23:00 is the same
+    log, bigger. Found by the 2026-10-02 audit: the two reads made two nights, and every run
+    of the first part of the evening counted twice in every view.
+    """
+    parts = str(identity).rsplit("|", 2)
+    return (parts[0], parts[2]) if len(parts) == 3 else (str(identity), "")
+
+
+def log_size(identity):
+    """The size a night's identity records, or 0."""
+    parts = str(identity).rsplit("|", 2)
+    try:
+        return int(parts[1]) if len(parts) == 3 else 0
+    except ValueError:
+        return 0
+
+
 def save_night(root, slug, record):
     """Write a night into a folder; returns (path, replaced).
 
-    A night read twice is written once: when a file with the same identity (source name, size
-    and first moment) exists in any folder, it is replaced where it is, whatever `slug` says;
-    `move_night` is how a night changes folder.
+    A log read twice is one night: when a file read from the same log (`log_of`: the source's
+    name and its first moment, whatever its size by then) exists in any folder, it is replaced
+    where it is, whatever `slug` says; `move_night` is how a night changes folder.
     """
     if not isinstance(record, dict) or record.get("marque") != NIGHT_MARK:
         label = record.get("source", "?") if isinstance(record, dict) else "?"
         raise HistoryError(_("Ce fichier n'est pas une soirée de l'historique LogsWoW : %s")
                            % label)
     ensure_root(root)
+    wanted = log_of(record.get("identity", ""))
     for folder, path in _night_paths(root):
         try:
-            same = _read_json(path).get("identity") == record.get("identity")
+            same = log_of(_read_json(path).get("identity", "")) == wanted
         except (OSError, ValueError, AttributeError):
             same = False
         if same:
@@ -638,9 +681,13 @@ def save_night(root, slug, record):
 
 def _inside(root, path):
     """True when `path` is a file of a folder of the root, symbolic links left out."""
-    real_root, real = os.path.realpath(root), os.path.realpath(path)
-    return (os.path.commonpath([real_root, real]) == real_root
-            and os.path.dirname(os.path.dirname(real)) == real_root
+    real_root = os.path.normcase(os.path.realpath(root))
+    real = os.path.normcase(os.path.realpath(path))
+    try:
+        common = os.path.commonpath([real_root, real])
+    except ValueError:          # two drives on Windows: certainly not inside
+        return False
+    return (common == real_root and os.path.dirname(os.path.dirname(real)) == real_root
             and not os.path.islink(path))
 
 

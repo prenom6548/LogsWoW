@@ -106,7 +106,10 @@ def save_current(root, log, segments, slug=None):
     if not record["fights"]:
         raise history.HistoryError(_("Aucun combat à enregistrer dans ce journal."))
     path, replaced = history.save_night(root, slug, record)
-    return path, replaced, folders[slug].name
+    # A night already kept is updated where it is, which may be another folder than the
+    # active one: the message must name that one (2026-10-02 audit).
+    where = os.path.basename(os.path.dirname(path))
+    return path, replaced, (folders.get(where) or folders[slug]).name
 
 
 def autosave(root, log, segments):

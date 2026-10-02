@@ -3,6 +3,42 @@
 Chaque version publiée, ce qui y a changé pour qui s'en sert. Le détail
 technique, daté et chiffré, est dans les sections datées de `CLAUDE.md`.
 
+## 0.20.1 — 2026-10-02
+
+Version issue d'un audit complet de tout ce qui a été ajouté depuis la 0.12.1
+(barre de progression, coups de mêlée, équipement, aperçu, historique et ses
+vues, page de l'historique).
+
+**Un journal lu deux fois comptait deux fois.** Pendant une soirée, le jeu
+écrit dans le même fichier : lu à 21 h puis à 23 h, le journal a grossi, et
+l'historique gardait deux soirées au lieu d'une (c'était automatique avec
+l'enregistrement automatique activé). Sur un de vos journaux relu ainsi, 15
+sorties sur 25 étaient comptées deux fois dans l'évolution, les médianes des
+spécialisations et les records. Désormais, relire un journal **met à jour**
+sa soirée. Les doublons déjà enregistrés par les versions 0.16.0 à 0.20.0
+ne comptent plus qu'une fois dans les vues, et c'est la lecture la plus
+complète qui l'emporte (une clé coupée en cours de lecture cède la place à
+la même clé terminée). Il en va de même pour un fichier découpé (« Split »)
+d'une soirée déjà gardée entière. Vous pouvez supprimer les soirées en double
+de la liste si vous le souhaitez ; elles ne faussent plus rien.
+
+**Autres corrections :**
+
+- Un fichier système déposé dans un dossier de l'historique (`.DS_Store`
+  du Finder sur Mac, `Thumbs.db` ou `desktop.ini` sous Windows) empêchait de
+  supprimer ce dossier. Il est maintenant supprimé avec lui ; un fichier qui
+  vous appartient bloque toujours la suppression.
+- Une liste des personnages suivis abîmée (`suivi.json`) faisait planter la
+  fenêtre de l'historique. Elle est maintenant lue comme vide, et se réécrit.
+- Mettre à jour une soirée gardée dans un autre dossier que le dossier actif
+  annonçait le mauvais dossier.
+- Deux personnages suivis portant le même nom (sur deux royaumes) avaient la
+  même étiquette dans les listes et sur la page : le second s'appelle
+  désormais « Nom (2) ».
+- Un rôle enregistré d'un type inattendu ne bloque plus une vue.
+
+Aucun chiffre d'un rapport ne change.
+
 ## 0.20.0 — 2026-10-02
 
 **L'historique en page web.** Les trois vues de la fenêtre « Historique »
